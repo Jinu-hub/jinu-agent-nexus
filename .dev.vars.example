@@ -1,0 +1,29 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Local development secrets — copy this file to `.dev.vars` and fill in.
+#
+# `.dev.vars` is git-ignored. Wrangler reads it automatically when you
+# run `npm run dev`. For production, push each secret with:
+#   npx wrangler secret put API_TOKEN
+# ─────────────────────────────────────────────────────────────────────────
+
+# Cloudflare API token.
+#
+# REQUIRED for:
+#   * The Live Browser panel (Browser Rendering Live View URL signing).
+#
+# OPTIONAL until you switch CHAT_MODEL or EMBEDDING_MODEL to a non-
+# Workers-AI model in wrangler.jsonc — then it becomes REQUIRED for:
+#   * AI Gateway auth (the `Authorization: Bearer` header).
+#   * AI Gateway Unified Billing (the gateway charges this account's
+#     Cloudflare credits for the model usage; no upstream OpenAI /
+#     Anthropic key required).
+#
+# Create the token at:
+#   https://dash.cloudflare.com/profile/api-tokens
+#
+# Required permissions on the token:
+#   * Account → Browser Rendering → Edit
+#   * Account → AI Gateway → Run         (only if using AI Gateway)
+#
+# Use a custom token, NOT the legacy global API key.
+API_TOKEN=

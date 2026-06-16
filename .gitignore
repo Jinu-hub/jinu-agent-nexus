@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Wrangler / Cloudflare
+.wrangler/
+worker-configuration.d.ts
+.dev.vars
+.dev.vars.local
+
+# TypeScript build info
+*.tsbuildinfo
+.tmp/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.local
+
+# Env
+.env
+.env.local
+.env.*.local

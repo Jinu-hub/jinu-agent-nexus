@@ -1,0 +1,81 @@
+// ─────────────────────────────────────────────────────────────────────────
+// Worker entry — HTTP routing
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Three responsibilities:
+//   1. PDF upload — multipart FormData → ArrayBuffer → DO RPC.
+//   2. Screenshot proxy — stream image bytes out of R2 by key.
+//   3. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
+//      which dispatches to the ChatAgent Durable Object.
+//
+// The DO class MUST be re-exported from this file. Wrangler's runtime
+// needs to find the class when an instance wakes up, and it looks in
+// the worker's exports by class name.
+// ─────────────────────────────────────────────────────────────────────────
+
+import { routeAgentRequest, getAgentByName } from "agents";
+import { ChatAgent } from "./chat-agent";
+
+export { ChatAgent };
+
+export default {
+  async fetch(request, env): Promise<Response> {
+    const url = new URL(request.url);
+
+    // ── PDF upload ─────────────────────────────────────────────────────
+    // Why this is a top-level route (not a @callable on the agent):
+    // structured-clone-able RPC args max out around small payloads;
+    // FormData with a multi-MB PDF needs to go through fetch.
+    // We pull the bytes here, then hand a structured-cloneable
+    // ArrayBuffer to the agent.
+    if (url.pathname === "/api/upload" && request.method === "POST") {
+      const fd = await request.formData();
+      const file = fd.get("file");
+      if (!(file instanceof File)) {
+        return new Response("missing file", { status: 400 });
+      }
+      const buffer = await file.arrayBuffer();
+      // "default" matches the agent name used by the frontend's
+      // useAgent({ agent: "ChatAgent" }) hook. A single-user
+      // boilerplate uses one instance; for multi-user, mint a
+      // unique name per signed-in user and pass it via a header /
+      // session here.
+      //
+      // The cast is unavoidable: wrangler emits
+      //   `ChatAgent: DurableObjectNamespace /* ChatAgent */`
+      // with no real class generic, so we have to tell TS what's
+      // actually on the other end of the namespace at call sites
+      // that use the typed stub.
+      const agent = await getAgentByName<Env, ChatAgent>(
+        env.ChatAgent as unknown as DurableObjectNamespace<ChatAgent>,
+        "default",
+      );
+      const result = await agent.uploadPdf(buffer, file.name);
+      return Response.json(result);
+    }
+
+    // ── Screenshot proxy ───────────────────────────────────────────────
+    // The agent stored a PNG at R2 key `screenshots/<key>`. The chat
+    // UI references it as `/screenshots/<key>` — this route streams it
+    // back from R2.
+    if (url.pathname.startsWith("/screenshots/")) {
+      const key = url.pathname.slice(1); // strip leading "/"
+      const obj = await env.BUCKET.get(key);
+      if (!obj) return new Response("Not found", { status: 404 });
+      return new Response(obj.body, {
+        headers: {
+          "Content-Type": obj.httpMetadata?.contentType ?? "image/png",
+        },
+      });
+    }
+
+    // ── Everything else → agents SDK router ────────────────────────────
+    // Handles /agents/<class>/<name> URLs for both HTTP and WebSocket
+    // upgrades. Returns `null` if the request didn't match — fall back
+    // to a 404 in that case.
+    return (
+      (await routeAgentRequest(request, env)) ??
+      new Response("Not found", { status: 404 })
+    );
+  },
+} satisfies ExportedHandler<Env>;

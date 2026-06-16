@@ -1,0 +1,188 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Global styles + Tailwind 4 entrypoint
+   ─────────────────────────────────────────────────────────────────────────
+   Tailwind 4 reads its config from CSS itself. `@import "tailwindcss"`
+   pulls in preflight + utilities. The `@theme` block below defines our
+   design tokens; everything else cascades from those CSS variables.
+
+   Look: neutral grays, one restrained accent, no gradients. The only
+   theatrical moment is a single accent scanline that sweeps across
+   the viewport once on page load — terminal-style boot, gone in
+   under a second.
+   ───────────────────────────────────────────────────────────────────── */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Font stacks */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Code", "Source Code Pro", Menlo,
+    Consolas, monospace;
+
+  /* Radii */
+  --radius: 0.5rem;
+}
+
+/* Light + dark theme variables. shadcn-style names so components can
+   reuse Tailwind utility classes like `bg-background`, `text-foreground`. */
+:root {
+  color-scheme: light;
+
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.18 0 0);
+
+  --card: oklch(0.985 0 0);
+  --card-foreground: oklch(0.18 0 0);
+
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+
+  --border: oklch(0.92 0 0);
+  --input: oklch(0.92 0 0);
+  --ring: oklch(0.55 0 0);
+
+  /* Restrained accent — focused inputs, primary buttons, active tab.
+     Single neutral foreground tone, no chroma. The "industry-neutral"
+     decision is here: no blue/green/purple branding. */
+  --primary: oklch(0.22 0 0);
+  --primary-foreground: oklch(0.99 0 0);
+
+  --secondary: oklch(0.95 0 0);
+  --secondary-foreground: oklch(0.22 0 0);
+
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --accent: oklch(0.94 0 0);
+  --accent-foreground: oklch(0.22 0 0);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: oklch(0.13 0 0);
+  --foreground: oklch(0.96 0 0);
+
+  --card: oklch(0.16 0 0);
+  --card-foreground: oklch(0.96 0 0);
+
+  --muted: oklch(0.2 0 0);
+  --muted-foreground: oklch(0.65 0 0);
+
+  --border: oklch(0.24 0 0);
+  --input: oklch(0.24 0 0);
+  --ring: oklch(0.75 0 0);
+
+  --primary: oklch(0.96 0 0);
+  --primary-foreground: oklch(0.15 0 0);
+
+  --secondary: oklch(0.22 0 0);
+  --secondary-foreground: oklch(0.96 0 0);
+
+  --destructive: oklch(0.6 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --accent: oklch(0.22 0 0);
+  --accent-foreground: oklch(0.96 0 0);
+}
+
+/* Map theme tokens to Tailwind color utilities. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* ─── Entrance + caret animations ─────────────────────────────────── */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+@keyframes caret-blink {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.animate-fade-up { animation: fade-up 480ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.animate-caret   { animation: caret-blink 1s steps(1) infinite; }
+
+/* Honour reduced-motion: no fade-up, no caret blink. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up, .animate-caret { animation: none !important; }
+}
+
+/* ─── Reusable surfaces ───────────────────────────────────────────── */
+
+/* "Inset paper" — slightly darker than card, used for memory preview,
+   code blocks, anything that should feel "embedded". */
+.paper-inset {
+  background: color-mix(in oklab, var(--foreground) 4%, var(--background));
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.panel-empty {
+  color: var(--muted-foreground);
+  border: 1px dashed var(--border);
+  border-radius: calc(var(--radius) - 2px);
+}
+
+/* Subtle scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--foreground) 15%, transparent);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--foreground) 25%, transparent);
+  background-clip: content-box;
+  border: 2px solid transparent;
+}

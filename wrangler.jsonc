@@ -1,0 +1,130 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // ─── Worker identity ────────────────────────────────────────────────────
+  // The `name` becomes part of your *.workers.dev hostname after `npm run
+  // deploy`. Rename it freely — Cloudflare will create a new worker on
+  // first deploy.
+  "name": "cloudflare-agent-boilerplate",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-04-23",
+
+  // ─── Static assets / SPA fallback ───────────────────────────────────────
+  // The Vite build outputs the React app to `dist/`; Cloudflare serves it
+  // as static assets. `single-page-application` makes unknown paths fall
+  // back to index.html so client-side routing works.
+  //
+  // `run_worker_first` lets specific paths skip the asset handler and hit
+  // the worker directly. Without this, /api/* and /agents/* would 404
+  // because the SPA handler would intercept them first and serve
+  // index.html.
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/agents/*", "/screenshots/*"],
+  },
+
+  // Observability flips on the built-in trace viewer in the Cloudflare
+  // dashboard. Pair with `npx wrangler tail` for live log streaming.
+  "observability": { "enabled": true },
+  "upload_source_maps": true,
+
+  // nodejs_compat is required for several agents-SDK code paths (Buffer,
+  // process, util) that don't have native workerd equivalents.
+  "compatibility_flags": ["nodejs_compat"],
+
+  // ─── Bindings ───────────────────────────────────────────────────────────
+
+  // AI binding — Workers AI runtime. Used here for two things only:
+  //   1. `env.AI.toMarkdown([...])` — converting uploaded PDFs to markdown
+  //      before embedding (no other Cloudflare service does this).
+  //   2. As a fallback model if you ever skip AI Gateway.
+  // The main chat model and embeddings go through AI Gateway (see
+  // worker/chat-agent.ts) — that gives you the dashboard, caching,
+  // and Unified Billing.
+  "ai": { "binding": "AI" },
+
+  // Browser Rendering binding — gives us a remote Chrome instance for
+  // `@cloudflare/puppeteer`. `remote: true` is critical: the Live View
+  // iframe URL only resolves against real Cloudflare-hosted sessions.
+  // Local miniflare sessions return 404 from the DevTools API.
+  "browser": { "binding": "BROWSER", "remote": true },
+
+  // Durable Objects — each agent instance is one of these. ChatAgent
+  // extends Think (which extends AIChatAgent which extends Agent which
+  // IS a Durable Object). Each user / session gets its own instance with
+  // its own SQLite database, addressed by name.
+  "durable_objects": {
+    "bindings": [{ "name": "ChatAgent", "class_name": "ChatAgent" }],
+  },
+
+  // Migrations — every DO class needs ONE migration entry the first time
+  // it's deployed. `new_sqlite_classes` opts the class into SQLite-backed
+  // storage (vs. the legacy KV-backed storage). Don't delete entries here
+  // — append new tags as you add new DO classes.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChatAgent"] }],
+
+  // R2 bucket — single bucket for everything:
+  //   * `skills/`       — markdown files the agent can load on demand
+  //   * `pdfs/`         — uploaded PDFs (RAG sources)
+  //   * `screenshots/`  — browser screenshots
+  // Create with `npm run setup:r2` (or `wrangler r2 bucket create
+  // boilerplate-bucket`).
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "boilerplate-bucket",
+      "remote": true,
+    },
+  ],
+
+  // Vectorize index — vector DB for the RAG `recall` tool. Dimensions
+  // must match the embedding model: `text-embedding-3-small` is 1536-dim.
+  // Create with `npm run setup:vectorize`. The dimensions are IMMUTABLE
+  // after creation — if you switch embedding models, drop and recreate.
+  "vectorize": [
+    {
+      "binding": "VECTOR_DB",
+      "index_name": "boilerplate-vectorstore",
+      "remote": true,
+    },
+  ],
+
+  // worker_loaders — sandboxed Worker isolates used by Think's Extensions
+  // system. When the LLM authors a tool at runtime via `load_extension`,
+  // its source is loaded into a sandboxed Worker (no network, no storage)
+  // and bound back to the agent's toolset for the next turn.
+  "worker_loaders": [{ "binding": "LOADER" }],
+
+  // ─── Plain-text vars ────────────────────────────────────────────────────
+  // ACCOUNT_ID — your Cloudflare account ID. Needed for two things:
+  //   1. Building the AI Gateway URL.
+  //   2. Hitting the Cloudflare DevTools API for the Live Browser URL.
+  // Find it at https://dash.cloudflare.com/ in the right-side panel.
+  //
+  // AI_GATEWAY_NAME — the gateway slug you picked when creating the
+  // gateway at https://dash.cloudflare.com/?to=/:account/ai-gateway.
+  // Rename freely — just keep this string in sync with the dashboard.
+  //
+  // CHAT_MODEL / EMBEDDING_MODEL — what the agent uses.
+  //
+  //   * Default values use Workers AI directly (the `@cf/...` prefix
+  //     is the marker). Zero setup, free tier covered, no AI Gateway
+  //     required.
+  //   * Swap to any "provider/model-id" string (e.g.
+  //     "openai/gpt-4.1-mini") to route through AI Gateway with
+  //     Unified Billing. See worker/ai.ts for the full catalogue.
+  //
+  // IMPORTANT: EMBEDDING_MODEL's dimension count must match the
+  // Vectorize index's dimensions. Defaults here: 768 (BGE base). To
+  // change dimensions, drop and recreate the index — see worker/ai.ts.
+  "vars": {
+    "ACCOUNT_ID": "REPLACE_WITH_YOUR_CLOUDFLARE_ACCOUNT_ID",
+    "AI_GATEWAY_NAME": "agent-boilerplate",
+    "CHAT_MODEL": "@cf/zai-org/glm-4.7-flash",
+    "EMBEDDING_MODEL": "@cf/baai/bge-base-en-v1.5",
+  },
+
+  // Secrets go in `.dev.vars` for local dev and via
+  // `npx wrangler secret put <NAME>` for production. They are NEVER in
+  // this file. See `.dev.vars.example` for the list.
+}
