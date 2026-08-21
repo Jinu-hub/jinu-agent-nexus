@@ -279,7 +279,7 @@ function ChatInput({ chat }: { chat: ChatHelpers }) {
           onChange={(e) => setValue(e.target.value)}
           placeholder="Send a message…"
           rows={1}
-          className="min-h-[44px] resize-none"
+          className="min-h-11 resize-none"
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
