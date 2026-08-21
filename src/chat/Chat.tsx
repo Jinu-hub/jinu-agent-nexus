@@ -138,7 +138,7 @@ function Header({
         <div>
           <h1 className="text-sm font-semibold tracking-tight">Agent</h1>
           <p className="font-mono text-[11px] text-muted-foreground">
-            cloudflare-agent-boilerplate
+            jinu-agent-nexus
           </p>
         </div>
       </div>
