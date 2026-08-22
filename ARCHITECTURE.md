@@ -136,7 +136,7 @@ in `Message.tsx` → then server `execute` runs.
 
 | Feature | UI (panel) | Main code | Where data lives |
 |---------|------------|-----------|------------------|
-| Chat | Chat (left) | `worker/chat-agent.ts`, `src/chat/` | DO SQLite (messages) |
+| Chat | Chat (left) | `worker/chat-agent/`, `src/chat/` | DO SQLite (messages) |
 | Memory | Memory | session context block `"memory"` | DO SQLite (session) |
 | Skills | Skills | R2 skill provider, `skills/*.md` | R2 `skills/` |
 | Workspace files | Files | Think workspace tools (`read`, `write`, …) | DO SQLite |
@@ -180,24 +180,23 @@ worker/index.ts          HTTP entry — routes only, thin
     ├── GET  /screenshots/*  → stream from R2
     └── /agents/ChatAgent/default  → WebSocket + RPC
               │
-worker/chat-agent.ts     Brain — configuration + domain logic (~780 lines)
-    │
-    ├── Think config       model, session prompt, skills, memory
-    ├── getTools()         custom + extension tools
-    ├── refreshAll()       panel state → this.state
-    ├── RAG                PDF ingest, delete sources
-    ├── Browser            Puppeteer session, Live View URL
-    ├── MCP callables      connect / disconnect servers
-    └── Panel callables    clear, reset, cancel schedule, …
+worker/chat-agent/
+    ChatAgent.ts           Class — Think config, lifecycle, @callable RPC
+    configure-session.ts   Prompt + memory + skills context blocks
+    tools-registry.ts      getTools() registration
+    refresh-state.ts       Panel state → this.state
+    rag.ts                 PDF ingest, delete sources
+    browser.ts             Puppeteer session, Live View URL
+    reminders.ts           Scheduled reminder callback
+    panel-ops.ts           clear workspace, reset session
+    types.ts               State + panel view types (shared with React)
+    constants.ts           Initial state, static tool lists
 
 worker/ai.ts             Model routing (@cf/ vs AI Gateway)
 worker/ingest.ts         Markdown chunking for RAG
 worker/tools/*.ts        One tool per file
+worker/chat-agent.ts     Re-export shim (legacy import path)
 ```
-
-> **Note:** `chat-agent.ts` is intentionally the central file today. A future
-> refactor may split it by domain (RAG, browser, panel callables) without
-> changing behavior.
 
 ---
 
@@ -257,7 +256,7 @@ Gateway auth.
 |-----------|------------|
 | New capability the LLM can call | `worker/tools/` + README "Adding a tool" |
 | New right-side tab | `src/panels/` + `App.tsx` `PANELS` |
-| New persistent panel field | `State` + `refreshAll()` in `chat-agent.ts` |
+| New persistent panel field | `State` in `types.ts` + `refresh-state.ts` |
 | Different AI model | `wrangler.jsonc` vars → `worker/ai.ts` |
 | Onboarding / deploy steps | `README.md` |
 | LLM implementation rules | `CLAUDE.md` |

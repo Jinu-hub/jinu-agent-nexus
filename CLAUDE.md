@@ -19,7 +19,7 @@
 | Layer | Tech |
 |-------|------|
 | Runtime | Cloudflare Workers + Durable Objects (SQLite per agent) |
-| Agent | `Think` → `AIChatAgent` → `Agent` (`worker/chat-agent.ts`) |
+| Agent | `Think` → `AIChatAgent` → `Agent` (`worker/chat-agent/`) |
 | Frontend | React 19, Vite 8, Tailwind 4, shadcn-style UI |
 | Chat hook | `@cloudflare/ai-chat/react` → `useAgentChat` |
 | AI routing | `worker/ai.ts` — model from `wrangler.jsonc` vars |
@@ -53,7 +53,7 @@ flowchart LR
 
   subgraph WK["worker/"]
     Index["index.ts"]
-    Agent["chat-agent.ts\nThink + getTools\n+ refreshAll"]
+    Agent["chat-agent/\nChatAgent.ts"]
     Tools["tools/*.ts"]
   end
 
@@ -87,7 +87,7 @@ flowchart LR
 flowchart TD
   Task{"User asks for…"}
   Task -->|new tool| T1["worker/tools/new.ts"]
-  T1 --> T2["chat-agent.ts getTools()"]
+  T1 --> T2["chat-agent/tools-registry.ts"]
   T2 --> T3{"client-side?"}
   T3 -->|yes| T4["Chat.tsx onToolCall"]
   T3 -->|approval| T5["Message.tsx UI"]
@@ -95,7 +95,7 @@ flowchart TD
   Task -->|new panel| P1["src/panels/NewPanel.tsx"]
   P1 --> P2["App.tsx PANELS + TabsContent"]
   P2 --> P3{"needs new data?"}
-  P3 -->|yes| P4["State + refreshAll()"]
+  P3 -->|yes| P4["types.ts + refresh-state.ts"]
 
   Task -->|new skill| S1["skills/*.md"]
   S1 --> S2["seed:skills:local/remote"]
@@ -108,7 +108,18 @@ flowchart TD
 ```
 worker/
   index.ts             Worker entry — HTTP routing + DO re-export
-  chat-agent.ts        ChatAgent class (Think extension)
+  chat-agent.ts        Re-export shim (imports use this path)
+  chat-agent/
+    ChatAgent.ts       Class — lifecycle + @callable RPC
+    configure-session.ts
+    tools-registry.ts
+    refresh-state.ts
+    rag.ts
+    browser.ts
+    reminders.ts
+    panel-ops.ts
+    types.ts           State types (imported by React panels)
+    constants.ts
   ai.ts                Model routing — change provider logic here
   ingest.ts            Markdown chunker for RAG ingest
   tools/               One tool per file. See "Extension patterns" below.
@@ -128,11 +139,11 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 
 | Task | Files |
 |------|-------|
-| New server tool | `worker/tools/*.ts` → register in `getTools()` in `worker/chat-agent.ts` |
+| New server tool | `worker/tools/*.ts` → register in `worker/chat-agent/tools-registry.ts` |
 | New client tool | Same + handler in `src/chat/Chat.tsx` `onToolCall` |
 | Approval tool | Same + `needsApproval` on tool; UI in `Message.tsx` |
 | New panel | `src/panels/*.tsx` → `PANELS` + `<TabsContent>` in `src/App.tsx` |
-| Panel needs new data | Extend `State` in `chat-agent.ts` → populate in `refreshAll()` |
+| Panel needs new data | Extend `State` in `chat-agent/types.ts` → `refresh-state.ts` |
 | New skill | `skills/*.md` → `npm run seed:skills:local` or `:remote` |
 | Change model | `wrangler.jsonc` vars only (usually no code change) |
 | AI provider logic | `worker/ai.ts` |
@@ -166,8 +177,8 @@ Reference implementations:
 
 ### Panel / state sync
 
-- `State` type and `initialState` live in `worker/chat-agent.ts`
-- `refreshAll()` is the **single writer** for panel state
+- `State` type lives in `worker/chat-agent/types.ts`
+- `refreshPanelState()` in `refresh-state.ts` is the **single writer** for panel state
 - Called from `onStart`, `onChatResponse`, and after mutating RPCs
 - Frontend reads `agent.state` — do not duplicate state in React unless UI-only
 
@@ -196,7 +207,7 @@ Reference implementations:
 ### "Add a tool"
 
 1. Create `worker/tools/myTool.ts` (copy closest pattern)
-2. Import + register in `getTools()`
+2. Import + register in `tools-registry.ts`
 3. If client-side → `Chat.tsx` `onToolCall`
 4. If uses secret → `worker-env.d.ts` + `.dev.vars.example`
 5. No panel change unless user asked
@@ -205,7 +216,7 @@ Reference implementations:
 
 1. Create `src/panels/MyPanel.tsx` (copy existing + `PanelHeader`)
 2. Add to `PANELS` in `App.tsx`
-3. If new state field → `State` + `refreshAll()`
+3. If new state field → `types.ts` + `refresh-state.ts`
 4. Wire `@callable` on agent if panel needs actions
 
 ### "Switch to AI Gateway"
