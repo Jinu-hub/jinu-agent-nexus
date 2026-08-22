@@ -1,66 +1,208 @@
-# Cloudflare Agent Boilerplate
+# jinu-agent-nexus — AI Development Guide
 
-## What this is
+> Human docs: `README.md` (KO), `README.eng.md` (EN).
+> This file is for **LLM-assisted development** — architecture, extension
+> patterns, and constraints. Not a copy of the README.
 
-A starter project for building Cloudflare Agents — a Think-based chat
-agent with memory, skills, workspace files, RAG, browser, schedules,
-extensions, and an MCP client. Ships as the companion boilerplate to
-the Nomad Coders Cloudflare Agents course.
+## Project identity
 
-## Stack
+- **Name:** `jinu-agent-nexus` (Worker, package, UI subtitle)
+- **Origin:** Forked from Nomad Coders Cloudflare Agent Boilerplate
+- **Remote:** `https://github.com/Jinu-hub/jinu-agent-nexus.git` — never push
+  to nomadcoders upstream
+- **Agent instance name:** `"default"` (single-user). For multi-user, mint a
+  per-user name in `worker/index.ts` and pass it from the frontend `useAgent`
+  hook
 
-- **Runtime:** Cloudflare Workers + Durable Objects (one DO instance
-  per agent, addressed by name)
-- **Agent class:** `Think` (extends `AIChatAgent` extends `Agent`)
-- **Frontend:** React 19 + Vite 8 + Tailwind 4 + shadcn-style UI
-- **AI:** OpenAI through Cloudflare AI Gateway (Unified Billing).
-  Swap by editing `worker/ai.ts`.
-- **Storage:** R2 (skills + PDFs + screenshots), Vectorize (RAG),
-  DO SQLite (workspace files, chat history, chunk text)
+## Stack (do not reinvent)
+
+| Layer | Tech |
+|-------|------|
+| Runtime | Cloudflare Workers + Durable Objects (SQLite per agent) |
+| Agent | `Think` → `AIChatAgent` → `Agent` (`worker/chat-agent.ts`) |
+| Frontend | React 19, Vite 8, Tailwind 4, shadcn-style UI |
+| Chat hook | `@cloudflare/ai-chat/react` → `useAgentChat` |
+| AI routing | `worker/ai.ts` — model from `wrangler.jsonc` vars |
+| Tools | Vercel AI SDK `tool()` + Zod schemas |
+
+## Current Cloudflare config
+
+| Item | Value |
+|------|-------|
+| Worker name | `jinu-agent-nexus` |
+| R2 bucket | `boilerplate-bucket` (binding `BUCKET`) |
+| Vectorize | `boilerplate-vectorstore`, **768-dim** (binding `VECTOR_DB`) |
+| Default chat model | `@cf/zai-org/glm-4.7-flash` (Workers AI, free tier) |
+| Default embed model | `@cf/baai/bge-base-en-v1.5` (768-dim, must match Vectorize) |
+| AI Gateway name | `agent-boilerplate` (unused until non-`@cf/` models) |
+| Secret | `API_TOKEN` in `.dev.vars` / `wrangler secret put` |
+
+**Embedding dimension rule:** Changing `EMBEDDING_MODEL` may require dropping
+and recreating the Vectorize index. See `worker/ai.ts` and README "Switching
+models".
+
+## Architecture in one pass
+
+```
+Browser (React)
+  ↔ WebSocket / RPC — useAgent({ agent: "ChatAgent" })
+  ↔ ChatAgent DO ("default")
+       ├── Think: chat, workspace FS, session context, schedules
+       ├── getTools(): custom + extension + MCP tools
+       ├── refreshAll() → this.state → panels auto-sync
+       └── SQLite: documents, chunks (RAG)
+  ↔ Bindings: AI, BROWSER, BUCKET, VECTOR_DB, LOADER
+```
+
+**Request routing (`worker/index.ts`):**
+
+- `POST /api/upload` — PDF upload (not RPC; large FormData)
+- `/screenshots/*` — R2 screenshot proxy
+- Everything else → `routeAgentRequest` → ChatAgent DO
+- **Must** `export { ChatAgent }` from `worker/index.ts`
 
 ## Repo layout
 
 ```
 worker/
   index.ts             Worker entry — HTTP routing + DO re-export
-  chat-agent.ts        ChatAgent class (the Think extension)
-  ai.ts                AI Gateway helpers — change model here
+  chat-agent.ts        ChatAgent class (Think extension)
+  ai.ts                Model routing — change provider logic here
   ingest.ts            Markdown chunker for RAG ingest
-  tools/               One tool per file. See README "Adding a tool".
+  tools/               One tool per file. See "Extension patterns" below.
 src/
-  App.tsx              Main shell. Two columns + 9 tabbed panels.
+  App.tsx              Main shell + tab registry (PANELS array)
   chat/                Chat UI (Chat, Message, Markdown)
-  panels/              One panel per file. See README "Adding a panel".
-  components/ui/       shadcn-style primitives (button, input, tabs…)
+  panels/              One panel per file
+  components/ui/       shadcn-style primitives
   lib/utils.ts         cn() helper
 skills/                Markdown files seeded to R2 as on-demand context
 wrangler.jsonc         All Cloudflare bindings and vars
-.dev.vars.example      Local secrets template
 worker-env.d.ts        Env augmentations (secrets + typed DO stub)
+.dev.vars.example      Template for local secrets
 ```
 
-## When extending
+## File map — where to change what
 
-- New tool → drop a file in `worker/tools/`, register in
-  `getTools()` in `chat-agent.ts`. README has the full pattern with
-  three examples (server-side, client-side, approval).
-- New panel → add a file in `src/panels/`, register in `PANELS` and
-  `<TabsContent>` in `App.tsx`. If it needs new agent-side data,
-  extend `State` and populate it in `refreshAll()` in `chat-agent.ts`.
-- New skill → drop a `.md` in `skills/`, run
-  `npm run seed:skills:local`.
-- Different model/provider → edit `worker/ai.ts`. The chat model and
-  embeddings are both pinned there.
+| Task | Files |
+|------|-------|
+| New server tool | `worker/tools/*.ts` → register in `getTools()` in `worker/chat-agent.ts` |
+| New client tool | Same + handler in `src/chat/Chat.tsx` `onToolCall` |
+| Approval tool | Same + `needsApproval` on tool; UI in `Message.tsx` |
+| New panel | `src/panels/*.tsx` → `PANELS` + `<TabsContent>` in `src/App.tsx` |
+| Panel needs new data | Extend `State` in `chat-agent.ts` → populate in `refreshAll()` |
+| New skill | `skills/*.md` → `npm run seed:skills:local` or `:remote` |
+| Change model | `wrangler.jsonc` vars only (usually no code change) |
+| AI provider logic | `worker/ai.ts` |
+| PDF ingest / chunking | `worker/ingest.ts`, RAG in `worker/tools/recall.ts` |
+| New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
+| Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
+| UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` |
 
-## Notes for AI assistants
+## Extension patterns
 
-- **NEVER scaffold features the user didn't ask for.** This is a
-  boilerplate — adding speculative tools/panels makes it harder to
-  fork.
-- The wrangler-generated `worker-configuration.d.ts` is regenerated
-  by `wrangler types`. Don't hand-edit it. Add secrets and
-  type overrides to `worker-env.d.ts` instead.
-- Agent `env` is `protected` — tool factories receive it as a
-  separate argument (see `recall.ts`, `screenshot.ts`).
-- Heavy commenting in this repo is intentional. Course buyers read
-  this code; explain the WHY of non-obvious decisions.
+### Tool factory conventions
+
+- One file per tool under `worker/tools/`
+- Export `createXxxTool()` factory (not a bare tool object)
+- Use `tool()` from `"ai"` + `inputSchema: z.object({...})`
+- Tool **key** in `getTools()` = LLM-visible name (e.g. `getWeather`)
+
+**Needs `env` or agent?** Pass explicitly — `this.env` is `protected`:
+
+```ts
+recall: createRecallTool(this, this.env),
+setReminder: createSetReminderTool(this),
+```
+
+Reference implementations:
+
+- Server + API: `getWeather.ts`
+- Server + agent: `setReminder.ts`, `recall.ts`, `screenshot.ts`
+- Client-side (no execute): `getUserTimezone.ts` → resolve in `Chat.tsx`
+- Approval: `sendNotification.ts`
+
+### Panel / state sync
+
+- `State` type and `initialState` live in `worker/chat-agent.ts`
+- `refreshAll()` is the **single writer** for panel state
+- Called from `onStart`, `onChatResponse`, and after mutating RPCs
+- Frontend reads `agent.state` — do not duplicate state in React unless UI-only
+
+### Callable RPC methods
+
+- Add `@callable()` methods on `ChatAgent` for panel actions (upload, MCP
+  connect, etc.)
+- After mutations that affect panels → call `await this.refreshAll()`
+
+## Hard rules for AI assistants
+
+1. **Never scaffold features the user didn't ask for** (extra tools, panels,
+   bindings).
+2. **Minimize diff** — match existing patterns and comment style.
+3. **Do not edit** `worker-configuration.d.ts` — run `npm run cf-typegen`.
+4. **Do not commit** `.dev.vars` or secrets.
+5. **Do not rename** R2/Vectorize resources casually — already provisioned
+   as `boilerplate-*`.
+6. **Preserve course-style comments** in worker code when touching nearby
+   lines.
+7. **Peer deps:** `@cloudflare/shell`, `@ai-sdk/react` are direct
+   dependencies; avoid conflicting npm `overrides`.
+
+## Common tasks → checklist
+
+### "Add a tool"
+
+1. Create `worker/tools/myTool.ts` (copy closest pattern)
+2. Import + register in `getTools()`
+3. If client-side → `Chat.tsx` `onToolCall`
+4. If uses secret → `worker-env.d.ts` + `.dev.vars.example`
+5. No panel change unless user asked
+
+### "Add a panel"
+
+1. Create `src/panels/MyPanel.tsx` (copy existing + `PanelHeader`)
+2. Add to `PANELS` in `App.tsx`
+3. If new state field → `State` + `refreshAll()`
+4. Wire `@callable` on agent if panel needs actions
+
+### "Switch to AI Gateway"
+
+1. Create gateway in Cloudflare dashboard
+2. Set `CHAT_MODEL` / `EMBEDDING_MODEL` to `provider/model-id` in
+   `wrangler.jsonc`
+3. Ensure `API_TOKEN` with AI Gateway → Run
+4. See README "Before production — switch to AI Gateway"
+
+### "Deploy"
+
+1. `npm run deploy`
+2. `npx wrangler secret put API_TOKEN` for production secrets
+3. `npm run seed:skills:remote` if skills changed
+
+## Local dev pitfalls (known)
+
+| Symptom | Fix |
+|---------|-----|
+| `Cannot find name 'Env'` | `npm run cf-typegen` |
+| `vite: command not found` | `npm install` |
+| `@cloudflare/shell` missing | `npm install @cloudflare/shell` |
+| `@ai-sdk/react` missing | already in dependencies; `npm install` |
+| `EOVERRIDE` on npm install | Don't duplicate `@ai-sdk/react` in `overrides` |
+| `@cloudflare/workers-types` lint | `npm install -D @cloudflare/workers-types` |
+| Browser Live View 404 locally | Expected without remote browser + `API_TOKEN` |
+| `listStoredTargets does not exist` | RPC mismatch; often non-blocking in dev |
+
+## Intentionally not in boilerplate
+
+Do not add unless user explicitly requests (see README Recipes):
+
+- Voice (`@cloudflare/voice`)
+- Email (`send_email` binding)
+- MCP Server expose (outbound)
+- Workflows / sub-agents
+
+## README pointer
+
+Use README for step-by-step setup, deploy, MCP connection UI, and course
+phase recipes. This guide is for **implementation decisions**, not onboarding.
