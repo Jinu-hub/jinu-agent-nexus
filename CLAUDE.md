@@ -1,6 +1,6 @@
 # jinu-agent-nexus — AI Development Guide
 
-> Human docs: `README.md` (KO), `README.eng.md` (EN).
+> Human docs: `README.md` (KO), `README.eng.md` (EN), `ARCHITECTURE.md` (flows).
 > This file is for **LLM-assisted development** — architecture, extension
 > patterns, and constraints. Not a copy of the README.
 
@@ -43,15 +43,35 @@ models".
 
 ## Architecture in one pass
 
-```
-Browser (React)
-  ↔ WebSocket / RPC — useAgent({ agent: "ChatAgent" })
-  ↔ ChatAgent DO ("default")
-       ├── Think: chat, workspace FS, session context, schedules
-       ├── getTools(): custom + extension + MCP tools
-       ├── refreshAll() → this.state → panels auto-sync
-       └── SQLite: documents, chunks (RAG)
-  ↔ Bindings: AI, BROWSER, BUCKET, VECTOR_DB, LOADER
+```mermaid
+flowchart LR
+  subgraph FE["src/"]
+    App["App.tsx\nuseAgent"]
+    Chat["chat/Chat.tsx"]
+    Panels["panels/*.tsx"]
+  end
+
+  subgraph WK["worker/"]
+    Index["index.ts"]
+    Agent["chat-agent.ts\nThink + getTools\n+ refreshAll"]
+    Tools["tools/*.ts"]
+  end
+
+  subgraph CF["Bindings"]
+    R2["BUCKET"]
+    VDB["VECTOR_DB"]
+    AI["AI / Gateway"]
+  end
+
+  Chat --> App
+  Panels --> App
+  App -->|"WS + RPC"| Index
+  Index --> Agent
+  Agent --> Tools
+  Agent --> R2
+  Agent --> VDB
+  Agent --> AI
+  Agent -->|"setState"| Panels
 ```
 
 **Request routing (`worker/index.ts`):**
@@ -60,6 +80,28 @@ Browser (React)
 - `/screenshots/*` — R2 screenshot proxy
 - Everything else → `routeAgentRequest` → ChatAgent DO
 - **Must** `export { ChatAgent }` from `worker/index.ts`
+
+**Where to edit (common tasks):**
+
+```mermaid
+flowchart TD
+  Task{"User asks for…"}
+  Task -->|new tool| T1["worker/tools/new.ts"]
+  T1 --> T2["chat-agent.ts getTools()"]
+  T2 --> T3{"client-side?"}
+  T3 -->|yes| T4["Chat.tsx onToolCall"]
+  T3 -->|approval| T5["Message.tsx UI"]
+
+  Task -->|new panel| P1["src/panels/NewPanel.tsx"]
+  P1 --> P2["App.tsx PANELS + TabsContent"]
+  P2 --> P3{"needs new data?"}
+  P3 -->|yes| P4["State + refreshAll()"]
+
+  Task -->|new skill| S1["skills/*.md"]
+  S1 --> S2["seed:skills:local/remote"]
+
+  Task -->|model change| M1["wrangler.jsonc vars"]
+```
 
 ## Repo layout
 
@@ -205,4 +247,6 @@ Do not add unless user explicitly requests (see README Recipes):
 ## README pointer
 
 Use README for step-by-step setup, deploy, MCP connection UI, and course
-phase recipes. This guide is for **implementation decisions**, not onboarding.
+phase recipes. Use `ARCHITECTURE.md` for human-readable feature maps and
+full sequence diagrams. This guide is for **implementation decisions**, not
+onboarding.
