@@ -31,6 +31,7 @@
 |------|-------|
 | Worker name | `jinu-agent-nexus` |
 | R2 bucket | `boilerplate-bucket` (binding `BUCKET`) |
+| Workers KV | binding `NOTES` — My Market Notes (`/notes`) |
 | Vectorize | `boilerplate-vectorstore`, **768-dim** (binding `VECTOR_DB`) |
 | Default chat model | `@cf/zai-org/glm-4.7-flash` (Workers AI, free tier) |
 | Default embed model | `@cf/baai/bge-base-en-v1.5` (768-dim, must match Vectorize) |
@@ -76,6 +77,7 @@ flowchart LR
 
 **Request routing (`worker/index.ts`):**
 
+- `POST/GET /notes`, `GET /notes/:key` — Workers KV (My Market Notes)
 - `POST /api/upload` — PDF upload (not RPC; large FormData)
 - `/screenshots/*` — R2 screenshot proxy
 - Everything else → `routeAgentRequest` → ChatAgent DO
@@ -108,6 +110,7 @@ flowchart TD
 ```
 worker/
   index.ts             Worker entry — HTTP routing + DO re-export
+  notes.ts             My Market Notes — Workers KV API (`/notes`)
   chat-agent.ts        Re-export shim (imports use this path)
   chat-agent/
     ChatAgent.ts       Class — lifecycle + @callable RPC
@@ -148,6 +151,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Change model | `wrangler.jsonc` vars only (usually no code change) |
 | AI provider logic | `worker/ai.ts` |
 | PDF ingest / chunking | `worker/ingest.ts`, RAG in `worker/tools/recall.ts` |
+| My Market Notes (KV) | `worker/notes.ts` + `wrangler.jsonc` `kv_namespaces` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
 | UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` |

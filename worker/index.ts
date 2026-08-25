@@ -2,10 +2,11 @@
 // Worker entry — HTTP routing
 // ─────────────────────────────────────────────────────────────────────────
 //
-// Three responsibilities:
+// Responsibilities:
 //   1. PDF upload — multipart FormData → ArrayBuffer → DO RPC.
 //   2. Screenshot proxy — stream image bytes out of R2 by key.
-//   3. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
+//   3. My Market Notes — Workers KV note API (`/notes`, `/notes/:key`).
+//   4. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
 //      which dispatches to the ChatAgent Durable Object.
 //
 // The DO class MUST be re-exported from this file. Wrangler's runtime
@@ -15,12 +16,19 @@
 
 import { routeAgentRequest, getAgentByName } from "agents";
 import { ChatAgent } from "./chat-agent";
+import { handleNotesRequest } from "./notes";
 
 export { ChatAgent };
 
 export default {
   async fetch(request, env): Promise<Response> {
     const url = new URL(request.url);
+
+    // ── My Market Notes (KV) ───────────────────────────────────────────
+    // Lightweight personalization seed — interest / hide / memo keys.
+    // See worker/notes.ts. Must run before the SPA asset fallback.
+    const notes = await handleNotesRequest(request, env);
+    if (notes) return notes;
 
     // ── PDF upload ─────────────────────────────────────────────────────
     // Why this is a top-level route (not a @callable on the agent):

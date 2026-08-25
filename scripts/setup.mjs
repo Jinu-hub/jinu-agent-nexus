@@ -11,9 +11,11 @@
 //   1. Sanity-check `.dev.vars` and `wrangler.jsonc` for placeholder
 //      values you still need to fill in.
 //   2. Create the R2 bucket.
-//   3. Create the Vectorize index (1536-dim, cosine — matches the
-//      `text-embedding-3-small` embedding model).
-//   4. Seed `skills/*.md` into the R2 bucket under `skills/`.
+//   3. Create the Vectorize index (768-dim, cosine — matches the
+//      default embedding model).
+//   4. Create Workers KV namespace for My Market Notes (print ids —
+//      paste into wrangler.jsonc if still using placeholders).
+//   5. Seed `skills/*.md` into the R2 bucket under `skills/`.
 //
 // Resource names are pinned at the top of this file. If you renamed
 // the bucket / index in wrangler.jsonc, update them here too.
@@ -25,6 +27,7 @@ import { join } from "node:path";
 
 const BUCKET = "boilerplate-bucket";
 const VECTORIZE = "boilerplate-vectorstore";
+const NOTES_KV = "NOTES";
 // 768 matches `@cf/baai/bge-base-en-v1.5` (the default embedding
 // model in wrangler.jsonc). If you switch EMBEDDING_MODEL to one
 // with different dimensions, update this value AND drop/recreate
@@ -118,7 +121,40 @@ log.header(`Vectorize index: ${VECTORIZE}`);
   }
 }
 
-// ─── 4. Seed skills ──────────────────────────────────────────────────────
+// ─── 4. Workers KV (My Market Notes) ─────────────────────────────────────
+log.header(`Workers KV: ${NOTES_KV}`);
+{
+  const r = run("npx", ["wrangler", "kv", "namespace", "create", NOTES_KV]);
+  if (r.code === 0) {
+    log.ok("created (production)");
+    log.info("Copy the id into wrangler.jsonc kv_namespaces[].id");
+    log.info(r.out.trim());
+  } else if (alreadyExists(r.out)) log.skip("production already exists");
+  else {
+    log.fail("production create failed");
+    log.info(r.out.trim());
+  }
+
+  const p = run("npx", [
+    "wrangler",
+    "kv",
+    "namespace",
+    "create",
+    NOTES_KV,
+    "--preview",
+  ]);
+  if (p.code === 0) {
+    log.ok("created (preview)");
+    log.info("Copy the id into wrangler.jsonc kv_namespaces[].preview_id");
+    log.info(p.out.trim());
+  } else if (alreadyExists(p.out)) log.skip("preview already exists");
+  else {
+    log.fail("preview create failed");
+    log.info(p.out.trim());
+  }
+}
+
+// ─── 5. Seed skills ──────────────────────────────────────────────────────
 log.header(`Seed ${SKILLS_DIR}/ → r2:${BUCKET}/skills/`);
 {
   const files = readdirSync(SKILLS_DIR).filter((f) => f.endsWith(".md"));
@@ -144,10 +180,13 @@ log.header(`Seed ${SKILLS_DIR}/ → r2:${BUCKET}/skills/`);
   }
 }
 
-// ─── 5. Next steps ───────────────────────────────────────────────────────
+// ─── 6. Next steps ───────────────────────────────────────────────────────
 console.log(`\n${c.bold}Next${c.reset}`);
 console.log(
   `  ${c.dim}•${c.reset} Local dev:  ${c.cyan}npm run dev${c.reset}`,
+);
+console.log(
+  `  ${c.dim}•${c.reset} If KV ids are still placeholders, paste real ids from step 4 into wrangler.jsonc before deploy`,
 );
 console.log(
   `  ${c.dim}•${c.reset} Push prod secret:  ${c.cyan}npx wrangler secret put API_TOKEN${c.reset}`,

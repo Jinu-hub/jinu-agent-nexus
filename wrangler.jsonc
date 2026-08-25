@@ -20,7 +20,13 @@
   // index.html.
   "assets": {
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/agents/*", "/screenshots/*"],
+    "run_worker_first": [
+      "/api/*",
+      "/agents/*",
+      "/screenshots/*",
+      "/notes",
+      "/notes/*",
+    ],
   },
 
   // Observability flips on the built-in trace viewer in the Cloudflare
@@ -62,6 +68,16 @@
   // storage (vs. the legacy KV-backed storage). Don't delete entries here
   // — append new tags as you add new DO classes.
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChatAgent"] }],
+
+  // Workers KV — My Market Notes (personalization seed).
+  // POST/GET /notes/:key, GET /notes — see worker/notes.ts
+  "kv_namespaces": [
+    {
+      "binding": "NOTES",
+      "id": "4b6a2b3936f441bdb36cc33c32541a12",
+      "preview_id": "343083af872644b0bca127caa0e5f4c5",
+    },
+  ],
 
   // R2 bucket — single bucket for everything:
   //   * `skills/`       — markdown files the agent can load on demand
