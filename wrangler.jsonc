@@ -26,6 +26,8 @@
       "/screenshots/*",
       "/notes",
       "/notes/*",
+      "/memory",
+      "/memory/*",
     ],
   },
 
@@ -55,19 +57,22 @@
   // Local miniflare sessions return 404 from the DevTools API.
   "browser": { "binding": "BROWSER", "remote": true },
 
-  // Durable Objects — each agent instance is one of these. ChatAgent
-  // extends Think (which extends AIChatAgent which extends Agent which
-  // IS a Durable Object). Each user / session gets its own instance with
-  // its own SQLite database, addressed by name.
+  // Durable Objects — ChatAgent (Think chat) + MyMemory (personalization).
   "durable_objects": {
-    "bindings": [{ "name": "ChatAgent", "class_name": "ChatAgent" }],
+    "bindings": [
+      { "name": "ChatAgent", "class_name": "ChatAgent" },
+      { "name": "MyMemory", "class_name": "MyMemory" },
+    ],
   },
 
   // Migrations — every DO class needs ONE migration entry the first time
   // it's deployed. `new_sqlite_classes` opts the class into SQLite-backed
   // storage (vs. the legacy KV-backed storage). Don't delete entries here
   // — append new tags as you add new DO classes.
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChatAgent"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["ChatAgent"] },
+    { "tag": "v2", "new_sqlite_classes": ["MyMemory"] },
+  ],
 
   // Workers KV — My Market Notes (personalization seed).
   // POST/GET /notes/:key, GET /notes — see worker/notes.ts

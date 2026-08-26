@@ -78,6 +78,7 @@ flowchart LR
 **Request routing (`worker/index.ts`):**
 
 - `POST/GET /notes`, `GET /notes/:key` — Workers KV (My Market Notes)
+- `/memory/*` — MyMemory DO SQLite (preferences, events, weights)
 - `POST /api/upload` — PDF upload (not RPC; large FormData)
 - `/screenshots/*` — R2 screenshot proxy
 - Everything else → `routeAgentRequest` → ChatAgent DO
@@ -111,6 +112,8 @@ flowchart TD
 worker/
   index.ts             Worker entry — HTTP routing + DO re-export
   notes.ts             My Market Notes — Workers KV API (`/notes`)
+  my-memory.ts         MyMemory DO — preferences / events / weights
+  memory-routes.ts     HTTP routes → MyMemory
   chat-agent.ts        Re-export shim (imports use this path)
   chat-agent/
     ChatAgent.ts       Class — lifecycle + @callable RPC
@@ -152,6 +155,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | AI provider logic | `worker/ai.ts` |
 | PDF ingest / chunking | `worker/ingest.ts`, RAG in `worker/tools/recall.ts` |
 | My Market Notes (KV) | `worker/notes.ts` + `wrangler.jsonc` `kv_namespaces` |
+| My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
 | UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` |

@@ -6,7 +6,8 @@
 //   1. PDF upload — multipart FormData → ArrayBuffer → DO RPC.
 //   2. Screenshot proxy — stream image bytes out of R2 by key.
 //   3. My Market Notes — Workers KV note API (`/notes`, `/notes/:key`).
-//   4. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
+//   4. My Market Memory — personalization DO SQLite (`/memory/*`).
+//   5. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
 //      which dispatches to the ChatAgent Durable Object.
 //
 // The DO class MUST be re-exported from this file. Wrangler's runtime
@@ -16,9 +17,11 @@
 
 import { routeAgentRequest, getAgentByName } from "agents";
 import { ChatAgent } from "./chat-agent";
+import { MyMemory } from "./my-memory";
 import { handleNotesRequest } from "./notes";
+import { handleMemoryRequest } from "./memory-routes";
 
-export { ChatAgent };
+export { ChatAgent, MyMemory };
 
 export default {
   async fetch(request, env): Promise<Response> {
@@ -29,6 +32,12 @@ export default {
     // See worker/notes.ts. Must run before the SPA asset fallback.
     const notes = await handleNotesRequest(request, env);
     if (notes) return notes;
+
+    // ── My Market Memory (DO SQLite) ───────────────────────────────────
+    // Structured preferences, feedback history, Brief weights.
+    // See worker/my-memory.ts + memory-routes.ts.
+    const memory = await handleMemoryRequest(request, env);
+    if (memory) return memory;
 
     // ── PDF upload ─────────────────────────────────────────────────────
     // Why this is a top-level route (not a @callable on the agent):

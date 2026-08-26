@@ -143,6 +143,7 @@ in `Message.tsx` → then server `execute` runs.
 | Tool list | Tools | `getTools()` + extension/MCP merge | In-memory snapshot in `state` |
 | PDF / RAG | Sources | `uploadPdf`, `recall.ts`, `ingest.ts` | R2 `pdfs/`, Vectorize, DO `chunks` |
 | My Market Notes | (API only) | `worker/notes.ts` | Workers KV (`NOTES`) |
+| My Market Memory | (API only) | `worker/my-memory.ts` | DO SQLite (`MyMemory`) |
 | Browser | Browser | `navigate.ts`, `screenshot.ts`, Puppeteer | Remote browser session + R2 screenshots |
 | Schedules | Schedules | `setReminder.ts`, DO alarms | DO schedule store |
 | Runtime tools | Extensions | `load_extension`, `worker_loaders` | Sandboxed worker per extension |
@@ -178,6 +179,7 @@ Built-in **Think** tools (not in `worker/tools/`): `read`, `write`, `edit`,
 worker/index.ts          HTTP entry — routes only, thin
     │
     ├── /notes, /notes/:key  → Workers KV (My Market Notes)
+    ├── /memory/*            → MyMemory DO SQLite (preferences / events / weights)
     ├── POST /api/upload     → ChatAgent.uploadPdf()
     ├── GET  /screenshots/*  → stream from R2
     └── /agents/ChatAgent/default  → WebSocket + RPC
@@ -195,6 +197,8 @@ worker/chat-agent/
     constants.ts           Initial state, static tool lists
 
 worker/notes.ts          KV note API (personalization seed)
+worker/my-memory.ts      MyMemory DO — preferences, events, weights
+worker/memory-routes.ts  HTTP → MyMemory RPC
 worker/ai.ts             Model routing (@cf/ vs AI Gateway)
 worker/ingest.ts         Markdown chunking for RAG
 worker/tools/*.ts        One tool per file
@@ -221,6 +225,7 @@ Called after: cold start, every chat turn, and most `@callable` mutations.
 | Binding | Resource name | Used for |
 |---------|---------------|----------|
 | `ChatAgent` | DO class | Stateful agent instance |
+| `MyMemory` | DO class | Personalization SQLite (preferences / events / weights) |
 | `NOTES` | Workers KV | My Market Notes (`/notes`) — personalization seed |
 | `BUCKET` | `boilerplate-bucket` | Skills, PDFs, screenshots |
 | `VECTOR_DB` | `boilerplate-vectorstore` (768-dim) | RAG embeddings |
