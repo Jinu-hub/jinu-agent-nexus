@@ -20,6 +20,7 @@ import { ChatAgent } from "./chat-agent";
 import { MyMemory } from "./my-memory";
 import { handleNotesRequest } from "./notes";
 import { handleMemoryRequest } from "./memory-routes";
+import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
 
 export { ChatAgent, MyMemory };
 
@@ -65,7 +66,7 @@ export default {
       // that use the typed stub.
       const agent = await getAgentByName<Env, ChatAgent>(
         env.ChatAgent as unknown as DurableObjectNamespace<ChatAgent>,
-        "default",
+        DEFAULT_INSTANCE_NAME,
       );
       const result = await agent.uploadPdf(buffer, file.name);
       return Response.json(result);

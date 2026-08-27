@@ -19,6 +19,7 @@ import {
   type PreferenceAction,
   type PreferenceKind,
 } from "./my-memory";
+import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
 
 function json(data: unknown, status = 200): Response {
   return Response.json(data, { status });
@@ -34,7 +35,7 @@ function errorResponse(err: unknown, fallback = 400): Response {
 }
 
 function memoryStub(env: Env): DurableObjectStub<MyMemory> {
-  const id = env.MyMemory.idFromName("default");
+  const id = env.MyMemory.idFromName(DEFAULT_INSTANCE_NAME);
   return env.MyMemory.get(id);
 }
 

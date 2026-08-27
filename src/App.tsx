@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAgent } from "agents/react";
 import type { MCPServersState } from "agents";
+import { DEFAULT_INSTANCE_NAME } from "@/lib/agent-identity";
 import {
   Brain,
   BookOpen,
@@ -144,7 +145,7 @@ export default function App() {
 
   const agent = useAgent<ChatAgent, State>({
     agent: "ChatAgent",
-    name: "default",
+    name: DEFAULT_INSTANCE_NAME,
     onMessage,
     onMcpUpdate,
   });
