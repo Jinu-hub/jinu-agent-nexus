@@ -33,9 +33,11 @@ import {
   Globe,
   Puzzle,
   Plug,
+  Settings2,
 } from "lucide-react";
 
 import type { ChatAgent, State } from "../worker/chat-agent";
+import type { ChatSettings, ChatSettingsPatch } from "../worker/chat-agent/settings";
 import { Chat } from "@/chat/Chat";
 import {
   Tabs,
@@ -53,6 +55,7 @@ import { SourcesPanel } from "@/panels/SourcesPanel";
 import { BrowserPanel } from "@/panels/BrowserPanel";
 import { ExtensionsPanel } from "@/panels/ExtensionsPanel";
 import { McpPanel, type McpServerView } from "@/panels/McpPanel";
+import { SettingsPanel } from "@/panels/SettingsPanel";
 
 const INITIAL_STATE: State = {
   files: [],
@@ -78,6 +81,7 @@ const PANELS = [
   { value: "schedules", label: "Schedules", icon: Clock },
   { value: "extensions", label: "Extensions", icon: Puzzle },
   { value: "mcp", label: "MCP", icon: Plug },
+  { value: "settings", label: "Settings", icon: Settings2 },
 ] as const;
 
 export default function App() {
@@ -86,6 +90,12 @@ export default function App() {
 
   // ─── MCP server snapshot (from cf_agent_mcp_servers protocol msg) ──────
   const [mcpServers, setMcpServers] = useState<McpServerView[]>([]);
+
+  // ─── ChatAgent runtime settings (persisted in the DO SQLite) ────────────
+  const [settings, setSettings] = useState<ChatSettings | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsUpdating, setSettingsUpdating] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
 
   // ─── Theme toggle (lives in localStorage so it survives refresh) ───────
   // The matching inline script in index.html sets the `dark` class on
@@ -150,6 +160,46 @@ export default function App() {
     onMcpUpdate,
   });
 
+  useEffect(() => {
+    let active = true;
+    void agent.stub
+      .getSettings()
+      .then((nextSettings) => {
+        if (active) setSettings(nextSettings);
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setSettingsError(
+            error instanceof Error ? error.message : "Failed to load settings.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setSettingsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [agent.stub]);
+
+  const updateSettings = useCallback(
+    async (patch: ChatSettingsPatch) => {
+      setSettingsUpdating(true);
+      setSettingsError(null);
+      try {
+        setSettings(await agent.stub.updateSettings(patch));
+      } catch (error) {
+        setSettingsError(
+          error instanceof Error ? error.message : "Failed to update settings.",
+        );
+      } finally {
+        setSettingsUpdating(false);
+      }
+    },
+    [agent.stub],
+  );
+
   // Backfill the Live View URL on mount, in case the agent already had
   // a browser open from a previous session.
   useEffect(() => {
@@ -176,7 +226,7 @@ export default function App() {
       </main>
 
       {/* RIGHT — tabbed panels */}
-      <aside className="hidden w-[420px] shrink-0 border-l border-border bg-card md:flex md:flex-col animate-fade-up [animation-delay:200ms]">
+      <aside className="hidden w-105 shrink-0 border-l border-border bg-card md:flex md:flex-col animate-fade-up [animation-delay:200ms]">
         <Tabs defaultValue="memory" className="flex h-full flex-col">
           <TabsList className="shrink-0 px-2 pt-2">
             {PANELS.map((p) => (
@@ -267,6 +317,21 @@ export default function App() {
               onClear={async () => {
                 await agent.stub.disconnectAllMcp();
               }}
+            />
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <SettingsPanel
+              settings={settings}
+              loading={settingsLoading}
+              updating={settingsUpdating}
+              error={settingsError}
+              onToggleAlarm={(enabled) =>
+                updateSettings({ alarm_enabled: enabled })
+              }
+              onToggleCleanup={(enabled) =>
+                updateSettings({ message_cleanup_enabled: enabled })
+              }
             />
           </TabsContent>
         </Tabs>
