@@ -28,6 +28,8 @@
       "/notes/*",
       "/memory",
       "/memory/*",
+      "/settings",
+      "/settings/*",
     ],
   },
 

@@ -18,7 +18,6 @@
 import { Think, type Session } from "@cloudflare/think";
 import type { ToolSet, LanguageModel } from "ai";
 import { callable } from "agents";
-import type { ChatResponseResult } from "agents/chat";
 import type { Browser, Page } from "@cloudflare/puppeteer";
 
 import { createModel } from "../ai";
@@ -42,6 +41,15 @@ import {
   disconnectAllMcp as disconnectAllMcpImpl,
   resetSession as resetSessionImpl,
 } from "./panel-ops";
+import {
+  ensureSettings,
+  getSettings as getSettingsImpl,
+  listSettingEvents as listSettingEventsImpl,
+  updateSettings as updateSettingsImpl,
+  type ChatSettings,
+  type ChatSettingsPatch,
+  type SettingEvent,
+} from "./settings";
 import type { State } from "./types";
 
 export type {
@@ -89,18 +97,115 @@ export class ChatAgent extends Think<Env, State> {
       source TEXT NOT NULL,
       text TEXT NOT NULL
     )`;
+    ensureSettings(this);
+    await this.ensureMessageCleanupSchedule();
 
     await this.session.refreshSystemPrompt();
     await this.refreshAll();
   }
 
-  override async onChatResponse(_result: ChatResponseResult) {
+  override async onChatResponse() {
     await this.session.refreshSystemPrompt();
     await this.refreshAll();
   }
 
   private async refreshAll() {
     await refreshPanelState(this);
+  }
+
+  @callable()
+  async getSettings(): Promise<ChatSettings> {
+    return getSettingsImpl(this);
+  }
+
+  @callable()
+  async updateSettings(patch: ChatSettingsPatch): Promise<ChatSettings> {
+    const previous = getSettingsImpl(this);
+    const settings = updateSettingsImpl(this, patch);
+    if (
+      previous.alarm_enabled !== settings.alarm_enabled ||
+      previous.message_cleanup_enabled !== settings.message_cleanup_enabled ||
+      previous.alarm_interval_seconds !== settings.alarm_interval_seconds
+    ) {
+      await this.syncMessageCleanupSchedule();
+    }
+    return settings;
+  }
+
+  @callable()
+  async getSettingEvents(limit = 100): Promise<SettingEvent[]> {
+    return listSettingEventsImpl(this, limit);
+  }
+
+  /**
+   * Scheduled through the Agents SDK so it shares the DO alarm with
+   * reminders instead of replacing the framework's alarm handler.
+   */
+  async runMessageCleanup(): Promise<{ deleted: number }> {
+    const settings = getSettingsImpl(this);
+    if (!settings.alarm_enabled || !settings.message_cleanup_enabled) {
+      return { deleted: 0 };
+    }
+
+    const cutoff = Date.now() - settings.message_retention_seconds * 1000;
+    const expiredIds = this.session
+      .getHistory()
+      .filter((message) => {
+        if (!message.createdAt) return false;
+        const createdAt =
+          message.createdAt instanceof Date
+            ? message.createdAt.getTime()
+            : Date.parse(String(message.createdAt));
+        return Number.isFinite(createdAt) && createdAt < cutoff;
+      })
+      .map((message) => message.id);
+
+    if (expiredIds.length > 0) {
+      this.session.deleteMessages(expiredIds);
+      this.broadcast(
+        JSON.stringify({
+          type: "messages_pruned",
+          deleted: expiredIds.length,
+        }),
+      );
+    }
+
+    return { deleted: expiredIds.length };
+  }
+
+  private async syncMessageCleanupSchedule(): Promise<void> {
+    const schedules = await this.listSchedules();
+    for (const schedule of schedules) {
+      if (schedule.callback === "runMessageCleanup") {
+        await this.cancelSchedule(schedule.id);
+      }
+    }
+
+    const settings = getSettingsImpl(this);
+    if (settings.alarm_enabled && settings.message_cleanup_enabled) {
+      await this.scheduleEvery(
+        settings.alarm_interval_seconds,
+        "runMessageCleanup",
+      );
+    }
+  }
+
+  private async ensureMessageCleanupSchedule(): Promise<void> {
+    const settings = getSettingsImpl(this);
+    if (!settings.alarm_enabled || !settings.message_cleanup_enabled) {
+      const schedules = await this.listSchedules();
+      for (const schedule of schedules) {
+        if (schedule.callback === "runMessageCleanup") {
+          await this.cancelSchedule(schedule.id);
+        }
+      }
+      return;
+    }
+
+    await this.scheduleEvery(
+      settings.alarm_interval_seconds,
+      "runMessageCleanup",
+    );
   }
 
   async remind(payload: { message: string }) {

@@ -7,7 +7,8 @@
 //   2. Screenshot proxy — stream image bytes out of R2 by key.
 //   3. My Market Notes — Workers KV note API (`/notes`, `/notes/:key`).
 //   4. My Market Memory — personalization DO SQLite (`/memory/*`).
-//   5. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
+//   5. ChatAgent Settings — runtime settings and change history (`/settings`).
+//   6. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
 //      which dispatches to the ChatAgent Durable Object.
 //
 // The DO class MUST be re-exported from this file. Wrangler's runtime
@@ -20,6 +21,7 @@ import { ChatAgent } from "./chat-agent";
 import { MyMemory } from "./my-memory";
 import { handleNotesRequest } from "./notes";
 import { handleMemoryRequest } from "./memory-routes";
+import { handleSettingsRequest } from "./settings-routes";
 import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
 
 export { ChatAgent, MyMemory };
@@ -39,6 +41,12 @@ export default {
     // See worker/my-memory.ts + memory-routes.ts.
     const memory = await handleMemoryRequest(request, env);
     if (memory) return memory;
+
+    // ── ChatAgent Settings ──────────────────────────────────────────────
+    // Runtime behavior such as cleanup and alarm policy. The data lives in
+    // the ChatAgent DO's SQLite database.
+    const settings = await handleSettingsRequest(request, env);
+    if (settings) return settings;
 
     // ── PDF upload ─────────────────────────────────────────────────────
     // Why this is a top-level route (not a @callable on the agent):
