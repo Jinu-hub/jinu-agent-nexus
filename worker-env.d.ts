@@ -22,6 +22,9 @@ declare global {
   // is picked up everywhere `Env` is used.
   interface __BaseEnv_Env {
     API_TOKEN: string;
+    // Optional: the Live Market Room falls back to a documented dev token
+    // when this isn't set, so the poll room works out of the box.
+    LIVE_ROOM_TOKEN?: string;
   }
 }
 

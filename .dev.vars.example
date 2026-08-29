@@ -27,3 +27,10 @@
 #
 # Use a custom token, NOT the legacy global API key.
 API_TOKEN=
+
+# Room token for the Live Market Room (/live).
+#
+# Visitors must pass it as `?token=<value>`; connections without it are
+# closed in onConnect. OPTIONAL — when unset, the room accepts the
+# built-in dev token `market-pulse` (see worker/live-market-room.ts).
+LIVE_ROOM_TOKEN=

@@ -144,6 +144,7 @@ in `Message.tsx` → then server `execute` runs.
 | PDF / RAG | Sources | `uploadPdf`, `recall.ts`, `ingest.ts` | R2 `pdfs/`, Vectorize, DO `chunks` |
 | My Market Notes | (API only) | `worker/notes.ts` | Workers KV (`NOTES`) |
 | My Market Memory | (API only) | `worker/my-memory.ts` | DO SQLite (`MyMemory`) |
+| Market Pulse poll | `/live` page | `worker/live-market-room.ts`, `src/live/` | DO state + SQLite (`LiveMarketRoomAgent`) |
 | Browser | Browser | `navigate.ts`, `screenshot.ts`, Puppeteer | Remote browser session + R2 screenshots |
 | Schedules | Schedules | `setReminder.ts`, DO alarms | DO schedule store |
 | Runtime tools | Extensions | `load_extension`, `worker_loaders` | Sandboxed worker per extension |
@@ -182,6 +183,7 @@ worker/index.ts          HTTP entry — routes only, thin
     ├── /memory/*            → MyMemory DO SQLite (preferences / events / weights)
     ├── POST /api/upload     → ChatAgent.uploadPdf()
     ├── GET  /screenshots/*  → stream from R2
+    ├── /agents/live-market-room-agent/market-pulse → poll room WS + RPC
     └── /agents/ChatAgent/default  → WebSocket + RPC
               │
 worker/chat-agent/
@@ -226,6 +228,7 @@ Called after: cold start, every chat turn, and most `@callable` mutations.
 |---------|---------------|----------|
 | `ChatAgent` | DO class | Stateful agent instance |
 | `MyMemory` | DO class | Personalization SQLite (preferences / events / weights) |
+| `LiveMarketRoomAgent` | DO class | Market Pulse poll room — synced state + vote log |
 | `NOTES` | Workers KV | My Market Notes (`/notes`) — personalization seed |
 | `BUCKET` | `boilerplate-bucket` | Skills, PDFs, screenshots |
 | `VECTOR_DB` | `boilerplate-vectorstore` (768-dim) | RAG embeddings |

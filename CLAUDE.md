@@ -36,7 +36,8 @@
 | Default chat model | `@cf/zai-org/glm-4.7-flash` (Workers AI, free tier) |
 | Default embed model | `@cf/baai/bge-base-en-v1.5` (768-dim, must match Vectorize) |
 | AI Gateway name | `agent-boilerplate` (unused until non-`@cf/` models) |
-| Secret | `API_TOKEN` in `.dev.vars` / `wrangler secret put` |
+| Live poll room DO | `LiveMarketRoomAgent` (binding + class), room `market-pulse` |
+| Secrets | `API_TOKEN`, `LIVE_ROOM_TOKEN` (optional) in `.dev.vars` / `wrangler secret put` |
 
 **Embedding dimension rule:** Changing `EMBEDDING_MODEL` may require dropping
 and recreating the Vectorize index. See `worker/ai.ts` and README "Switching
@@ -79,6 +80,7 @@ flowchart LR
 
 - `POST/GET /notes`, `GET /notes/:key` — Workers KV (My Market Notes)
 - `/memory/*` — MyMemory DO SQLite (preferences, events, weights)
+- `/live` — SPA-served Market Pulse poll room (LiveMarketRoomAgent over WS)
 - `POST /api/upload` — PDF upload (not RPC; large FormData)
 - `/screenshots/*` — R2 screenshot proxy
 - Everything else → `routeAgentRequest` → ChatAgent DO
@@ -114,6 +116,7 @@ worker/
   notes.ts             My Market Notes — Workers KV API (`/notes`)
   my-memory.ts         MyMemory DO — preferences / events / weights
   memory-routes.ts     HTTP routes → MyMemory
+  live-market-room.ts  Market Pulse poll room Agent — state + vote log
   chat-agent.ts        Re-export shim (imports use this path)
   chat-agent/
     ChatAgent.ts       Class — lifecycle + @callable RPC
@@ -156,6 +159,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | PDF ingest / chunking | `worker/ingest.ts`, RAG in `worker/tools/recall.ts` |
 | My Market Notes (KV) | `worker/notes.ts` + `wrangler.jsonc` `kv_namespaces` |
 | My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts` |
+| Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
 | UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` |

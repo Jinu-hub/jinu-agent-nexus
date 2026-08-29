@@ -59,11 +59,13 @@
   // Local miniflare sessions return 404 from the DevTools API.
   "browser": { "binding": "BROWSER", "remote": true },
 
-  // Durable Objects — ChatAgent (Think chat) + MyMemory (personalization).
+  // Durable Objects — ChatAgent (Think chat), MyMemory (personalization),
+  // LiveMarketRoomAgent (Market Pulse real-time poll room).
   "durable_objects": {
     "bindings": [
       { "name": "ChatAgent", "class_name": "ChatAgent" },
       { "name": "MyMemory", "class_name": "MyMemory" },
+      { "name": "LiveMarketRoomAgent", "class_name": "LiveMarketRoomAgent" },
     ],
   },
 
@@ -74,6 +76,7 @@
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["ChatAgent"] },
     { "tag": "v2", "new_sqlite_classes": ["MyMemory"] },
+    { "tag": "v3", "new_sqlite_classes": ["LiveMarketRoomAgent"] },
   ],
 
   // Workers KV — My Market Notes (personalization seed).

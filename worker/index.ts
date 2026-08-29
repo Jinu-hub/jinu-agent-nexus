@@ -9,7 +9,7 @@
 //   4. My Market Memory — personalization DO SQLite (`/memory/*`).
 //   5. ChatAgent Settings — runtime settings and change history (`/settings`).
 //   6. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
-//      which dispatches to the ChatAgent Durable Object.
+//      which dispatches to the ChatAgent / LiveMarketRoomAgent DOs.
 //
 // The DO class MUST be re-exported from this file. Wrangler's runtime
 // needs to find the class when an instance wakes up, and it looks in
@@ -19,12 +19,13 @@
 import { routeAgentRequest, getAgentByName } from "agents";
 import { ChatAgent } from "./chat-agent";
 import { MyMemory } from "./my-memory";
+import { LiveMarketRoomAgent } from "./live-market-room";
 import { handleNotesRequest } from "./notes";
 import { handleMemoryRequest } from "./memory-routes";
 import { handleSettingsRequest } from "./settings-routes";
 import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
 
-export { ChatAgent, MyMemory };
+export { ChatAgent, MyMemory, LiveMarketRoomAgent };
 
 export default {
   async fetch(request, env): Promise<Response> {
