@@ -34,3 +34,22 @@ API_TOKEN=
 # closed in onConnect. OPTIONAL — when unset, the room accepts the
 # built-in dev token `market-pulse` (see worker/live-market-room.ts).
 LIVE_ROOM_TOKEN=
+
+# Supabase — Market Memory (shared market data). OPTIONAL until features
+# that read/write Supabase are wired up. Never put the service role key
+# in the browser; Worker-only via createSupabaseClient() in worker/supabase.ts.
+#
+# Find these in: Supabase Dashboard → Project Settings → API
+#   SUPABASE_URL              → Project URL
+#   SUPABASE_ANON_KEY         → anon / public (RLS-aware)
+#   SUPABASE_SERVICE_ROLE_KEY → service_role (bypasses RLS; server only)
+#
+# Do NOT wrap values in quotes in `.dev.vars` — paste the raw URL/JWT.
+#
+# Production:
+#   npx wrangler secret put SUPABASE_URL
+#   npx wrangler secret put SUPABASE_ANON_KEY
+#   npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=

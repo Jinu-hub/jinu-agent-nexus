@@ -8,7 +8,8 @@
 //   3. My Market Notes — Workers KV note API (`/notes`, `/notes/:key`).
 //   4. My Market Memory — personalization DO SQLite (`/memory/*`).
 //   5. ChatAgent Settings — runtime settings and change history (`/settings`).
-//   6. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
+//   6. Supabase health — Market Memory connectivity probe (`/api/supabase/health`).
+//   7. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
 //      which dispatches to the ChatAgent / LiveMarketRoomAgent DOs.
 //
 // The DO class MUST be re-exported from this file. Wrangler's runtime
@@ -23,6 +24,7 @@ import { LiveMarketRoomAgent } from "./live-market-room";
 import { handleNotesRequest } from "./notes";
 import { handleMemoryRequest } from "./memory-routes";
 import { handleSettingsRequest } from "./settings-routes";
+import { handleSupabaseRequest } from "./supabase";
 import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
 
 export { ChatAgent, MyMemory, LiveMarketRoomAgent };
@@ -48,6 +50,12 @@ export default {
     // the ChatAgent DO's SQLite database.
     const settings = await handleSettingsRequest(request, env);
     if (settings) return settings;
+
+    // ── Supabase (Market Memory) ───────────────────────────────────────
+    // Prep-only connectivity probe. Product queries come later.
+    // See worker/supabase.ts.
+    const supabase = await handleSupabaseRequest(request, env);
+    if (supabase) return supabase;
 
     // ── PDF upload ─────────────────────────────────────────────────────
     // Why this is a top-level route (not a @callable on the agent):

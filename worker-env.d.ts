@@ -25,6 +25,11 @@ declare global {
     // Optional: the Live Market Room falls back to a documented dev token
     // when this isn't set, so the poll room works out of the box.
     LIVE_ROOM_TOKEN?: string;
+    // Optional until Market Memory reads/writes start. See worker/supabase.ts.
+    SUPABASE_URL?: string;
+    SUPABASE_ANON_KEY?: string;
+    // Server-only. Prefer ANON for RLS-aware reads; use this to bypass RLS.
+    SUPABASE_SERVICE_ROLE_KEY?: string;
   }
 }
 

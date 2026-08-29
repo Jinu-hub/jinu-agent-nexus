@@ -99,3 +99,29 @@ src/ (React Frontend)
  ├── /      → Chat 메인 쉘 + 10개 패널 (Memory, Skills, Files, Tools, Sources, Browser, Schedules, Extensions, MCP, Settings)
  └── /live  → Market Pulse 실시간 투표방 (단독 전체 화면)
 ```
+
+---
+
+## 7. Supabase 연동 사전 작업 (Market Memory 접속 준비)
+
+* **목적:** Worker에서 Supabase(Market Memory)에 접근할 수 있는 기반만 마련. 아직 제품 테이블 조회/갱신은 없음
+* **수정 및 추가 파일:**
+  * `package.json`: `@supabase/supabase-js` 의존성 추가
+  * `worker/supabase.ts` *(신규)*:
+    * `createSupabaseClient(env)` / `isSupabaseConfigured(env)` 팩토리
+    * `GET /api/supabase/health` — 시크릿 설정 여부 + REST 도달성 점검 (스키마 무관)
+  * `worker/index.ts`: health 라우트 연결
+  * `worker-env.d.ts` / `.dev.vars.example`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` 선언
+  * `CLAUDE.md` / `ARCHITECTURE.md`: 라우트·시크릿 문서화
+
+### 로컬에서 연결 확인하는 방법
+
+1. `.dev.vars.example`을 참고해 `.dev.vars`에 Supabase Project URL / anon key 입력
+2. `npm run dev` 후:
+
+```bash
+curl http://localhost:5173/api/supabase/health
+```
+
+- 시크릿 미설정 → `503` `{ configured: false }`
+- 연결 성공 → `200` `{ ok: true, projectHost: "….supabase.co" }`

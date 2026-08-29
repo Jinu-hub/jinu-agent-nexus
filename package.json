@@ -25,6 +25,7 @@
     "@cloudflare/puppeteer": "^1.1.0",
     "@cloudflare/shell": "^0.4.3",
     "@cloudflare/think": "0.5.3",
+    "@supabase/supabase-js": "^2.112.4",
     "agents": "0.12.3",
     "ai": "6.0.176",
     "class-variance-authority": "^0.7.1",

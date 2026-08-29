@@ -145,6 +145,7 @@ in `Message.tsx` → then server `execute` runs.
 | My Market Notes | (API only) | `worker/notes.ts` | Workers KV (`NOTES`) |
 | My Market Memory | (API only) | `worker/my-memory.ts` | DO SQLite (`MyMemory`) |
 | Market Pulse poll | `/live` page | `worker/live-market-room.ts`, `src/live/` | DO state + SQLite (`LiveMarketRoomAgent`) |
+| Supabase (prep) | `GET /api/supabase/health` | `worker/supabase.ts` | External Postgres (Market Memory) |
 | Browser | Browser | `navigate.ts`, `screenshot.ts`, Puppeteer | Remote browser session + R2 screenshots |
 | Schedules | Schedules | `setReminder.ts`, DO alarms | DO schedule store |
 | Runtime tools | Extensions | `load_extension`, `worker_loaders` | Sandboxed worker per extension |
@@ -183,6 +184,7 @@ worker/index.ts          HTTP entry — routes only, thin
     ├── /memory/*            → MyMemory DO SQLite (preferences / events / weights)
     ├── POST /api/upload     → ChatAgent.uploadPdf()
     ├── GET  /screenshots/*  → stream from R2
+    ├── GET  /api/supabase/health → Supabase reachability probe
     ├── /agents/live-market-room-agent/market-pulse → poll room WS + RPC
     └── /agents/ChatAgent/default  → WebSocket + RPC
               │
@@ -239,8 +241,10 @@ Called after: cold start, every chat turn, and most `@callable` mutations.
 **Vars** (`wrangler.jsonc`): `ACCOUNT_ID`, `AI_GATEWAY_NAME`, `CHAT_MODEL`,
 `EMBEDDING_MODEL`.
 
-**Secret** (`.dev.vars` / production): `API_TOKEN` — Browser Live View + AI
-Gateway auth.
+**Secret** (`.dev.vars` / production):
+- `API_TOKEN` — Browser Live View + AI Gateway auth
+- `LIVE_ROOM_TOKEN` (optional) — Market Pulse room gate
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (optional) — Market Memory
 
 > R2/Vectorize still use `boilerplate-*` names from initial setup. The Worker
 > and repo are renamed to `jinu-agent-nexus`; infra names can stay until you
