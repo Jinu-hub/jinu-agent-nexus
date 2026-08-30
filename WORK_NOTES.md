@@ -89,6 +89,7 @@ worker/index.ts (HTTP Gateway)
  ├── /settings, /settings/events                   → ChatAgent DO (설정 SQLite)
  ├── GET  /api/supabase/health                     → Supabase 도달성 점검
  ├── GET  /api/audio/pending                       → content_audio script_ready 조회 (Phase 1)
+ ├── POST /api/audio/claim                         → script_ready → generating claim (Phase 2)
  ├── POST /api/upload                              → ChatAgent DO (PDF RAG 업로드)
  ├── GET  /screenshots/*                           → R2 Bucket (브라우저 스크린샷)
  ├── /agents/ChatAgent/default                     → ChatAgent (WebSocket + Think Chat)
@@ -162,7 +163,7 @@ Phase 계획:
 | Phase | 내용 | 상태 |
 |-------|------|------|
 | 1 | `script_ready` row 조회 (`GET /api/audio/pending`) | 완료 |
-| 2 | 안전한 claim (`script_ready` → `generating`) | 예정 |
+| 2 | 안전한 claim (`script_ready` → `generating`) | 완료 |
 | 3 | Voice 전용 R2 연결 (`AUDIO_BUCKET` → `market-memory-audio`) | 예정 |
 | 4 | TTS Provider 연결 (수동 1 row 테스트) | 예정 |
 | 5 | TTS → R2 → Supabase 통합 | 예정 |
@@ -202,3 +203,53 @@ curl http://localhost:5173/api/supabase/health
 - 기존 health는 그대로 `200` `{ ok: true, mode: "service_role", ... }`
 
 로컬 확인 결과 (2026-08-30): pending 1건 (`brief_30s` / `ko` / `script_ready`), health 정상.
+
+### 8.2 Phase 2 — row claim / 상태 전환 *(완료)*
+
+* **목적:** Cron이 겹쳐도 같은 row를 두 번 생성하지 않도록, TTS 호출 전에 `script_ready` → `generating`을 원자적으로 claim.
+* **방식:** SELECT 후 UPDATE가 아니라 조건부 UPDATE 1회 (compare-and-swap).
+
+```text
+UPDATE content_audio
+SET status = 'generating', updated_at = now()
+WHERE id = $id AND status = 'script_ready'
+RETURNING *
+```
+
+* 반환 1건 → claim 성공
+* 반환 0건 → 다른 실행이 이미 가져갔거나, row가 없음. 이어서 id로 조회해 `already_claimed` / `not_found` 구분
+* **수정 및 추가 파일:**
+  * `worker/content-audio.ts`:
+    * `claimPendingContentAudio(id)` — CAS claim
+    * `claimNextPendingContentAudio()` — 가장 오래된 pending부터 시도, 경쟁으로 miss면 다음 id
+    * `POST /api/audio/claim` — body `{ "id": "<uuid>" }` 또는 body 생략 시 다음 pending 1건
+  * `worker/index.ts`: 기존 `/api/audio/*` 핸들러로 연결 (신규 라우트 파일 없음)
+* **변경하는 컬럼:** `status`, `updated_at` 만. `metadata` / `storage_key` 등은 건드리지 않음
+* **이 Phase에서 하지 않은 것:** TTS, R2, Cron, `completed`/`failed` 전환, schema 변경
+* **선행 조건:** 라이브 `content_audio_status` enum에 `generating`이 있어야 함.
+  * 초기 라이브 enum은 `script_ready | generated | failed` 이라 claim이 거절됨
+  * MarketMemory `schema.ts` 기준으로 enum 최신화 후 재확인
+
+로컬 확인:
+
+```bash
+curl http://localhost:5173/api/audio/pending
+curl -X POST http://localhost:5173/api/audio/claim \
+  -H "Content-Type: application/json" \
+  -d '{"id":"<content_audio.id>"}'
+curl -X POST http://localhost:5173/api/audio/claim \
+  -H "Content-Type: application/json" \
+  -d '{"id":"<같은 id>"}'
+```
+
+- 첫 claim 성공 → `200` `{ ok: true, claimed: true, item.status: "generating" }`
+- 같은 id 재claim → `409` `{ claimed: false, reason: "already_claimed", status: "generating" }`
+- pending 재조회 → `200` `{ count: 0, items: [] }`
+- pending이 없을 때 id 생략 claim → `200` `{ claimed: false, reason: "none_pending" }`
+- 없는 UUID → `404` `{ reason: "not_found" }`
+- 잘못된 id → `400`
+- health는 그대로 `200`
+
+로컬 확인 결과 (2026-08-30): id `045e93fd-9440-4e21-9c64-adaf75c58c3f` claim 성공 (`generating`), 재claim 409, pending 0건. 이 row는 이후 Phase 테스트 전까지 `generating`으로 남아 있음.
+
+claim을 다시 시험하려면 Supabase에서 해당 row의 `status`를 `script_ready`로 되돌리면 됨.
