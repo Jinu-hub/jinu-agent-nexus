@@ -9,7 +9,8 @@
 //   4. My Market Memory — personalization DO SQLite (`/memory/*`).
 //   5. ChatAgent Settings — runtime settings and change history (`/settings`).
 //   6. Supabase health — Market Memory connectivity probe (`/api/supabase/health`).
-//   7. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
+//   7. Voice pending — content_audio script_ready lookup (`/api/audio/pending`).
+//   8. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
 //      which dispatches to the ChatAgent / LiveMarketRoomAgent DOs.
 //
 // The DO class MUST be re-exported from this file. Wrangler's runtime
@@ -25,6 +26,7 @@ import { handleNotesRequest } from "./notes";
 import { handleMemoryRequest } from "./memory-routes";
 import { handleSettingsRequest } from "./settings-routes";
 import { handleSupabaseRequest } from "./supabase";
+import { handleAudioRequest } from "./content-audio";
 import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
 
 export { ChatAgent, MyMemory, LiveMarketRoomAgent };
@@ -52,10 +54,13 @@ export default {
     if (settings) return settings;
 
     // ── Supabase (Market Memory) ───────────────────────────────────────
-    // Prep-only connectivity probe. Product queries come later.
-    // See worker/supabase.ts.
+    // Health probe (`/api/supabase/health`) plus Voice pending lookup
+    // (`/api/audio/pending`). See worker/supabase.ts, worker/content-audio.ts.
     const supabase = await handleSupabaseRequest(request, env);
     if (supabase) return supabase;
+
+    const audio = await handleAudioRequest(request, env);
+    if (audio) return audio;
 
     // ── PDF upload ─────────────────────────────────────────────────────
     // Why this is a top-level route (not a @callable on the agent):

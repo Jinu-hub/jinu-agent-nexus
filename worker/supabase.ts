@@ -6,9 +6,9 @@
 //   Supabase  = Market Memory (reports, tags, entities, briefings)
 //   Cloudflare = My Market Memory (personal preferences, live rooms)
 //
-// This module is prep only — no product tables are queried yet. It gives
-// every Worker / Agent path a single place to build a client and a
-// lightweight health check to verify secrets + network.
+// Shared client factory + health probe. Product table queries live in
+// worker/content-audio.ts (and later Voice pipeline modules). This file
+// stays the single place to build a client and verify secrets + network.
 //
 // Keys NEVER ship to the browser. Prefer SUPABASE_ANON_KEY for
 // RLS-aware reads; use SUPABASE_SERVICE_ROLE_KEY only for trusted

@@ -87,6 +87,8 @@ worker/index.ts (HTTP Gateway)
  ├── /notes, /notes/:key                           → Workers KV (My Market Notes)
  ├── /memory/*                                     → MyMemory DO (개인화 SQLite)
  ├── /settings, /settings/events                   → ChatAgent DO (설정 SQLite)
+ ├── GET  /api/supabase/health                     → Supabase 도달성 점검
+ ├── GET  /api/audio/pending                       → content_audio script_ready 조회 (Phase 1)
  ├── POST /api/upload                              → ChatAgent DO (PDF RAG 업로드)
  ├── GET  /screenshots/*                           → R2 Bucket (브라우저 스크린샷)
  ├── /agents/ChatAgent/default                     → ChatAgent (WebSocket + Think Chat)
@@ -104,7 +106,7 @@ src/ (React Frontend)
 
 ## 7. Supabase 연동 사전 작업 (Market Memory 접속 준비)
 
-* **목적:** Worker에서 Supabase(Market Memory)에 접근할 수 있는 기반만 마련. 아직 제품 테이블 조회/갱신은 없음
+* **목적:** Worker에서 Supabase(Market Memory)에 접근할 수 있는 기반만 마련. 제품 테이블 조회는 §8 Phase 1부터 시작.
 * **수정 및 추가 파일:**
   * `package.json`: `@supabase/supabase-js` 의존성 추가
   * `worker/supabase.ts` *(신규)*:
@@ -125,3 +127,78 @@ curl http://localhost:5173/api/supabase/health
 
 - 시크릿 미설정 → `503` `{ configured: false }`
 - 연결 성공 → `200` `{ ok: true, projectHost: "….supabase.co" }`
+
+---
+
+## 8. Voice Audio 생성 (content_audio → TTS → R2)
+
+> 사용자별 개인화 Voice가 아님. 날짜/언어/`audio_type`당 오디오를 한 번만 생성하고, 완료된 R2 파일을 모든 사용자가 재생한다.
+> 생성 단위는 사용자 요청이 아니라 `content_audio.status = script_ready` 이다.
+> 실제 MP3는 Supabase Storage가 아니라 Cloudflare R2 (`market-memory-audio`)에 저장할 예정. Supabase는 메타/상태만 관리.
+
+최종 흐름 (전체 완료 시):
+
+```text
+content_audio (script_ready, script != null)
+        ↓
+Cloudflare Worker Cron
+        ↓
+row claim (status = generating)
+        ↓
+TTS Provider → audio binary
+        ↓
+R2 AUDIO_BUCKET (market-memory-audio)
+        ↓
+content_audio 업데이트
+  status = completed
+  storage_provider = cloudflare_r2
+  storage_key = {audio_type}/{YYYY}/{MM}/{DD}/{lang_code}/{id}.mp3
+```
+
+상태 흐름: `script_ready` → `generating` → `completed` (실패 시 `generating` → `failed`)
+
+Phase 계획:
+
+| Phase | 내용 | 상태 |
+|-------|------|------|
+| 1 | `script_ready` row 조회 (`GET /api/audio/pending`) | 완료 |
+| 2 | 안전한 claim (`script_ready` → `generating`) | 예정 |
+| 3 | Voice 전용 R2 연결 (`AUDIO_BUCKET` → `market-memory-audio`) | 예정 |
+| 4 | TTS Provider 연결 (수동 1 row 테스트) | 예정 |
+| 5 | TTS → R2 → Supabase 통합 | 예정 |
+| 6 | Cron Trigger | 예정 |
+
+### 8.1 Phase 1 — script_ready row 조회 *(완료)*
+
+* **목적:** Worker에서 Supabase `content_audio`를 조회해 Voice 생성 대상을 확인. DB row는 수정하지 않음.
+* **수정 및 추가 파일:**
+  * `worker/content-audio.ts` *(신규)*:
+    * `ContentAudioRow` 타입 (기존 schema 컬럼 재사용, migration 없음)
+    * `listPendingContentAudio()` — 읽기 전용 조회
+    * `GET /api/audio/pending` 핸들러
+  * `worker/index.ts`: `handleAudioRequest` 라우팅 등록 (health 다음)
+  * `worker/supabase.ts`: 주석만 갱신. 기존 `createSupabaseClient` / health 로직 유지
+* **재사용:** `createSupabaseClient(env, { privileged: true })`, `isSupabaseConfigured`, `getSupabaseAccessMode`
+  * 제품 조회는 신뢰된 Worker 작업이라 service role 사용. 로컬 health도 anon 401 후 `mode: "service_role"`로 통과함
+* **조회 조건:**
+  * `status = 'script_ready'`
+  * `script IS NOT NULL`
+  * `script != ''`
+  * JS에서 `script.trim().length > 0` 인 row만 반환
+* **응답 필드:** `id`, `target_type`, `target_id`, `content_type`, `audio_type`, `lang_code`, `title`, `script`, `duration_seconds`, `storage_provider`, `storage_key`, `status`, `market_date`, `model_info`, `metadata`, `created_at`, `updated_at`
+* **이 Phase에서 하지 않은 것:** status 변경, TTS, R2 binding, Cron, schema 변경
+
+로컬 확인:
+
+```bash
+curl http://localhost:5173/api/audio/pending
+curl http://localhost:5173/api/supabase/health
+```
+
+- 생성 대상 있음 → `200` `{ ok: true, count: N, items: [...] }`
+- 생성 대상 없음 → `200` `{ ok: true, count: 0, items: [] }`
+- 시크릿 미설정 → `503`
+- Supabase 조회 실패 → `502` (키/Authorization은 응답에 넣지 않음)
+- 기존 health는 그대로 `200` `{ ok: true, mode: "service_role", ... }`
+
+로컬 확인 결과 (2026-08-30): pending 1건 (`brief_30s` / `ko` / `script_ready`), health 정상.
