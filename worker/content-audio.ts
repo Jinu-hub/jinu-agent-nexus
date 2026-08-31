@@ -20,6 +20,7 @@ import {
   getSupabaseAccessMode,
   isSupabaseConfigured,
 } from "./supabase";
+import { pingAudioBucket } from "./audio-r2";
 
 export const CONTENT_AUDIO_TABLE = "content_audio";
 export const PENDING_AUDIO_STATUS = "script_ready";
@@ -195,8 +196,9 @@ export async function claimNextPendingContentAudio(
 
 /**
  * HTTP routes for Voice generation:
- *   GET  /api/audio/pending — script_ready rows with a non-empty script
- *   POST /api/audio/claim   — script_ready → generating (optional body `{ id }`)
+ *   GET  /api/audio/pending         — script_ready rows with a non-empty script
+ *   POST /api/audio/claim           — script_ready → generating (optional body `{ id }`)
+ *   GET  /api/audio/storage/health  — AUDIO_BUCKET put → get probe (no TTS, no DB write)
  *
  * Returns `null` if the path is not an audio route.
  */
@@ -206,6 +208,13 @@ export async function handleAudioRequest(
 ): Promise<Response | null> {
   const url = new URL(request.url);
   const { pathname } = url;
+
+  if (pathname === "/api/audio/storage/health") {
+    if (request.method !== "GET") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    return handleStorageHealth(env);
+  }
 
   if (pathname === "/api/audio/pending") {
     if (request.method !== "GET") {
@@ -378,4 +387,31 @@ function queryFailed(error: unknown): Response {
     },
     { status: 502 },
   );
+}
+
+async function handleStorageHealth(env: Env): Promise<Response> {
+  try {
+    const result = await pingAudioBucket(env);
+    if (!result.echoed) {
+      return Response.json(
+        {
+          ...result,
+          ok: false,
+          message: "put succeeded but get body did not match",
+        },
+        { status: 502 },
+      );
+    }
+    return Response.json(result);
+  } catch (error) {
+    return Response.json(
+      {
+        ok: false,
+        binding: "AUDIO_BUCKET",
+        bucket: "market-memory-audio",
+        message: error instanceof Error ? error.message : "AUDIO_BUCKET probe failed",
+      },
+      { status: 502 },
+    );
+  }
 }

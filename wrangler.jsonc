@@ -89,16 +89,20 @@
     },
   ],
 
-  // R2 bucket — single bucket for everything:
-  //   * `skills/`       — markdown files the agent can load on demand
-  //   * `pdfs/`         — uploaded PDFs (RAG sources)
-  //   * `screenshots/`  — browser screenshots
-  // Create with `npm run setup:r2` (or `wrangler r2 bucket create
-  // boilerplate-bucket`).
+  // R2 buckets:
+  //   BUCKET       — skills/, pdfs/, screenshots/ (existing agent features)
+  //   AUDIO_BUCKET — Voice MP3s for Market Memory (Phase 3+)
+  // Do not rename or replace BUCKET. Voice files go in AUDIO_BUCKET only.
+  // Create AUDIO_BUCKET with `npm run setup:audio-r2`.
   "r2_buckets": [
     {
       "binding": "BUCKET",
       "bucket_name": "boilerplate-bucket",
+      "remote": true,
+    },
+    {
+      "binding": "AUDIO_BUCKET",
+      "bucket_name": "market-memory-audio",
       "remote": true,
     },
   ],

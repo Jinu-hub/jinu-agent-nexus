@@ -13,6 +13,7 @@
     "cf-typegen": "wrangler types",
     "setup": "node scripts/setup.mjs",
     "setup:r2": "wrangler r2 bucket create boilerplate-bucket",
+    "setup:audio-r2": "wrangler r2 bucket create market-memory-audio",
     "setup:kv": "wrangler kv namespace create NOTES && wrangler kv namespace create NOTES --preview",
     "setup:vectorize": "wrangler vectorize create boilerplate-vectorstore --dimensions=768 --metric=cosine",
     "seed:skills:local": "wrangler r2 object put boilerplate-bucket/skills/example-skill.md --file ./skills/example-skill.md --local",

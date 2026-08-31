@@ -90,6 +90,7 @@ worker/index.ts (HTTP Gateway)
  ├── GET  /api/supabase/health                     → Supabase 도달성 점검
  ├── GET  /api/audio/pending                       → content_audio script_ready 조회 (Phase 1)
  ├── POST /api/audio/claim                         → script_ready → generating claim (Phase 2)
+ ├── GET  /api/audio/storage/health                → AUDIO_BUCKET put → get 점검 (Phase 3)
  ├── POST /api/upload                              → ChatAgent DO (PDF RAG 업로드)
  ├── GET  /screenshots/*                           → R2 Bucket (브라우저 스크린샷)
  ├── /agents/ChatAgent/default                     → ChatAgent (WebSocket + Think Chat)
@@ -164,7 +165,7 @@ Phase 계획:
 |-------|------|------|
 | 1 | `script_ready` row 조회 (`GET /api/audio/pending`) | 완료 |
 | 2 | 안전한 claim (`script_ready` → `generating`) | 완료 |
-| 3 | Voice 전용 R2 연결 (`AUDIO_BUCKET` → `market-memory-audio`) | 예정 |
+| 3 | Voice 전용 R2 연결 (`AUDIO_BUCKET` → `market-memory-audio`) | 완료 |
 | 4 | TTS Provider 연결 (수동 1 row 테스트) | 예정 |
 | 5 | TTS → R2 → Supabase 통합 | 예정 |
 | 6 | Cron Trigger | 예정 |
@@ -253,3 +254,34 @@ curl -X POST http://localhost:5173/api/audio/claim \
 로컬 확인 결과 (2026-08-30): id `045e93fd-9440-4e21-9c64-adaf75c58c3f` claim 성공 (`generating`), 재claim 409, pending 0건. 이 row는 이후 Phase 테스트 전까지 `generating`으로 남아 있음.
 
 claim을 다시 시험하려면 Supabase에서 해당 row의 `status`를 `script_ready`로 되돌리면 됨.
+
+### 8.3 Phase 3 — Cloudflare R2 연결 *(완료)*
+
+* **목적:** Voice 전용 bucket에 Worker put/get이 되는지 TTS 없이 확인. `content_audio`는 수정하지 않음.
+* **리소스:**
+  * bucket: `market-memory-audio` *(신규 생성)*
+  * binding: `AUDIO_BUCKET`
+  * 기존 `BUCKET` → `boilerplate-bucket` 유지 (skills / pdfs / screenshots)
+* **수정 및 추가 파일:**
+  * `wrangler.jsonc`: `r2_buckets`에 `AUDIO_BUCKET` 항목 **추가** (기존 `BUCKET` 교체 금지, `remote: true`)
+  * `package.json`: `setup:audio-r2` 스크립트 추가
+  * `worker/audio-r2.ts` *(신규)*: `pingAudioBucket()` — `health/phase3-ping.txt` put 후 get, body echo 비교
+  * `worker/content-audio.ts`: `GET /api/audio/storage/health` (Supabase 불필요)
+  * `worker-configuration.d.ts`: `npm run cf-typegen`으로 `AUDIO_BUCKET: R2Bucket` 생성 (직접 수정하지 않음)
+* **probe key:** `health/phase3-ping.txt`
+  * 향후 실제 오디오 key (`{audio_type}/{YYYY}/{MM}/{DD}/{lang_code}/{id}.mp3`)와 prefix가 겹치지 않음
+* **이 Phase에서 하지 않은 것:** TTS, `storage_key` 생성, `content_audio` UPDATE, Cron, `BUCKET` 변경
+
+로컬 확인:
+
+```bash
+curl http://localhost:5173/api/audio/storage/health
+```
+
+`wrangler.jsonc` 바인딩을 추가한 뒤에는 `npm run dev`를 재시작해야 `env.AUDIO_BUCKET`이 붙는다.
+
+- 성공 → `200` `{ ok: true, binding: "AUDIO_BUCKET", bucket: "market-memory-audio", key: "health/phase3-ping.txt", echoed: true }`
+- 바인딩 미적용 → `502` (`put` of undefined)
+- POST → `405`
+
+로컬 확인 결과 (2026-08-30): put → get echo 성공. pending / supabase health 유지.
