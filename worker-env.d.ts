@@ -30,6 +30,8 @@ declare global {
     SUPABASE_ANON_KEY?: string;
     // Server-only. Prefer ANON for RLS-aware reads; use this to bypass RLS.
     SUPABASE_SERVICE_ROLE_KEY?: string;
+    // Optional. Direct OpenAI TTS. If unset, Voice uses API_TOKEN + AI Gateway.
+    OPENAI_API_KEY?: string;
   }
 }
 

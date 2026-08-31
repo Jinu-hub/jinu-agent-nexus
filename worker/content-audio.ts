@@ -8,6 +8,7 @@
 //
 // Phase 1: read-only list of script_ready rows with a usable script.
 // Phase 2: atomic claim (script_ready → generating). No TTS / R2 / Cron.
+// Phase 4: manual TTS for one row. Returns audio bytes. No R2 / DB write.
 //
 // Rows that are ready for TTS:
 //   status = 'script_ready'
@@ -21,6 +22,7 @@ import {
   isSupabaseConfigured,
 } from "./supabase";
 import { pingAudioBucket } from "./audio-r2";
+import { createTTSProvider, ttsCharLimit } from "./tts";
 
 export const CONTENT_AUDIO_TABLE = "content_audio";
 export const PENDING_AUDIO_STATUS = "script_ready";
@@ -146,17 +148,7 @@ export async function claimPendingContentAudio(
     return { claimed: true, item: data };
   }
 
-  const { data: existing, error: lookupError } = await client
-    .from(CONTENT_AUDIO_TABLE)
-    .select(CONTENT_AUDIO_SELECT)
-    .eq("id", id)
-    .maybeSingle()
-    .overrideTypes<ContentAudioRow, { merge: false }>();
-
-  if (lookupError) {
-    throw new Error(lookupError.message);
-  }
-
+  const existing = await getContentAudioById(env, id);
   if (!existing) {
     return {
       claimed: false,
@@ -194,11 +186,31 @@ export async function claimNextPendingContentAudio(
   };
 }
 
+export async function getContentAudioById(
+  env: Env,
+  id: string,
+): Promise<ContentAudioRow | null> {
+  const client = createSupabaseClient(env, { privileged: true });
+  const { data, error } = await client
+    .from(CONTENT_AUDIO_TABLE)
+    .select(CONTENT_AUDIO_SELECT)
+    .eq("id", id)
+    .maybeSingle()
+    .overrideTypes<ContentAudioRow, { merge: false }>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ?? null;
+}
+
 /**
  * HTTP routes for Voice generation:
  *   GET  /api/audio/pending         — script_ready rows with a non-empty script
  *   POST /api/audio/claim           — script_ready → generating (optional body `{ id }`)
  *   GET  /api/audio/storage/health  — AUDIO_BUCKET put → get probe (no TTS, no DB write)
+ *   POST /api/audio/tts             — one-row TTS test; returns audio/mpeg (no R2, no DB write)
  *
  * Returns `null` if the path is not an audio route.
  */
@@ -232,6 +244,15 @@ export async function handleAudioRequest(
     const blocked = supabaseServiceRoleGuard(env);
     if (blocked) return blocked;
     return handleClaimPost(request, env);
+  }
+
+  if (pathname === "/api/audio/tts") {
+    if (request.method !== "POST") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    const blocked = supabaseServiceRoleGuard(env);
+    if (blocked) return blocked;
+    return handleTtsPost(request, env);
   }
 
   return null;
@@ -293,6 +314,72 @@ async function handleClaimPost(
       ? await claimPendingContentAudio(env, parsed.id)
       : await claimNextPendingContentAudio(env);
     return claimResponse(result);
+  } catch (error) {
+    return queryFailed(error);
+  }
+}
+
+async function handleTtsPost(request: Request, env: Env): Promise<Response> {
+  const parsed = await parseClaimId(request);
+  if (!parsed.ok) {
+    return Response.json({ ok: false, message: parsed.message }, { status: 400 });
+  }
+  if (!parsed.id) {
+    return Response.json(
+      { ok: false, message: "id is required" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const row = await getContentAudioById(env, parsed.id);
+    if (!row) {
+      return Response.json(
+        { ok: false, reason: "not_found" },
+        { status: 404 },
+      );
+    }
+    if (!hasUsableScript(row) || !row.script) {
+      return Response.json(
+        { ok: false, message: "script is empty" },
+        { status: 400 },
+      );
+    }
+    if (row.script.length > ttsCharLimit()) {
+      return Response.json(
+        {
+          ok: false,
+          message: `script exceeds TTS limit (${ttsCharLimit()} characters)`,
+        },
+        { status: 400 },
+      );
+    }
+
+    const tts = createTTSProvider(env);
+    const audio = await tts.generate({
+      text: row.script,
+      language: row.lang_code,
+    });
+
+    if (audio.byteLength < 64) {
+      return Response.json(
+        { ok: false, message: "TTS returned an empty audio payload" },
+        { status: 502 },
+      );
+    }
+
+    return new Response(audio, {
+      headers: {
+        "Content-Type": "audio/mpeg",
+        "Content-Disposition": `attachment; filename="${row.id}.mp3"`,
+        "X-Audio-Id": row.id,
+        "X-Audio-Lang": row.lang_code,
+        "X-TTS-Provider": tts.provider,
+        "X-TTS-Model": tts.model,
+        "X-TTS-Voice": env.TTS_VOICE,
+        "Content-Length": String(audio.byteLength),
+      },
+    });
   } catch (error) {
     return queryFailed(error);
   }

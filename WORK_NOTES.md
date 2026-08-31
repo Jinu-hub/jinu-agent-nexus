@@ -91,6 +91,7 @@ worker/index.ts (HTTP Gateway)
  ├── GET  /api/audio/pending                       → content_audio script_ready 조회 (Phase 1)
  ├── POST /api/audio/claim                         → script_ready → generating claim (Phase 2)
  ├── GET  /api/audio/storage/health                → AUDIO_BUCKET put → get 점검 (Phase 3)
+ ├── POST /api/audio/tts                           → 1 row TTS 테스트, audio/mpeg (Phase 4)
  ├── POST /api/upload                              → ChatAgent DO (PDF RAG 업로드)
  ├── GET  /screenshots/*                           → R2 Bucket (브라우저 스크린샷)
  ├── /agents/ChatAgent/default                     → ChatAgent (WebSocket + Think Chat)
@@ -166,7 +167,7 @@ Phase 계획:
 | 1 | `script_ready` row 조회 (`GET /api/audio/pending`) | 완료 |
 | 2 | 안전한 claim (`script_ready` → `generating`) | 완료 |
 | 3 | Voice 전용 R2 연결 (`AUDIO_BUCKET` → `market-memory-audio`) | 완료 |
-| 4 | TTS Provider 연결 (수동 1 row 테스트) | 예정 |
+| 4 | TTS Provider 연결 (수동 1 row 테스트) | 완료 |
 | 5 | TTS → R2 → Supabase 통합 | 예정 |
 | 6 | Cron Trigger | 예정 |
 
@@ -285,3 +286,41 @@ curl http://localhost:5173/api/audio/storage/health
 - POST → `405`
 
 로컬 확인 결과 (2026-08-30): put → get echo 성공. pending / supabase health 유지.
+
+### 8.4 Phase 4 — TTS Provider 연결 *(완료)*
+
+* **목적:** 한 `content_audio` row의 `script` + `lang_code`로 TTS를 호출해 **audio binary**를 받는다. R2 저장 / DB 업데이트 / Cron은 하지 않음.
+* **Provider 추상화:** `worker/tts.ts` `TTSProvider.generate({ text, language, voice? })`
+* **1차 구현:** OpenAI TTS (`tts-1`, voice `nova`) — ko/ja/en 지원. Workers AI MeloTTS/Aura는 한국어 커버가 부족해서 사용하지 않음.
+* **호출 경로:**
+  1. `OPENAI_API_KEY`가 있으면 `https://api.openai.com/v1/audio/speech`
+  2. 없으면 `API_TOKEN`으로 AI Gateway `.../openai/audio/speech`
+* **수정 및 추가 파일:**
+  * `worker/tts.ts` *(신규)*
+  * `worker/content-audio.ts`: `getContentAudioById()`, `POST /api/audio/tts`
+  * `wrangler.jsonc` vars: `TTS_MODEL=openai/tts-1`, `TTS_VOICE=nova`
+  * `worker-env.d.ts` / `.dev.vars.example`: optional `OPENAI_API_KEY`
+* **이 Phase에서 하지 않은 것:** R2 put, `storage_key` 생성, `completed` 전환, Cron, ElevenLabs
+
+로컬 확인:
+
+```bash
+curl -X POST http://localhost:5173/api/audio/tts \
+  -H "Content-Type: application/json" \
+  -d '{"id":"<content_audio.id>"}' \
+  --output brief.mp3
+```
+
+- 성공 → `200` `Content-Type: audio/mpeg`, 헤더 `X-TTS-Provider` / `X-TTS-Model` / `X-TTS-Voice`
+- id 없음 → `400`
+- row 없음 → `404`
+- TTS 인증 실패 → `502` (키/Authorization은 응답에 넣지 않음)
+
+로컬 확인 결과 (2026-08-30):
+* id 생략 → `400 id is required` (핸들러 OK)
+* `OPENAI_API_KEY` 없이 Gateway만 사용 → `401 Unauthorized`
+
+로컬 확인 결과 (2026-09-01): `OPENAI_API_KEY` 설정 후 같은 curl로 `brief.mp3` 수신.
+* 약 805 KB, MPEG layer III 128 kbps / 24 kHz / mono
+* row `045e93fd-9440-4e21-9c64-adaf75c58c3f` (`ko` / `brief_30s`)
+* R2 / `content_audio` 상태는 변경하지 않음 (row는 계속 `generating`)

@@ -136,6 +136,11 @@
   // Rename freely — just keep this string in sync with the dashboard.
   //
   // CHAT_MODEL / EMBEDDING_MODEL — what the agent uses.
+  // TTS_MODEL / TTS_VOICE — Voice generation (Phase 4). Default is
+  // OpenAI TTS through the AI binding + AI Gateway so ko/ja/en work.
+  // Requires API_TOKEN with AI Gateway → Run and Unified Billing (or
+  // a stored OpenAI key on the gateway). Native Workers AI TTS models
+  // (MeloTTS / Aura) are not used here — they don't cover Korean well.
   //
   //   * Default values use Workers AI directly (the `@cf/...` prefix
   //     is the marker). Zero setup, free tier covered, no AI Gateway
@@ -152,6 +157,8 @@
     "AI_GATEWAY_NAME": "agent-boilerplate",
     "CHAT_MODEL": "@cf/zai-org/glm-4.7-flash",
     "EMBEDDING_MODEL": "@cf/baai/bge-base-en-v1.5",
+    "TTS_MODEL": "openai/tts-1",
+    "TTS_VOICE": "nova",
   },
 
   // Secrets go in `.dev.vars` for local dev and via

@@ -53,3 +53,9 @@ LIVE_ROOM_TOKEN=
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+
+# Optional. Direct OpenAI TTS for Voice generation (Phase 4).
+# If unset, the Worker calls AI Gateway with API_TOKEN instead
+# (Unified Billing or a stored OpenAI key on the gateway).
+#   npx wrangler secret put OPENAI_API_KEY
+OPENAI_API_KEY=
