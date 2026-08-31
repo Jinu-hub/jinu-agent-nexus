@@ -25,6 +25,7 @@ export type TTSGenerateInput = {
 export interface TTSProvider {
   readonly provider: string;
   readonly model: string;
+  readonly voice: string;
   generate(input: TTSGenerateInput): Promise<ArrayBuffer>;
 }
 
@@ -42,13 +43,13 @@ export function createTTSProvider(env: Env): TTSProvider {
 class OpenAiTTS implements TTSProvider {
   readonly provider = "openai";
   readonly model: string;
-  private readonly voiceDefault: string;
+  readonly voice: string;
   private readonly env: Env;
 
   constructor(env: Env) {
     this.env = env;
     this.model = env.TTS_MODEL;
-    this.voiceDefault = env.TTS_VOICE;
+    this.voice = env.TTS_VOICE;
   }
 
   async generate(input: TTSGenerateInput): Promise<ArrayBuffer> {
@@ -62,7 +63,7 @@ class OpenAiTTS implements TTSProvider {
       );
     }
 
-    const voice = input.voice?.trim() || this.voiceDefault;
+    const voice = input.voice?.trim() || this.voice;
     const body = JSON.stringify({
       model: openAiSpeechModelId(this.model),
       input: text,

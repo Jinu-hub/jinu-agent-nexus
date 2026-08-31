@@ -9,7 +9,7 @@
 //   4. My Market Memory — personalization DO SQLite (`/memory/*`).
 //   5. ChatAgent Settings — runtime settings and change history (`/settings`).
 //   6. Supabase health — Market Memory connectivity probe (`/api/supabase/health`).
-//   7. Voice audio — pending, claim, R2 probe, TTS (`/api/audio/*`).
+//   7. Voice audio — pending, claim, R2, TTS, generate (`/api/audio/*`).
 //   8. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
 //      which dispatches to the ChatAgent / LiveMarketRoomAgent DOs.
 //
@@ -54,7 +54,7 @@ export default {
     if (settings) return settings;
 
     // ── Supabase (Market Memory) ───────────────────────────────────────
-    // Health probe (`/api/supabase/health`) plus Voice pending/claim/R2/TTS
+    // Health probe (`/api/supabase/health`) plus Voice pending/claim/R2/TTS/generate
     // (`/api/audio/*`). See worker/supabase.ts, worker/content-audio.ts.
     const supabase = await handleSupabaseRequest(request, env);
     if (supabase) return supabase;

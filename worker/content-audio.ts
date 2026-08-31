@@ -9,6 +9,7 @@
 // Phase 1: read-only list of script_ready rows with a usable script.
 // Phase 2: atomic claim (script_ready → generating). No TTS / R2 / Cron.
 // Phase 4: manual TTS for one row. Returns audio bytes. No R2 / DB write.
+// Phase 5: one-row TTS → AUDIO_BUCKET → content_audio completed. No Cron.
 //
 // Rows that are ready for TTS:
 //   status = 'script_ready'
@@ -21,13 +22,22 @@ import {
   getSupabaseAccessMode,
   isSupabaseConfigured,
 } from "./supabase";
-import { pingAudioBucket } from "./audio-r2";
+import {
+  AUDIO_STORAGE_PROVIDER,
+  buildVoiceStorageKey,
+  getVoiceAudio,
+  mp3DurationSeconds,
+  pingAudioBucket,
+  putVoiceAudio,
+} from "./audio-r2";
 import { createTTSProvider, ttsCharLimit } from "./tts";
 
 export const CONTENT_AUDIO_TABLE = "content_audio";
 export const PENDING_AUDIO_STATUS = "script_ready";
 /** Claim target. Requires `generating` on the live `content_audio_status` enum. */
 export const GENERATING_AUDIO_STATUS = "generating";
+export const COMPLETED_AUDIO_STATUS = "completed";
+export const FAILED_AUDIO_STATUS = "failed";
 
 export type ContentAudioStatus =
   | "script_ready"
@@ -205,12 +215,292 @@ export async function getContentAudioById(
   return data ?? null;
 }
 
+export type GenerateAudioResult =
+  | { ok: true; item: ContentAudioRow }
+  | {
+      ok: false;
+      httpStatus: 400 | 404 | 409 | 502;
+      body: Record<string, unknown>;
+    };
+
+/**
+ * One-row Voice pipeline: claim if needed → TTS → R2 put → completed.
+ * Failures after claim mark the row `failed` and keep existing metadata keys.
+ */
+export async function generateVoiceAudio(
+  env: Env,
+  id: string,
+): Promise<GenerateAudioResult> {
+  const prepared = await prepareRowForGenerate(env, id);
+  if (!prepared.ok) return prepared;
+  const row = prepared.item;
+
+  if (!hasUsableScript(row) || !row.script) {
+    await markContentAudioFailed(env, row.id, "script is empty");
+    return {
+      ok: false,
+      httpStatus: 400,
+      body: { ok: false, message: "script is empty" },
+    };
+  }
+  if (row.script.length > ttsCharLimit()) {
+    const message = `script exceeds TTS limit (${ttsCharLimit()} characters)`;
+    await markContentAudioFailed(env, row.id, message);
+    return { ok: false, httpStatus: 400, body: { ok: false, message } };
+  }
+
+  try {
+    const tts = createTTSProvider(env);
+    const audio = await tts.generate({
+      text: row.script,
+      language: row.lang_code,
+    });
+    if (audio.byteLength < 64) {
+      throw new Error("TTS returned an empty audio payload");
+    }
+
+    const storageKey = buildVoiceStorageKey({
+      audioType: row.audio_type,
+      langCode: row.lang_code,
+      id: row.id,
+      marketDate: row.market_date,
+      createdAt: row.created_at,
+    });
+
+    await putVoiceAudio(env, storageKey, audio);
+    const stored = await getVoiceAudio(env, storageKey);
+    if (!stored || stored.size !== audio.byteLength) {
+      throw new Error("AUDIO_BUCKET put succeeded but get did not confirm the object");
+    }
+
+    const metadata = withoutVoiceError(asMetadataObject(row.metadata));
+    const client = createSupabaseClient(env, { privileged: true });
+    const { data, error } = await client
+      .from(CONTENT_AUDIO_TABLE)
+      .update({
+        status: COMPLETED_AUDIO_STATUS,
+        storage_provider: AUDIO_STORAGE_PROVIDER,
+        storage_key: storageKey,
+        duration_seconds: mp3DurationSeconds(audio),
+        model_info: {
+          provider: tts.provider,
+          model: tts.model,
+          voice: tts.voice,
+        },
+        metadata,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", row.id)
+      .eq("status", GENERATING_AUDIO_STATUS)
+      .select(CONTENT_AUDIO_SELECT)
+      .maybeSingle()
+      .overrideTypes<ContentAudioRow, { merge: false }>();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+    if (!data) {
+      const current = await getContentAudioById(env, row.id);
+      return {
+        ok: false,
+        httpStatus: 409,
+        body: {
+          ok: false,
+          reason: "status_changed",
+          status: current?.status ?? null,
+          item: current,
+        },
+      };
+    }
+
+    return { ok: true, item: data };
+  } catch (error) {
+    const message = publicQueryMessage(error);
+    await markContentAudioFailed(env, row.id, message);
+    return {
+      ok: false,
+      httpStatus: 502,
+      body: { ok: false, message },
+    };
+  }
+}
+
+async function prepareRowForGenerate(
+  env: Env,
+  id: string,
+): Promise<GenerateAudioResult> {
+  const existing = await getContentAudioById(env, id);
+  if (!existing) {
+    return {
+      ok: false,
+      httpStatus: 404,
+      body: { ok: false, reason: "not_found" },
+    };
+  }
+
+  if (existing.status === COMPLETED_AUDIO_STATUS) {
+    return {
+      ok: false,
+      httpStatus: 409,
+      body: {
+        ok: false,
+        reason: "already_completed",
+        status: existing.status,
+        item: existing,
+      },
+    };
+  }
+
+  if (existing.status === "cancelled") {
+    return {
+      ok: false,
+      httpStatus: 409,
+      body: {
+        ok: false,
+        reason: "cancelled",
+        status: existing.status,
+        item: existing,
+      },
+    };
+  }
+
+  if (existing.status === GENERATING_AUDIO_STATUS) {
+    return { ok: true, item: existing };
+  }
+
+  if (existing.status === PENDING_AUDIO_STATUS) {
+    const claimed = await claimPendingContentAudio(env, id);
+    if (claimed.claimed) {
+      return { ok: true, item: claimed.item };
+    }
+    if (claimed.status === GENERATING_AUDIO_STATUS && claimed.item) {
+      return { ok: true, item: claimed.item };
+    }
+    return {
+      ok: false,
+      httpStatus: claimed.reason === "not_found" ? 404 : 409,
+      body: {
+        ok: false,
+        claimed: false,
+        reason: claimed.reason,
+        status: claimed.status,
+        item: claimed.item,
+      },
+    };
+  }
+
+  if (existing.status === FAILED_AUDIO_STATUS) {
+    const reclaimed = await claimFromStatus(env, id, FAILED_AUDIO_STATUS);
+    if (reclaimed) {
+      return { ok: true, item: reclaimed };
+    }
+    const current = await getContentAudioById(env, id);
+    if (current?.status === GENERATING_AUDIO_STATUS) {
+      return { ok: true, item: current };
+    }
+    return {
+      ok: false,
+      httpStatus: 409,
+      body: {
+        ok: false,
+        reason: "already_claimed",
+        status: current?.status ?? existing.status,
+        item: current,
+      },
+    };
+  }
+
+  return {
+    ok: false,
+    httpStatus: 409,
+    body: {
+      ok: false,
+      reason: "already_claimed",
+      status: existing.status,
+      item: existing,
+    },
+  };
+}
+
+async function claimFromStatus(
+  env: Env,
+  id: string,
+  fromStatus: string,
+): Promise<ContentAudioRow | null> {
+  const client = createSupabaseClient(env, { privileged: true });
+  const { data, error } = await client
+    .from(CONTENT_AUDIO_TABLE)
+    .update({
+      status: GENERATING_AUDIO_STATUS,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("status", fromStatus)
+    .select(CONTENT_AUDIO_SELECT)
+    .maybeSingle()
+    .overrideTypes<ContentAudioRow, { merge: false }>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data ?? null;
+}
+
+async function markContentAudioFailed(
+  env: Env,
+  id: string,
+  message: string,
+): Promise<void> {
+  const existing = await getContentAudioById(env, id);
+  if (!existing || existing.status !== GENERATING_AUDIO_STATUS) {
+    return;
+  }
+
+  const metadata = asMetadataObject(existing.metadata);
+  metadata.voice_error = {
+    message: message.slice(0, 500),
+    at: new Date().toISOString(),
+  };
+
+  const client = createSupabaseClient(env, { privileged: true });
+  const { error } = await client
+    .from(CONTENT_AUDIO_TABLE)
+    .update({
+      status: FAILED_AUDIO_STATUS,
+      metadata,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("status", GENERATING_AUDIO_STATUS);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+function asMetadataObject(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return { ...(value as Record<string, unknown>) };
+  }
+  return {};
+}
+
+function withoutVoiceError(
+  metadata: Record<string, unknown>,
+): Record<string, unknown> {
+  const next = { ...metadata };
+  delete next.voice_error;
+  return next;
+}
+
 /**
  * HTTP routes for Voice generation:
  *   GET  /api/audio/pending         — script_ready rows with a non-empty script
  *   POST /api/audio/claim           — script_ready → generating (optional body `{ id }`)
  *   GET  /api/audio/storage/health  — AUDIO_BUCKET put → get probe (no TTS, no DB write)
  *   POST /api/audio/tts             — one-row TTS test; returns audio/mpeg (no R2, no DB write)
+ *   POST /api/audio/generate        — TTS → R2 → completed (JSON, not raw MP3)
+ *   GET  /api/audio/file/:id        — stream stored MP3 from AUDIO_BUCKET
  *
  * Returns `null` if the path is not an audio route.
  */
@@ -253,6 +543,25 @@ export async function handleAudioRequest(
     const blocked = supabaseServiceRoleGuard(env);
     if (blocked) return blocked;
     return handleTtsPost(request, env);
+  }
+
+  if (pathname === "/api/audio/generate") {
+    if (request.method !== "POST") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    const blocked = supabaseServiceRoleGuard(env);
+    if (blocked) return blocked;
+    return handleGeneratePost(request, env);
+  }
+
+  const fileMatch = pathname.match(/^\/api\/audio\/file\/([^/]+)$/);
+  if (fileMatch) {
+    if (request.method !== "GET") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    const blocked = supabaseServiceRoleGuard(env);
+    if (blocked) return blocked;
+    return handleFileGet(env, fileMatch[1]);
   }
 
   return null;
@@ -376,8 +685,80 @@ async function handleTtsPost(request: Request, env: Env): Promise<Response> {
         "X-Audio-Lang": row.lang_code,
         "X-TTS-Provider": tts.provider,
         "X-TTS-Model": tts.model,
-        "X-TTS-Voice": env.TTS_VOICE,
+        "X-TTS-Voice": tts.voice,
         "Content-Length": String(audio.byteLength),
+      },
+    });
+  } catch (error) {
+    return queryFailed(error);
+  }
+}
+
+async function handleGeneratePost(
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const parsed = await parseClaimId(request);
+  if (!parsed.ok) {
+    return Response.json({ ok: false, message: parsed.message }, { status: 400 });
+  }
+  if (!parsed.id) {
+    return Response.json(
+      { ok: false, message: "id is required" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const result = await generateVoiceAudio(env, parsed.id);
+    if (!result.ok) {
+      return Response.json(result.body, { status: result.httpStatus });
+    }
+    return Response.json({ ok: true, item: result.item });
+  } catch (error) {
+    return queryFailed(error);
+  }
+}
+
+async function handleFileGet(env: Env, rawId: string): Promise<Response> {
+  if (!isUuid(rawId)) {
+    return Response.json(
+      { ok: false, message: "id must be a UUID" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const row = await getContentAudioById(env, rawId);
+    if (!row) {
+      return Response.json(
+        { ok: false, reason: "not_found" },
+        { status: 404 },
+      );
+    }
+    if (!row.storage_key) {
+      return Response.json(
+        { ok: false, message: "row has no storage_key" },
+        { status: 404 },
+      );
+    }
+
+    const stored = await getVoiceAudio(env, row.storage_key);
+    if (!stored) {
+      return Response.json(
+        { ok: false, message: "audio object not found in AUDIO_BUCKET" },
+        { status: 404 },
+      );
+    }
+
+    return new Response(stored.body, {
+      headers: {
+        "Content-Type":
+          stored.httpMetadata?.contentType ?? "audio/mpeg",
+        "Content-Disposition": `inline; filename="${row.id}.mp3"`,
+        "X-Audio-Id": row.id,
+        "X-Storage-Key": row.storage_key,
+        "Content-Length": String(stored.size),
       },
     });
   } catch (error) {
@@ -461,7 +842,7 @@ function claimResponse(result: ClaimAudioResult): Response {
 function publicQueryMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : "query failed";
   if (message.includes("invalid input value for enum content_audio_status")) {
-    return "Live content_audio_status enum does not include this value yet. Add 'generating' (and later 'completed') via ALTER TYPE — do not rewrite rows to 'generated'.";
+    return "Live content_audio_status enum does not include this value yet. Add 'generating' and 'completed' via ALTER TYPE — do not rewrite rows to 'generated'.";
   }
   return message;
 }

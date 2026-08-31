@@ -168,7 +168,7 @@ Phase 계획:
 | 2 | 안전한 claim (`script_ready` → `generating`) | 완료 |
 | 3 | Voice 전용 R2 연결 (`AUDIO_BUCKET` → `market-memory-audio`) | 완료 |
 | 4 | TTS Provider 연결 (수동 1 row 테스트) | 완료 |
-| 5 | TTS → R2 → Supabase 통합 | 예정 |
+| 5 | TTS → R2 → Supabase 통합 | 완료 |
 | 6 | Cron Trigger | 예정 |
 
 ### 8.1 Phase 1 — script_ready row 조회 *(완료)*
@@ -324,3 +324,56 @@ curl -X POST http://localhost:5173/api/audio/tts \
 * 약 805 KB, MPEG layer III 128 kbps / 24 kHz / mono
 * row `045e93fd-9440-4e21-9c64-adaf75c58c3f` (`ko` / `brief_30s`)
 * R2 / `content_audio` 상태는 변경하지 않음 (row는 계속 `generating`)
+
+### 8.5 Phase 5 — TTS → R2 → `completed` *(완료)*
+
+* **목적:** 한 row에 대해 claim → TTS → `AUDIO_BUCKET` put → `content_audio`를 `completed`로 마감. Cron은 하지 않음.
+* **엔드포인트:**
+  * `POST /api/audio/generate` body `{ "id": "<uuid>" }` → JSON `{ ok, item }` (raw MP3가 아님)
+  * `GET /api/audio/file/:id` → R2에서 MP3 스트리밍 (curl 확인용)
+* **상태 분기:**
+  * `script_ready` → claim 후 생성
+  * `generating` → 생성 (Phase 2 테스트 row가 이 상태)
+  * `failed` → CAS `failed` → `generating` 후 재시도
+  * `completed` → `409 already_completed`
+* **성공 시 갱신 컬럼:**
+  * `status = completed`
+  * `storage_provider = cloudflare_r2`
+  * `storage_key = {audio_type}/{YYYY}/{MM}/{DD}/{lang_code}/{id}.mp3` (`market_date`의 날짜 부분만 사용, bucket 이름 없음)
+  * `duration_seconds` — MP3 프레임 파싱, 실패 시 `null`
+  * `model_info = { provider, model, voice }`
+  * `updated_at`
+  * `metadata.voice_error` 가 있으면 삭제. 기존 `pulse` / `highlights` 등은 유지
+* **실패 시:** `generating` → `failed`, `metadata.voice_error = { message, at }` (기존 metadata 키는 지우지 않음)
+* **수정 및 추가 파일:**
+  * `worker/audio-r2.ts`: `buildVoiceStorageKey`, `putVoiceAudio` / `getVoiceAudio`, `mp3DurationSeconds`
+  * `worker/content-audio.ts`: `generateVoiceAudio()`, generate / file 라우트
+  * `worker/tts.ts`: `TTSProvider.voice` 노출 (`model_info`용)
+  * `worker/index.ts`: 주석만
+* **이 Phase에서 하지 않은 것:** Cron, Queues, 스키마 변경, `BUCKET`(boilerplate-bucket) 사용
+
+로컬 확인:
+
+```bash
+curl -X POST http://localhost:5173/api/audio/generate \
+  -H "Content-Type: application/json" \
+  -d '{"id":"<content_audio.id>"}'
+curl http://localhost:5173/api/audio/file/<content_audio.id> --output /tmp/voice.mp3
+curl http://localhost:5173/api/audio/pending
+curl http://localhost:5173/api/supabase/health
+```
+
+- 성공 → `200` `{ ok: true, item.status: "completed", storage_key, duration_seconds, model_info }`
+- 이미 completed → `409` `{ reason: "already_completed" }`
+- id 생략 → `400`
+- TTS/R2 실패 → `502`, row는 `failed` + `metadata.voice_error`
+- pending은 계속 `count: 0`
+- health는 그대로 `200`
+
+로컬 확인 결과 (2026-09-01): id `045e93fd-9440-4e21-9c64-adaf75c58c3f`
+* `generating` → `completed`
+* `storage_key`: `brief_30s/2026/08/29/ko/045e93fd-9440-4e21-9c64-adaf75c58c3f.mp3`
+* `duration_seconds`: 52 (`file` MPEG L3 128 kbps / 24 kHz / mono)
+* `GET /api/audio/file/:id` → `200` `audio/mpeg` 약 826 KB
+* 재호출 `409 already_completed`, pending 0, supabase / R2 health 유지
+* `metadata`의 pulse / highlights 유지, `voice_error` 없음
