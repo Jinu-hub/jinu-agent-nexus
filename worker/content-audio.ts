@@ -10,6 +10,7 @@
 // Phase 2: atomic claim (script_ready → generating). No TTS / R2 / Cron.
 // Phase 4: manual TTS for one row. Returns audio bytes. No R2 / DB write.
 // Phase 5: one-row TTS → AUDIO_BUCKET → content_audio completed. No Cron.
+// Phase 6: Cron drains pending via runVoiceAudioCron (lang filter from env).
 //
 // Rows that are ready for TTS:
 //   status = 'script_ready'
@@ -31,6 +32,13 @@ import {
   putVoiceAudio,
 } from "./audio-r2";
 import { createTTSProvider, ttsCharLimit } from "./tts";
+import {
+  matchesVoiceLangFilter,
+  type VoiceLangFilter,
+} from "./voice-lang-filter";
+import { runVoiceAudioCron } from "./voice-audio-cron";
+
+export type { VoiceLangFilter };
 
 export const CONTENT_AUDIO_TABLE = "content_audio";
 export const PENDING_AUDIO_STATUS = "script_ready";
@@ -95,6 +103,11 @@ function isUuid(value: string): boolean {
   return UUID_RE.test(value);
 }
 
+export type ListPendingOptions = {
+  /** Cron uses env-based filter; manual APIs omit this (all languages). */
+  langFilter?: VoiceLangFilter;
+};
+
 /**
  * List Voice generation candidates. Read-only — never mutates rows.
  * Uses the service role client: this is a trusted Worker-side job, and
@@ -102,6 +115,7 @@ function isUuid(value: string): boolean {
  */
 export async function listPendingContentAudio(
   env: Env,
+  options?: ListPendingOptions,
 ): Promise<ContentAudioRow[]> {
   const client = createSupabaseClient(env, { privileged: true });
 
@@ -118,7 +132,13 @@ export async function listPendingContentAudio(
     throw new Error(error.message);
   }
 
-  return (data ?? []).filter(hasUsableScript);
+  let rows = (data ?? []).filter(hasUsableScript);
+  if (options?.langFilter) {
+    rows = rows.filter((row) =>
+      matchesVoiceLangFilter(row.lang_code, options.langFilter!),
+    );
+  }
+  return rows;
 }
 
 /**
@@ -182,8 +202,9 @@ export async function claimPendingContentAudio(
  */
 export async function claimNextPendingContentAudio(
   env: Env,
+  options?: ListPendingOptions,
 ): Promise<ClaimAudioResult> {
-  const pending = await listPendingContentAudio(env);
+  const pending = await listPendingContentAudio(env, options);
   for (const row of pending) {
     const result = await claimPendingContentAudio(env, row.id);
     if (result.claimed) return result;
@@ -501,6 +522,7 @@ function withoutVoiceError(
  *   POST /api/audio/tts             — one-row TTS test; returns audio/mpeg (no R2, no DB write)
  *   POST /api/audio/generate        — TTS → R2 → completed (JSON, not raw MP3)
  *   GET  /api/audio/file/:id        — stream stored MP3 from AUDIO_BUCKET
+ *   POST /api/audio/cron/run        — run Cron drain once (dev / manual test)
  *
  * Returns `null` if the path is not an audio route.
  */
@@ -562,6 +584,15 @@ export async function handleAudioRequest(
     const blocked = supabaseServiceRoleGuard(env);
     if (blocked) return blocked;
     return handleFileGet(env, fileMatch[1]);
+  }
+
+  if (pathname === "/api/audio/cron/run") {
+    if (request.method !== "POST") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    const blocked = supabaseServiceRoleGuard(env);
+    if (blocked) return blocked;
+    return handleCronRunPost(env);
   }
 
   return null;
@@ -761,6 +792,18 @@ async function handleFileGet(env: Env, rawId: string): Promise<Response> {
         "Content-Length": String(stored.size),
       },
     });
+  } catch (error) {
+    return queryFailed(error);
+  }
+}
+
+async function handleCronRunPost(env: Env): Promise<Response> {
+  try {
+    const result = await runVoiceAudioCron(env);
+    if (!result.ok) {
+      return Response.json(result, { status: 503 });
+    }
+    return Response.json(result);
   } catch (error) {
     return queryFailed(error);
   }

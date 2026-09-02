@@ -9,7 +9,7 @@
 //   4. My Market Memory — personalization DO SQLite (`/memory/*`).
 //   5. ChatAgent Settings — runtime settings and change history (`/settings`).
 //   6. Supabase health — Market Memory connectivity probe (`/api/supabase/health`).
-//   7. Voice audio — pending, claim, R2, TTS, generate (`/api/audio/*`).
+//   7. Voice audio — pending, claim, R2, TTS, generate, Cron (`/api/audio/*`).
 //   8. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
 //      which dispatches to the ChatAgent / LiveMarketRoomAgent DOs.
 //
@@ -27,6 +27,7 @@ import { handleMemoryRequest } from "./memory-routes";
 import { handleSettingsRequest } from "./settings-routes";
 import { handleSupabaseRequest } from "./supabase";
 import { handleAudioRequest } from "./content-audio";
+import { runVoiceAudioCron, VOICE_AUDIO_CRON } from "./voice-audio-cron";
 import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
 
 export { ChatAgent, MyMemory, LiveMarketRoomAgent };
@@ -116,6 +117,15 @@ export default {
     return (
       (await routeAgentRequest(request, env)) ??
       new Response("Not found", { status: 404 })
+    );
+  },
+
+  async scheduled(event, env, ctx) {
+    if (event.cron !== VOICE_AUDIO_CRON) return;
+    ctx.waitUntil(
+      runVoiceAudioCron(env, event.cron).then((result) => {
+        console.log("voice-audio-cron", JSON.stringify(result));
+      }),
     );
   },
 } satisfies ExportedHandler<Env>;

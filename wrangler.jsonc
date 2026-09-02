@@ -138,6 +138,10 @@
   // CHAT_MODEL / EMBEDDING_MODEL — what the agent uses.
   // TTS_MODEL / TTS_VOICE — Voice generation (Phase 4). Default is
   // OpenAI TTS through the AI binding + AI Gateway so ko/ja/en work.
+  //
+  // AUDIO_CRON_LANG_EXCLUDE / AUDIO_CRON_LANG_INCLUDE — Phase 6 Cron lang
+  // filter (comma-separated). INCLUDE set → allowlist only; else EXCLUDE.
+  // AUDIO_CRON_BATCH_LIMIT — max rows per Cron tick (default 10, cap 50).
   // Requires API_TOKEN with AI Gateway → Run and Unified Billing (or
   // a stored OpenAI key on the gateway). Native Workers AI TTS models
   // (MeloTTS / Aura) are not used here — they don't cover Korean well.
@@ -159,6 +163,15 @@
     "EMBEDDING_MODEL": "@cf/baai/bge-base-en-v1.5",
     "TTS_MODEL": "openai/tts-1",
     "TTS_VOICE": "nova",
+    "AUDIO_CRON_LANG_EXCLUDE": "ja",
+    "AUDIO_CRON_LANG_INCLUDE": "",
+    "AUDIO_CRON_BATCH_LIMIT": "10",
+  },
+
+  // Voice generation Cron — UTC 00:00 daily (= KST 09:00). Change here and
+  // redeploy; must stay in sync with VOICE_AUDIO_CRON in voice-audio-cron.ts.
+  "triggers": {
+    "crons": ["0 0 * * *"],
   },
 
   // Secrets go in `.dev.vars` for local dev and via

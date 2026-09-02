@@ -92,6 +92,9 @@ worker/index.ts (HTTP Gateway)
  ├── POST /api/audio/claim                         → script_ready → generating claim (Phase 2)
  ├── GET  /api/audio/storage/health                → AUDIO_BUCKET put → get 점검 (Phase 3)
  ├── POST /api/audio/tts                           → 1 row TTS 테스트, audio/mpeg (Phase 4)
+ ├── POST /api/audio/generate                      → TTS → R2 → completed (Phase 5)
+ ├── GET  /api/audio/file/:id                      → R2 MP3 스트리밍 (Phase 5)
+ ├── POST /api/audio/cron/run                      → Cron drain 1회 수동 실행 (Phase 6)
  ├── POST /api/upload                              → ChatAgent DO (PDF RAG 업로드)
  ├── GET  /screenshots/*                           → R2 Bucket (브라우저 스크린샷)
  ├── /agents/ChatAgent/default                     → ChatAgent (WebSocket + Think Chat)
@@ -169,7 +172,7 @@ Phase 계획:
 | 3 | Voice 전용 R2 연결 (`AUDIO_BUCKET` → `market-memory-audio`) | 완료 |
 | 4 | TTS Provider 연결 (수동 1 row 테스트) | 완료 |
 | 5 | TTS → R2 → Supabase 통합 | 완료 |
-| 6 | Cron Trigger | 예정 |
+| 6 | Cron Trigger | 완료 |
 
 ### 8.1 Phase 1 — script_ready row 조회 *(완료)*
 
@@ -377,3 +380,37 @@ curl http://localhost:5173/api/supabase/health
 * `GET /api/audio/file/:id` → `200` `audio/mpeg` 약 826 KB
 * 재호출 `409 already_completed`, pending 0, supabase / R2 health 유지
 * `metadata`의 pulse / highlights 유지, `voice_error` 없음
+
+### 8.6 Phase 6 — Cron Trigger *(완료)*
+
+* **목적:** `script_ready` pending을 사람 없이 주기적으로 drain. pending 0건이면 TTS/R2 없이 즉시 종료.
+* **스케줄:** `0 0 * * *` (UTC 00:00 = **KST 09:00**). `wrangler.jsonc` `triggers.crons`에서 변경 후 재배포.
+* **lang_code 필터** (`wrangler.jsonc` vars, 쉼표 구분):
+  * `AUDIO_CRON_LANG_EXCLUDE` — 기본 `ja` (일본어 제외)
+  * `AUDIO_CRON_LANG_INCLUDE` — 비어 있으면 allowlist 미사용; 설정 시 **해당 언어만** (EXCLUDE 무시)
+  * 예: `ja` 다시 포함 → `AUDIO_CRON_LANG_EXCLUDE`를 `""` 로
+  * 예: `ko`만 → `AUDIO_CRON_LANG_INCLUDE=ko`, `AUDIO_CRON_LANG_EXCLUDE`는 무시됨
+* `AUDIO_CRON_BATCH_LIMIT` — tick당 최대 처리 row 수 (기본 10, 상한 50)
+* **수정 및 추가 파일:**
+  * `wrangler.jsonc`: `triggers.crons`, Cron vars
+  * `worker/voice-lang-filter.ts` *(신규)*: include/exclude 파싱
+  * `worker/voice-audio-cron.ts` *(신규)*: `runVoiceAudioCron()`, `VOICE_AUDIO_CRON`
+  * `worker/index.ts`: `scheduled` → `ctx.waitUntil(runVoiceAudioCron)`
+  * `worker/content-audio.ts`: `listPendingContentAudio` optional `langFilter`; `POST /api/audio/cron/run`
+* **수동 API와 차이:** `GET /api/audio/pending`, `POST /api/audio/claim`은 **lang 필터 없음** (전체 pending). Cron만 env 필터 적용.
+* **이 Phase에서 하지 않은 것:** Queues, 스키마 변경, 스크립트 작성 (upstream Market Memory)
+
+로컬 확인:
+
+```bash
+# Cron과 동일한 drain 1회 (lang exclude=ja 적용)
+curl -X POST http://localhost:5173/api/audio/cron/run
+
+# Wrangler scheduled 시뮬레이션 (dev 서버 재시작 후)
+curl "http://localhost:5173/cdn-cgi/handler/scheduled?cron=0+0+*+*+*"
+```
+
+- pending 0 (또는 ja만 남음) → `200` `{ attempted: 0, ... }`
+- ko/en pending 있음 → 순서대로 generate, `completed` / `failed` 집계
+- `langFilter`: `"exclude=[ja]"` 또는 `"include=[ko,en]"` 등
+- Supabase 미설정 → `503`
