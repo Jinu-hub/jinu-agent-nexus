@@ -29,6 +29,7 @@ export type VoiceAudioCronItemResult =
 export type VoiceAudioCronResult = {
   ok: true;
   cron: string;
+  targetMarketDate: string;
   langFilter: string;
   pendingMatched: number;
   attempted: number;
@@ -51,9 +52,16 @@ function parseBatchLimit(env: Env): number {
   return Math.min(n, 50);
 }
 
+function previousUtcDateYmd(now: Date = new Date()): string {
+  const prev = new Date(now);
+  prev.setUTCDate(now.getUTCDate() - 1);
+  return prev.toISOString().slice(0, 10);
+}
+
 /**
- * One Cron tick: process up to AUDIO_CRON_BATCH_LIMIT pending rows that pass
- * the lang filter. Uses generateVoiceAudio (claim + TTS + R2 + completed).
+ * One Cron tick: process up to AUDIO_CRON_BATCH_LIMIT pending rows whose
+ * market_date is the previous UTC day and whose lang_code passes the filter.
+ * Uses generateVoiceAudio (claim + TTS + R2 + completed).
  */
 export async function runVoiceAudioCron(
   env: Env,
@@ -67,7 +75,11 @@ export async function runVoiceAudioCron(
   }
 
   const langFilter = resolveVoiceLangFilter(env);
-  const pending = await listPendingContentAudio(env, { langFilter });
+  const targetMarketDate = previousUtcDateYmd();
+  const pending = await listPendingContentAudio(env, {
+    langFilter,
+    marketDate: targetMarketDate,
+  });
   const batchLimit = parseBatchLimit(env);
   const items: VoiceAudioCronItemResult[] = [];
   let completed = 0;
@@ -100,6 +112,7 @@ export async function runVoiceAudioCron(
   return {
     ok: true,
     cron,
+    targetMarketDate,
     langFilter: describeVoiceLangFilter(langFilter),
     pendingMatched: pending.length,
     attempted: items.length,

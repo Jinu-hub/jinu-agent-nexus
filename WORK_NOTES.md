@@ -383,7 +383,7 @@ curl http://localhost:5173/api/supabase/health
 
 ### 8.6 Phase 6 — Cron Trigger *(완료)*
 
-* **목적:** `script_ready` pending을 사람 없이 주기적으로 drain. pending 0건이면 TTS/R2 없이 즉시 종료.
+* **목적:** `script_ready` pending 중 **UTC 기준 전날 `market_date`** 인 row를 사람 없이 주기적으로 drain. pending 0건이면 TTS/R2 없이 즉시 종료.
 * **스케줄:** `0 0 * * *` (UTC 00:00 = **KST 09:00**). `wrangler.jsonc` `triggers.crons`에서 변경 후 재배포.
 * **lang_code 필터** (`wrangler.jsonc` vars, 쉼표 구분):
   * `AUDIO_CRON_LANG_EXCLUDE` — 기본 `ja` (일본어 제외)
@@ -391,26 +391,31 @@ curl http://localhost:5173/api/supabase/health
   * 예: `ja` 다시 포함 → `AUDIO_CRON_LANG_EXCLUDE`를 `""` 로
   * 예: `ko`만 → `AUDIO_CRON_LANG_INCLUDE=ko`, `AUDIO_CRON_LANG_EXCLUDE`는 무시됨
 * `AUDIO_CRON_BATCH_LIMIT` — tick당 최대 처리 row 수 (기본 10, 상한 50)
+* **날짜 필터:**
+  * Cron 실행 시점이 `2026-09-03T00:00:00Z` 이면 대상 `market_date`는 `2026-09-02`
+  * 즉 `targetMarketDate = previous UTC day`
+  * 같은 날에 더 오래된 미처리 row가 있어도, `market_date`가 다르면 이번 tick 대상이 아님
 * **수정 및 추가 파일:**
   * `wrangler.jsonc`: `triggers.crons`, Cron vars
   * `worker/voice-lang-filter.ts` *(신규)*: include/exclude 파싱
-  * `worker/voice-audio-cron.ts` *(신규)*: `runVoiceAudioCron()`, `VOICE_AUDIO_CRON`
+  * `worker/voice-audio-cron.ts` *(신규)*: `runVoiceAudioCron()`, `VOICE_AUDIO_CRON`, 전날 `market_date` 계산
   * `worker/index.ts`: `scheduled` → `ctx.waitUntil(runVoiceAudioCron)`
-  * `worker/content-audio.ts`: `listPendingContentAudio` optional `langFilter`; `POST /api/audio/cron/run`
+  * `worker/content-audio.ts`: `listPendingContentAudio` optional `langFilter` / `marketDate`; `POST /api/audio/cron/run`
 * **수동 API와 차이:** `GET /api/audio/pending`, `POST /api/audio/claim`은 **lang 필터 없음** (전체 pending). Cron만 env 필터 적용.
 * **이 Phase에서 하지 않은 것:** Queues, 스키마 변경, 스크립트 작성 (upstream Market Memory)
 
 로컬 확인:
 
 ```bash
-# Cron과 동일한 drain 1회 (lang exclude=ja 적용)
+# Cron과 동일한 drain 1회 (전날 market_date + lang exclude=ja 적용)
 curl -X POST http://localhost:5173/api/audio/cron/run
 
 # Wrangler scheduled 시뮬레이션 (dev 서버 재시작 후)
 curl "http://localhost:5173/cdn-cgi/handler/scheduled?cron=0+0+*+*+*"
 ```
 
-- pending 0 (또는 ja만 남음) → `200` `{ attempted: 0, ... }`
+- pending 0 (또는 전날 대상이 없거나 ja만 남음) → `200` `{ attempted: 0, ... }`
 - ko/en pending 있음 → 순서대로 generate, `completed` / `failed` 집계
+- 응답 `targetMarketDate`에 이번 tick 대상 날짜가 들어감
 - `langFilter`: `"exclude=[ja]"` 또는 `"include=[ko,en]"` 등
 - Supabase 미설정 → `503`

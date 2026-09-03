@@ -106,6 +106,11 @@ function isUuid(value: string): boolean {
 export type ListPendingOptions = {
   /** Cron uses env-based filter; manual APIs omit this (all languages). */
   langFilter?: VoiceLangFilter;
+  /**
+   * Restrict to rows whose market_date matches this value (YYYY-MM-DD).
+   * Rows with a null market_date are excluded when this is set.
+   */
+  marketDate?: string;
 };
 
 /**
@@ -137,6 +142,9 @@ export async function listPendingContentAudio(
     rows = rows.filter((row) =>
       matchesVoiceLangFilter(row.lang_code, options.langFilter!),
     );
+  }
+  if (options?.marketDate) {
+    rows = rows.filter((row) => row.market_date?.slice(0, 10) === options.marketDate);
   }
   return rows;
 }
