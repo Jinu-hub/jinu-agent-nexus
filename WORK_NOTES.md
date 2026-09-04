@@ -426,12 +426,12 @@ curl "http://localhost:5173/cdn-cgi/handler/scheduled?cron=0+0+*+*+*"
 ## 9. Content Briefs 조회 (content_briefs → Worker read path)
 
 > Market Memory 공유 텍스트 브리핑을 Worker에서 읽어오는 베이스라인.
-> Chat tool / Panel은 이후 Phase. Voice(`content_audio`)와 테이블이 다름.
+> Voice(`content_audio`)와 테이블이 다름. Panel/`State`는 아직 없음.
 
 | Phase | 내용 | 상태 |
 |-------|------|------|
 | A | `content_briefs` 조회 + `GET /api/briefs/today` | 완료 |
-| B | Chat tool (`getTodayMarketBrief` 등) — Phase A 함수 재사용 | 예정 |
+| B | Chat tool `getTodayMarketBrief` — Phase A 함수 재사용 | 완료 |
 | C | 공용 query 헬퍼 정리 (두 번째 테이블 때) | 선택 |
 
 ### 9.1 Phase A — Today brief HTTP API *(완료)*
@@ -477,3 +477,26 @@ curl http://localhost:5173/api/supabase/health
 * `?date=2026-09-03` → `found: true`, title `글로벌 시장 이슈 (260903)`, `content` 595자
 * 기본 today (`2026-09-04`) → `found: false` (해당일 row 없음)
 * 잘못된 date / health 정상 유지
+
+### 9.2 Phase B — Chat tool `getTodayMarketBrief` *(완료)*
+
+* **목적:** 채팅에서 「오늘의 마켓 이슈 브리핑」 등이 도구를 통해 `content_briefs.content`를 가져오게 함.
+* **수정 및 추가 파일:**
+  * `worker/tools/getTodayMarketBrief.ts` *(신규)*: `createGetTodayMarketBriefTool(env)`
+    * 입력: optional `date` (YYYY-MM-DD), optional `lang` (기본 ko)
+    * `getTodayContentBrief()`만 호출 — select 로직 중복 없음
+    * 응답: `found` + `title`/`content` (+ `pulse`/`takeaway` 요약)
+  * `worker/chat-agent/tools-registry.ts`: `getTodayMarketBrief` 등록
+  * `worker/content-briefs.ts`: Phase B 주석만 갱신
+* **이 Phase에서 하지 않은 것:** Panel/`State`, 범용 테이블 쿼리 tool, Phase C 헬퍼 추출
+
+채팅 확인:
+
+1. Tools 패널(또는 에이전트 재연결)에 `getTodayMarketBrief`가 보이는지
+2. 「2026년 9월 3일 마켓 이슈 브리핑 보여줘」 → tool call → `content`가 답변에 포함
+3. 「오늘의 마켓 브리핑 보여줘」 → tool call → 오늘(Seoul) row 없으면 “없다”고 안내 (환각 금지)
+
+```bash
+# 데이터 경로 회귀 (Phase A 유지)
+curl -sS 'http://localhost:5173/api/briefs/today?date=2026-09-03' | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['found'] and d['item']['content']; print('ok', d['item']['title'])"
+```

@@ -4,10 +4,10 @@
 //
 // Product role:
 //   Supabase content_briefs = shared "Today in 30s" / market-issue copy
-//   Cloudflare Worker       = read path for curl + (later) chat tools
+//   Cloudflare Worker       = read path for curl + chat tool
 //
-// Phase A: read-only. GET /api/briefs/today returns one row's `content`
-// for a market_date (default: Asia/Seoul today). No writes, no chat tool.
+// Phase A: GET /api/briefs/today — curl verification.
+// Phase B: getTodayMarketBrief chat tool reuses getTodayContentBrief().
 // ─────────────────────────────────────────────────────────────────────────
 
 import {

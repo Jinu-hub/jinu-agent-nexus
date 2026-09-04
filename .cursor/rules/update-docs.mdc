@@ -1,0 +1,41 @@
+---
+description: Keep WORK_NOTES and related project docs in sync when shipping features
+alwaysApply: true
+---
+
+# Documentation updates (required with code)
+
+When you add, change, or remove a **user**, **route**, **binding**, **secret**, **tool**, **panel**, or **Phase**, update docs in the **same change set** (before considering the task done). Do not leave docs for “later” unless the user explicitly says so.
+
+## Mandatory
+
+- **`WORK_NOTES.md` is always required** for non-trivial work:
+  - New section or Phase subsection (purpose, files, curl/verify steps, what was *not* done)
+  - Update §6 routing tree when HTTP paths change
+  - Record local verification results when you (or the user) confirmed OK
+
+Skip only for pure typo/style edits with no behavior or API surface change.
+
+## Update when relevant (same PR / same session)
+
+| Change type | Also update |
+|-------------|-------------|
+| New/changed Worker route or DO | `ARCHITECTURE.md` (feature table + backend layers), `CLAUDE.md` (routing / file map / repo layout) |
+| New tool / panel / State field | `CLAUDE.md` file map; `ARCHITECTURE.md` tools/panels if listed |
+| New binding, secret, cron, R2/KV/Vectorize | `CLAUDE.md` config table; `.dev.vars.example` + `worker-env.d.ts` for secrets |
+| Human onboarding / deploy steps | `README.md` and/or `README.eng.md` only if setup steps actually changed |
+| LLM-facing architecture only | Prefer `CLAUDE.md`; do not duplicate long prose into README |
+
+## Style
+
+- Match existing `WORK_NOTES.md` voice (Korean bullets, Phase tables, curl blocks).
+- Keep `CLAUDE.md` / `ARCHITECTURE.md` concise — maps and pointers, not essays.
+- Do not invent features in docs that are not in code.
+- Prefer editing existing sections over adding parallel “shadow” docs.
+
+## Checklist before “done”
+
+1. Code works (or user verified).
+2. `WORK_NOTES.md` updated.
+3. Touched surfaces reflected in `ARCHITECTURE.md` / `CLAUDE.md` when the table above says so.
+4. Mention docs in the commit message `Docs:` section when committing.

@@ -169,6 +169,7 @@ All live under `worker/tools/` and register in `getTools()` inside
 | `recall.ts` | RAG search over PDFs | Server (Vectorize + SQL) |
 | `navigate.ts` | Open URL in browser | Server |
 | `screenshot.ts` | Capture page → R2 | Server |
+| `getTodayMarketBrief.ts` | Today's market-issue brief (`content_briefs`) | Server (Supabase) |
 
 Built-in **Think** tools (not in `worker/tools/`): `read`, `write`, `edit`,
 `list`, `find`, `grep`, `delete`, `set_context`, `load_context`,

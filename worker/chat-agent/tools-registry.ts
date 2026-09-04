@@ -9,6 +9,7 @@ import { createSetReminderTool } from "../tools/setReminder";
 import { createRecallTool } from "../tools/recall";
 import { createNavigateTool } from "../tools/navigate";
 import { createScreenshotTool } from "../tools/screenshot";
+import { createGetTodayMarketBriefTool } from "../tools/getTodayMarketBrief";
 
 import type { ChatAgent } from "../chat-agent";
 
@@ -26,6 +27,7 @@ export function getChatTools(agent: ChatAgent, env: Env): ToolSet {
     recall: createRecallTool(agent, env),
     navigate: createNavigateTool(agent),
     screenshot: createScreenshotTool(agent, env),
+    getTodayMarketBrief: createGetTodayMarketBriefTool(env),
 
     // load_extension + list_extensions — extension management tools.
     // Per-extension tools are auto-merged by Think internally.
