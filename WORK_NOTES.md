@@ -90,6 +90,7 @@ worker/index.ts (HTTP Gateway)
  ├── GET  /api/supabase/health                     → Supabase 도달성 점검
  ├── GET  /api/briefs/today                        → content_briefs 당일 브리핑 조회 (Phase A)
  ├── GET  /api/audio/pending                       → content_audio script_ready 조회 (Phase 1)
+ ├── GET  /api/audio/today                         → completed Voice 메타 + play URL (Phase 7)
  ├── POST /api/audio/claim                         → script_ready → generating claim (Phase 2)
  ├── GET  /api/audio/storage/health                → AUDIO_BUCKET put → get 점검 (Phase 3)
  ├── POST /api/audio/tts                           → 1 row TTS 테스트, audio/mpeg (Phase 4)
@@ -174,6 +175,7 @@ Phase 계획:
 | 4 | TTS Provider 연결 (수동 1 row 테스트) | 완료 |
 | 5 | TTS → R2 → Supabase 통합 | 완료 |
 | 6 | Cron Trigger | 완료 |
+| 7 | Today playback — Supabase 메타 + R2 bytes (`/api/audio/today` + chat tool) | 완료 |
 
 ### 8.1 Phase 1 — script_ready row 조회 *(완료)*
 
@@ -420,6 +422,37 @@ curl "http://localhost:5173/cdn-cgi/handler/scheduled?cron=0+0+*+*+*"
 - 응답 `targetMarketDate`에 이번 tick 대상 날짜가 들어감
 - `langFilter`: `"exclude=[ja]"` 또는 `"include=[ko,en]"` 등
 - Supabase 미설정 → `503`
+
+### 8.7 Phase 7 — Today Voice playback (메타 + R2) *(완료)*
+
+* **목적:** 완성된 Voice를 **Supabase 메타로 고르고**, MP3 bytes는 기존 `GET /api/audio/file/:id` → R2로 스트림. Chat에는 URL만 넘김.
+* **패턴:** 텍스트 `content_briefs` today API와 대칭 (`market_date` = Asia/Seoul 기본).
+* **기본 필터:** `status=completed`, `storage_key` non-empty, `lang=ko`, `audio_type=brief_30s`, `content_type=daily-market-issues`
+* **수정 및 추가 파일:**
+  * `worker/content-audio.ts`: `getTodayContentAudio()`, `GET /api/audio/today`
+  * `worker/tools/getTodayMarketVoice.ts` *(신규)*
+  * `worker/chat-agent/tools-registry.ts`: `getTodayMarketVoice` 등록
+* **이 Phase에서 하지 않은 것:** Chat UI `<audio>` 위젯, R2-only list, Panel
+
+로컬 확인:
+
+```bash
+# 메타 (데이터 있는 날)
+curl -sS 'http://localhost:5173/api/audio/today?date=2026-09-03' | python3 -m json.tool
+
+# R2 bytes (응답의 item.id 사용)
+curl -sS "http://localhost:5173/api/audio/file/<id>" -o /tmp/voice-today.mp3 && file /tmp/voice-today.mp3
+
+# Seoul 오늘 (없으면 found:false)
+curl -sS http://localhost:5173/api/audio/today | python3 -m json.tool
+```
+
+채팅: 「2026년 9월 3일 보이스 브리핑」 → `getTodayMarketVoice` → `playPath` 안내
+
+로컬 확인 결과 (2026-09-04):
+* `?date=2026-09-03` → `found: true`, title `글로벌 시장 이슈 (260903)`, `duration_seconds: 57`
+* `playPath` → `/api/audio/file/066b84e2-…` → MPEG L3 ~918 KB
+* 기본 today (`2026-09-04`) → `found: false`
 
 ---
 

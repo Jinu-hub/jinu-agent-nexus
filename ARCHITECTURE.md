@@ -170,6 +170,7 @@ All live under `worker/tools/` and register in `getTools()` inside
 | `navigate.ts` | Open URL in browser | Server |
 | `screenshot.ts` | Capture page → R2 | Server |
 | `getTodayMarketBrief.ts` | Today's market-issue brief (`content_briefs`) | Server (Supabase) |
+| `getTodayMarketVoice.ts` | Today's voice brief meta + play URL (`content_audio` → R2) | Server (Supabase + R2) |
 
 Built-in **Think** tools (not in `worker/tools/`): `read`, `write`, `edit`,
 `list`, `find`, `grep`, `delete`, `set_context`, `load_context`,
@@ -188,7 +189,7 @@ worker/index.ts          HTTP entry — routes only, thin
     ├── GET  /screenshots/*  → stream from R2
     ├── GET  /api/supabase/health → Supabase reachability probe
     ├── GET  /api/briefs/today → content_briefs (Seoul market_date)
-    ├── /api/audio/* → content_audio Voice pipeline
+    ├── /api/audio/* → content_audio Voice pipeline (+ GET /api/audio/today)
     ├── /agents/live-market-room-agent/market-pulse → poll room WS + RPC
     └── /agents/ChatAgent/default  → WebSocket + RPC
               │

@@ -11,6 +11,7 @@
 // Phase 4: manual TTS for one row. Returns audio bytes. No R2 / DB write.
 // Phase 5: one-row TTS → AUDIO_BUCKET → content_audio completed. No Cron.
 // Phase 6: Cron drains pending via runVoiceAudioCron (lang filter from env).
+// Phase 7: today playback — Supabase meta (completed) + R2 bytes via file URL.
 //
 // Rows that are ready for TTS:
 //   status = 'script_ready'
@@ -37,6 +38,10 @@ import {
   type VoiceLangFilter,
 } from "./voice-lang-filter";
 import { runVoiceAudioCron } from "./voice-audio-cron";
+import {
+  isMarketDateYmd,
+  marketDateYmdInTimeZone,
+} from "./market-date";
 
 export type { VoiceLangFilter };
 
@@ -46,6 +51,11 @@ export const PENDING_AUDIO_STATUS = "script_ready";
 export const GENERATING_AUDIO_STATUS = "generating";
 export const COMPLETED_AUDIO_STATUS = "completed";
 export const FAILED_AUDIO_STATUS = "failed";
+
+/** Default product slice for "오늘의 보이스 브리핑" (mirrors content_briefs). */
+export const DEFAULT_VOICE_LANG = "ko";
+export const DEFAULT_VOICE_AUDIO_TYPE = "brief_30s";
+export const DEFAULT_VOICE_CONTENT_TYPE = "daily-market-issues";
 
 export type ContentAudioStatus =
   | "script_ready"
@@ -242,6 +252,70 @@ export async function getContentAudioById(
   }
 
   return data ?? null;
+}
+
+export type GetTodayContentAudioOptions = {
+  /** YYYY-MM-DD. Default: Asia/Seoul calendar today. */
+  marketDate?: string;
+  lang?: string;
+  audioType?: string;
+  contentType?: string;
+};
+
+export type TodayContentAudioResult = {
+  marketDate: string;
+  lang: string;
+  audioType: string;
+  contentType: string;
+  status: typeof COMPLETED_AUDIO_STATUS;
+  item: ContentAudioRow | null;
+};
+
+/**
+ * Fetch one completed Voice row ready to play (has storage_key).
+ * Uses service_role. Bytes stay on R2 — callers use /api/audio/file/:id.
+ */
+export async function getTodayContentAudio(
+  env: Env,
+  options: GetTodayContentAudioOptions = {},
+): Promise<TodayContentAudioResult> {
+  const marketDate =
+    options.marketDate?.trim() || marketDateYmdInTimeZone();
+  const lang = options.lang?.trim() || DEFAULT_VOICE_LANG;
+  const audioType =
+    options.audioType?.trim() || DEFAULT_VOICE_AUDIO_TYPE;
+  const contentType =
+    options.contentType?.trim() || DEFAULT_VOICE_CONTENT_TYPE;
+
+  const client = createSupabaseClient(env, { privileged: true });
+
+  const { data, error } = await client
+    .from(CONTENT_AUDIO_TABLE)
+    .select(CONTENT_AUDIO_SELECT)
+    .eq("market_date", marketDate)
+    .eq("lang_code", lang)
+    .eq("audio_type", audioType)
+    .eq("content_type", contentType)
+    .eq("status", COMPLETED_AUDIO_STATUS)
+    .not("storage_key", "is", null)
+    .neq("storage_key", "")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+    .overrideTypes<ContentAudioRow, { merge: false }>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return {
+    marketDate,
+    lang,
+    audioType,
+    contentType,
+    status: COMPLETED_AUDIO_STATUS,
+    item: data ?? null,
+  };
 }
 
 export type GenerateAudioResult =
@@ -523,12 +597,13 @@ function withoutVoiceError(
 }
 
 /**
- * HTTP routes for Voice generation:
+ * HTTP routes for Voice generation / playback:
  *   GET  /api/audio/pending         — script_ready rows with a non-empty script
  *   POST /api/audio/claim           — script_ready → generating (optional body `{ id }`)
  *   GET  /api/audio/storage/health  — AUDIO_BUCKET put → get probe (no TTS, no DB write)
  *   POST /api/audio/tts             — one-row TTS test; returns audio/mpeg (no R2, no DB write)
  *   POST /api/audio/generate        — TTS → R2 → completed (JSON, not raw MP3)
+ *   GET  /api/audio/today           — completed Voice meta for market_date (+ play URL)
  *   GET  /api/audio/file/:id        — stream stored MP3 from AUDIO_BUCKET
  *   POST /api/audio/cron/run        — run Cron drain once (dev / manual test)
  *
@@ -555,6 +630,15 @@ export async function handleAudioRequest(
     const blocked = supabaseServiceRoleGuard(env);
     if (blocked) return blocked;
     return handlePendingGet(env);
+  }
+
+  if (pathname === "/api/audio/today") {
+    if (request.method !== "GET") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    const blocked = supabaseServiceRoleGuard(env);
+    if (blocked) return blocked;
+    return handleTodayGet(request, env);
   }
 
   if (pathname === "/api/audio/claim") {
@@ -643,6 +727,66 @@ async function handlePendingGet(env: Env): Promise<Response> {
       items,
     };
     return Response.json(body);
+  } catch (error) {
+    return queryFailed(error);
+  }
+}
+
+async function handleTodayGet(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const dateParam = url.searchParams.get("date")?.trim() || undefined;
+  if (dateParam && !isMarketDateYmd(dateParam)) {
+    return Response.json(
+      { ok: false, message: "date must be YYYY-MM-DD" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const result = await getTodayContentAudio(env, {
+      marketDate: dateParam,
+      lang: url.searchParams.get("lang") ?? undefined,
+      audioType: url.searchParams.get("audio_type") ?? undefined,
+      contentType: url.searchParams.get("content_type") ?? undefined,
+    });
+
+    const item = result.item;
+    const playPath = item ? `/api/audio/file/${item.id}` : null;
+    const playUrl = playPath ? `${url.origin}${playPath}` : null;
+
+    // Omit long script from the today meta payload.
+    const publicItem = item
+      ? {
+          id: item.id,
+          target_type: item.target_type,
+          target_id: item.target_id,
+          content_type: item.content_type,
+          audio_type: item.audio_type,
+          lang_code: item.lang_code,
+          title: item.title,
+          duration_seconds: item.duration_seconds,
+          storage_provider: item.storage_provider,
+          storage_key: item.storage_key,
+          status: item.status,
+          market_date: item.market_date,
+          model_info: item.model_info,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+        }
+      : null;
+
+    return Response.json({
+      ok: true,
+      marketDate: result.marketDate,
+      lang: result.lang,
+      audioType: result.audioType,
+      contentType: result.contentType,
+      status: result.status,
+      found: item !== null,
+      playPath,
+      playUrl,
+      item: publicItem,
+    });
   } catch (error) {
     return queryFailed(error);
   }
