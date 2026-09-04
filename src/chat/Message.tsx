@@ -19,7 +19,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import type { UIMessage } from "ai";
-import { Wrench, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Wrench, CheckCircle2, XCircle, Loader2, Volume2 } from "lucide-react";
 import { Markdown } from "./Markdown";
 
 type ApprovalHandler = (toolCallId: string, approved: boolean) => void;
@@ -141,6 +141,8 @@ function ToolCall({
     !!toolCallId &&
     !!onApprove;
 
+  const voice = name === "getTodayMarketVoice" ? parseVoiceToolOutput(output) : null;
+
   return (
     <div className="paper-inset px-3 py-2 text-xs">
       <div className="flex items-center gap-2">
@@ -160,6 +162,13 @@ function ToolCall({
             {JSON.stringify(input, null, 2)}
           </pre>
         </details>
+      )}
+      {voice && (
+        <VoiceBriefPlayer
+          playPath={voice.playPath}
+          title={voice.title}
+          durationSeconds={voice.durationSeconds}
+        />
       )}
       {output !== undefined && (
         <details className="mt-1.5" open={state === "output-error"}>
@@ -192,6 +201,62 @@ function ToolCall({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+type VoiceToolMeta = {
+  playPath: string;
+  title: string | null;
+  durationSeconds: number | null;
+};
+
+/** Only same-origin /api/audio/file/:id paths — never arbitrary URLs. */
+function parseVoiceToolOutput(output: unknown): VoiceToolMeta | null {
+  if (!output || typeof output !== "object") return null;
+  const o = output as Record<string, unknown>;
+  if (o.found !== true) return null;
+  if (typeof o.playPath !== "string") return null;
+  if (!/^\/api\/audio\/file\/[0-9a-f-]{36}$/i.test(o.playPath)) return null;
+  return {
+    playPath: o.playPath,
+    title: typeof o.title === "string" ? o.title : null,
+    durationSeconds:
+      typeof o.durationSeconds === "number" && Number.isFinite(o.durationSeconds)
+        ? o.durationSeconds
+        : null,
+  };
+}
+
+function VoiceBriefPlayer({
+  playPath,
+  title,
+  durationSeconds,
+}: VoiceToolMeta) {
+  const durationLabel =
+    durationSeconds != null ? `${durationSeconds}s` : null;
+
+  return (
+    <div className="mt-2 rounded-md border border-border bg-card px-2.5 py-2">
+      <div className="mb-1.5 flex items-center gap-1.5 text-muted-foreground">
+        <Volume2 className="h-3.5 w-3.5 shrink-0" />
+        <span className="min-w-0 truncate font-medium text-foreground">
+          {title ?? "Voice briefing"}
+        </span>
+        {durationLabel && (
+          <span className="ml-auto shrink-0 tabular-nums">{durationLabel}</span>
+        )}
+      </div>
+      <audio
+        className="w-full"
+        controls
+        preload="metadata"
+        src={playPath}
+      >
+        <a href={playPath} target="_blank" rel="noreferrer">
+          Download MP3
+        </a>
+      </audio>
     </div>
   );
 }

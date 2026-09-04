@@ -176,6 +176,7 @@ Phase 계획:
 | 5 | TTS → R2 → Supabase 통합 | 완료 |
 | 6 | Cron Trigger | 완료 |
 | 7 | Today playback — Supabase 메타 + R2 bytes (`/api/audio/today` + chat tool) | 완료 |
+| 8 | In-chat `<audio>` player for `getTodayMarketVoice` | 완료 |
 
 ### 8.1 Phase 1 — script_ready row 조회 *(완료)*
 
@@ -453,6 +454,16 @@ curl -sS http://localhost:5173/api/audio/today | python3 -m json.tool
 * `?date=2026-09-03` → `found: true`, title `글로벌 시장 이슈 (260903)`, `duration_seconds: 57`
 * `playPath` → `/api/audio/file/066b84e2-…` → MPEG L3 ~918 KB
 * 기본 today (`2026-09-04`) → `found: false`
+
+### 8.8 In-chat Voice player *(완료)*
+
+* **목적:** `getTodayMarketVoice` 툴 결과의 `playPath`를 채팅 안에서 `<audio controls>`로 바로 재생.
+* **수정 파일:** `src/chat/Message.tsx`
+  * `found` + `/api/audio/file/<uuid>` 일 때만 플레이어 표시 (임의 URL 차단)
+  * title / duration 라벨 + native audio controls
+* **이 Phase에서 하지 않은 것:** 마크다운 본문 안 auto-embed, 전역 미디어 큐, Panel
+
+채팅 확인: 「2026년 9월 3일 보이스 브리핑」 → 툴 카드 아래 재생 컨트롤 → Play
 
 ---
 
