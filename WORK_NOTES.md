@@ -88,6 +88,7 @@ worker/index.ts (HTTP Gateway)
  ├── /memory/*                                     → MyMemory DO (개인화 SQLite)
  ├── /settings, /settings/events                   → ChatAgent DO (설정 SQLite)
  ├── GET  /api/supabase/health                     → Supabase 도달성 점검
+ ├── GET  /api/briefs/today                        → content_briefs 당일 브리핑 조회 (Phase A)
  ├── GET  /api/audio/pending                       → content_audio script_ready 조회 (Phase 1)
  ├── POST /api/audio/claim                         → script_ready → generating claim (Phase 2)
  ├── GET  /api/audio/storage/health                → AUDIO_BUCKET put → get 점검 (Phase 3)
@@ -112,7 +113,7 @@ src/ (React Frontend)
 
 ## 7. Supabase 연동 사전 작업 (Market Memory 접속 준비)
 
-* **목적:** Worker에서 Supabase(Market Memory)에 접근할 수 있는 기반만 마련. 제품 테이블 조회는 §8 Phase 1부터 시작.
+* **목적:** Worker에서 Supabase(Market Memory)에 접근할 수 있는 기반만 마련. 제품 테이블 조회는 §8 (`content_audio`) / §9 (`content_briefs`)부터.
 * **수정 및 추가 파일:**
   * `package.json`: `@supabase/supabase-js` 의존성 추가
   * `worker/supabase.ts` *(신규)*:
@@ -419,3 +420,60 @@ curl "http://localhost:5173/cdn-cgi/handler/scheduled?cron=0+0+*+*+*"
 - 응답 `targetMarketDate`에 이번 tick 대상 날짜가 들어감
 - `langFilter`: `"exclude=[ja]"` 또는 `"include=[ko,en]"` 등
 - Supabase 미설정 → `503`
+
+---
+
+## 9. Content Briefs 조회 (content_briefs → Worker read path)
+
+> Market Memory 공유 텍스트 브리핑을 Worker에서 읽어오는 베이스라인.
+> Chat tool / Panel은 이후 Phase. Voice(`content_audio`)와 테이블이 다름.
+
+| Phase | 내용 | 상태 |
+|-------|------|------|
+| A | `content_briefs` 조회 + `GET /api/briefs/today` | 완료 |
+| B | Chat tool (`getTodayMarketBrief` 등) — Phase A 함수 재사용 | 예정 |
+| C | 공용 query 헬퍼 정리 (두 번째 테이블 때) | 선택 |
+
+### 9.1 Phase A — Today brief HTTP API *(완료)*
+
+* **목적:** Supabase `content_briefs`에서 하루치 마켓 이슈 브리핑(`content`)을 읽어 curl로 검증. DB 수정 없음.
+* **기본 필터:**
+  * `market_date` — 기본 **Asia/Seoul** 달력 오늘 (`?date=YYYY-MM-DD`로 오버라이드)
+  * `lang_code` — 기본 `ko` (`?lang=`)
+  * `brief_type` — 기본 `brief_30s` (`?brief_type=`)
+  * `content_type` — 기본 `daily-market-issues` (`?content_type=`)
+  * `status` — `final`, `content` non-empty
+* **날짜 규칙:** Voice Cron의 UTC 전날)과 분리. Brief “오늘”은 `worker/market-date.ts`의 Seoul 달력일.
+* **수정 및 추가 파일:**
+  * `worker/market-date.ts` *(신규)*: `marketDateYmdInTimeZone()`, `isMarketDateYmd()`
+  * `worker/content-briefs.ts` *(신규)*:
+    * `getTodayContentBrief(env, options)` — service_role 조회
+    * `GET /api/briefs/today` 핸들러
+  * `worker/index.ts`: briefs 라우트 등록 (supabase health 다음, audio 이전)
+  * `worker/supabase.ts`: 주석만 갱신 (`content-briefs` 언급)
+* **이 Phase에서 하지 않은 것:** Chat tool, Panel/`State`, RLS(anon) 전환, 스키마 변경
+
+로컬 확인:
+
+```bash
+# 알려진 market_date (데이터 있는 날)
+curl -sS 'http://localhost:5173/api/briefs/today?date=2026-09-03' | python3 -m json.tool
+
+# Seoul 오늘 (row 없으면 found:false + item:null — 정상)
+curl -sS http://localhost:5173/api/briefs/today | python3 -m json.tool
+
+# 잘못된 date
+curl -sS 'http://localhost:5173/api/briefs/today?date=09-03'
+
+curl http://localhost:5173/api/supabase/health
+```
+
+- 성공 (row 있음) → `200` `{ ok: true, found: true, item: { title, content, … } }`
+- 성공 (row 없음) → `200` `{ ok: true, found: false, item: null }`
+- `date` 형식 오류 → `400` `{ ok: false, message: "date must be YYYY-MM-DD" }`
+- Supabase 미설정 / service_role 없음 → `503`
+
+로컬 확인 결과 (2026-09-04):
+* `?date=2026-09-03` → `found: true`, title `글로벌 시장 이슈 (260903)`, `content` 595자
+* 기본 today (`2026-09-04`) → `found: false` (해당일 row 없음)
+* 잘못된 date / health 정상 유지

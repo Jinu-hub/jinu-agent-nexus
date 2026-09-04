@@ -146,6 +146,7 @@ in `Message.tsx` → then server `execute` runs.
 | My Market Memory | (API only) | `worker/my-memory.ts` | DO SQLite (`MyMemory`) |
 | Market Pulse poll | `/live` page | `worker/live-market-room.ts`, `src/live/` | DO state + SQLite (`LiveMarketRoomAgent`) |
 | Supabase (prep) | `GET /api/supabase/health` | `worker/supabase.ts` | External Postgres (Market Memory) |
+| Content briefs | `GET /api/briefs/today` | `worker/content-briefs.ts`, `market-date.ts` | Supabase `content_briefs` |
 | Browser | Browser | `navigate.ts`, `screenshot.ts`, Puppeteer | Remote browser session + R2 screenshots |
 | Schedules | Schedules | `setReminder.ts`, DO alarms | DO schedule store |
 | Runtime tools | Extensions | `load_extension`, `worker_loaders` | Sandboxed worker per extension |
@@ -185,6 +186,8 @@ worker/index.ts          HTTP entry — routes only, thin
     ├── POST /api/upload     → ChatAgent.uploadPdf()
     ├── GET  /screenshots/*  → stream from R2
     ├── GET  /api/supabase/health → Supabase reachability probe
+    ├── GET  /api/briefs/today → content_briefs (Seoul market_date)
+    ├── /api/audio/* → content_audio Voice pipeline
     ├── /agents/live-market-room-agent/market-pulse → poll room WS + RPC
     └── /agents/ChatAgent/default  → WebSocket + RPC
               │

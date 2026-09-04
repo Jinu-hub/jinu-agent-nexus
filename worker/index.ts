@@ -9,8 +9,9 @@
 //   4. My Market Memory — personalization DO SQLite (`/memory/*`).
 //   5. ChatAgent Settings — runtime settings and change history (`/settings`).
 //   6. Supabase health — Market Memory connectivity probe (`/api/supabase/health`).
-//   7. Voice audio — pending, claim, R2, TTS, generate, Cron (`/api/audio/*`).
-//   8. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
+//   7. Content briefs — today's market-issue brief text (`/api/briefs/today`).
+//   8. Voice audio — pending, claim, R2, TTS, generate, Cron (`/api/audio/*`).
+//   9. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
 //      which dispatches to the ChatAgent / LiveMarketRoomAgent DOs.
 //
 // The DO class MUST be re-exported from this file. Wrangler's runtime
@@ -26,6 +27,7 @@ import { handleNotesRequest } from "./notes";
 import { handleMemoryRequest } from "./memory-routes";
 import { handleSettingsRequest } from "./settings-routes";
 import { handleSupabaseRequest } from "./supabase";
+import { handleBriefsRequest } from "./content-briefs";
 import { handleAudioRequest } from "./content-audio";
 import { runVoiceAudioCron, VOICE_AUDIO_CRON } from "./voice-audio-cron";
 import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
@@ -55,10 +57,14 @@ export default {
     if (settings) return settings;
 
     // ── Supabase (Market Memory) ───────────────────────────────────────
-    // Health probe (`/api/supabase/health`) plus Voice pending/claim/R2/TTS/generate
-    // (`/api/audio/*`). See worker/supabase.ts, worker/content-audio.ts.
+    // Health probe (`/api/supabase/health`), content_briefs today read
+    // (`/api/briefs/today`), plus Voice pending/claim/R2/TTS/generate
+    // (`/api/audio/*`). See worker/supabase.ts, content-briefs.ts, content-audio.ts.
     const supabase = await handleSupabaseRequest(request, env);
     if (supabase) return supabase;
+
+    const briefs = await handleBriefsRequest(request, env);
+    if (briefs) return briefs;
 
     const audio = await handleAudioRequest(request, env);
     if (audio) return audio;

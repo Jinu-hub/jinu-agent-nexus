@@ -7,8 +7,9 @@
 //   Cloudflare = My Market Memory (personal preferences, live rooms)
 //
 // Shared client factory + health probe. Product table queries live in
-// worker/content-audio.ts (and later Voice pipeline modules). This file
-// stays the single place to build a client and verify secrets + network.
+// worker/content-audio.ts, worker/content-briefs.ts (and later Voice /
+// Market Memory modules). This file stays the single place to build a
+// client and verify secrets + network.
 //
 // Keys NEVER ship to the browser. Prefer SUPABASE_ANON_KEY for
 // RLS-aware reads; use SUPABASE_SERVICE_ROLE_KEY only for trusted

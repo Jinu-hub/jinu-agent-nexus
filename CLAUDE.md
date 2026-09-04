@@ -82,6 +82,7 @@ flowchart LR
 - `/memory/*` — MyMemory DO SQLite (preferences, events, weights)
 - `/live` — SPA-served Market Pulse poll room (LiveMarketRoomAgent over WS)
 - `GET /api/supabase/health` — Supabase connectivity probe (Market Memory prep)
+- `GET /api/briefs/today` — `content_briefs` daily market-issue text (Seoul `market_date`)
 - `POST /api/upload` — PDF upload (not RPC; large FormData)
 - `/screenshots/*` — R2 screenshot proxy
 - Everything else → `routeAgentRequest` → ChatAgent DO
@@ -119,6 +120,9 @@ worker/
   memory-routes.ts     HTTP routes → MyMemory
   live-market-room.ts  Market Pulse poll room Agent — state + vote log
   supabase.ts          Supabase client factory + `/api/supabase/health`
+  content-briefs.ts    content_briefs today read (`/api/briefs/today`)
+  market-date.ts       Calendar YYYY-MM-DD helpers (default Asia/Seoul)
+  content-audio.ts     content_audio Voice queue + `/api/audio/*`
   chat-agent.ts        Re-export shim (imports use this path)
   chat-agent/
     ChatAgent.ts       Class — lifecycle + @callable RPC
@@ -163,6 +167,8 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts` |
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
+| Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today` |
+| Voice audio pipeline | `worker/content-audio.ts` + `voice-audio-cron.ts` → `/api/audio/*` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
 | UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` |
