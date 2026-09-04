@@ -66,12 +66,10 @@ export function Chat({
       });
       return;
     }
-    // Unknown client tool — surface an error so the loop doesn't
-    // hang. (The model will see this and apologise.)
-    addToolOutput({
-      toolCallId: toolCall.toolCallId,
-      output: { error: `No client handler for tool "${toolCall.toolName}"` },
-    });
+    // Server-side tools (getWeather, getTodayMarketBrief, …) also may
+    // surface here via useAgentChat. Do NOT addToolOutput — that would
+    // short-circuit the real server execute with a fake client error
+    // ("No client handler…") and make the model retry once.
   }, []);
 
   const chat = useAgentChat({ agent, onToolCall });

@@ -544,3 +544,9 @@ curl http://localhost:5173/api/supabase/health
 # 데이터 경로 회귀 (Phase A 유지)
 curl -sS 'http://localhost:5173/api/briefs/today?date=2026-09-03' | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['found'] and d['item']['content']; print('ok', d['item']['title'])"
 ```
+
+### 9.3 Chat `onToolCall` — 서버 툴 오인 에러 수정 *(완료)*
+
+* **증상:** `getTodayMarketBrief` 첫 호출이 `{ error: "No client handler…" }` 후 재시도 성공
+* **원인:** `Chat.tsx` `onToolCall`이 `getUserTimezone` 외 모든 툴에 `addToolOutput(error)` — 서버 `execute`를 가로챔
+* **수정:** `src/chat/Chat.tsx` — 알 수 없는(서버) 툴은 `addToolOutput` 하지 않고 return
