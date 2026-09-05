@@ -604,10 +604,15 @@ curl -sS 'http://localhost:5173/api/briefs/today?date=2026-09-03' | python3 -c "
   * `src/panels/MarketPanel.tsx` — `GET /api/briefs/today` + `GET /api/audio/today` 병렬 fetch
   * 날짜 prev/next / date input / Today, 수동 Refresh, brief 복사, `<audio>` 플레이어
   * `src/App.tsx` — `PANELS`에 Market 탭 (Memory 다음)
+* **배치 UX (9.8b):** 일 배치 `~22:30 UTC` → 최신 `market_date`는 보통 Seoul **어제**
+  * 기본 날짜 = Seoul yesterday (`Latest`)
+  * 힌트 문구 + empty 시 “Open latest · YYYY-MM-DD”
+  * Today = 달력 오늘(미발행일 수 있음) / Latest = 예상 최신일
+  * Brief만 있고 Voice 없으면 `Brief ready · Voice pending`
 * **이 Phase에서 하지 않은 것:** 최근 N일 리스트 API, ChatAgent `State` 동기화, Settings lang 토글을 패널로 이동
 
 확인:
 
-1. 사이드바 Market → Seoul 오늘 로드 (없으면 empty 문구)
-2. 날짜를 `2026-09-03`으로 → brief/voice 표시 (데이터 있을 때)
+1. 사이드바 Market → 기본이 Seoul **어제**(latest)로 로드
+2. Today 클릭 → 오늘 empty면 배치 설명 + Open latest
 3. Settings `content_lang` ko↔en 변경 → 패널 자동 재조회

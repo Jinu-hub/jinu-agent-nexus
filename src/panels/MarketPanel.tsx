@@ -3,6 +3,9 @@
 // ─────────────────────────────────────────────────────────────────────────
 // Fetches existing HTTP APIs (no ChatAgent State). Language comes from
 // Settings content_lang — independent of chat reply language.
+//
+// Publishing is a daily batch (~22:30 UTC), so the newest market_date is
+// usually Asia/Seoul *yesterday*. The panel defaults to that day.
 // ─────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from "react";
@@ -76,10 +79,71 @@ function shiftYmd(ymd: string, deltaDays: number): string {
   return seoulYmd(anchor);
 }
 
+/** Newest market_date is usually Seoul yesterday (daily batch ~22:30 UTC). */
+function expectedLatestYmd(now: Date = new Date()): string {
+  return shiftYmd(seoulYmd(now), -1);
+}
+
 function metaString(metadata: unknown, key: string): string | null {
   if (!metadata || typeof metadata !== "object") return null;
   const value = (metadata as Record<string, unknown>)[key];
   return typeof value === "string" ? value : null;
+}
+
+function EmptyHint({
+  kind,
+  date,
+  lang,
+  calendarToday,
+  expectedLatest,
+  onOpenLatest,
+}: {
+  kind: "voice" | "brief";
+  date: string;
+  lang: string;
+  calendarToday: string;
+  expectedLatest: string;
+  onOpenLatest: () => void;
+}) {
+  const isCalendarToday = date === calendarToday;
+  const isExpectedLatest = date === expectedLatest;
+  const label = kind === "voice" ? "voice" : "brief";
+
+  return (
+    <div className="space-y-2 text-[11px] leading-relaxed text-muted-foreground">
+      {isCalendarToday ? (
+        <p>
+          No {label} for calendar today ({date} / {lang}). Daily batch runs
+          around <span className="font-mono">22:30 UTC</span>, so today&apos;s
+          market_date is usually published tomorrow. Newest is typically{" "}
+          <span className="font-mono text-foreground">{expectedLatest}</span>.
+        </p>
+      ) : isExpectedLatest ? (
+        <p>
+          No completed {label} for expected latest ({date} / {lang}). The
+          pipeline may still be running after{" "}
+          <span className="font-mono">~22:30 UTC</span>.
+        </p>
+      ) : (
+        <p>
+          No completed {label} for {date} / {lang}.
+        </p>
+      )}
+      {!isExpectedLatest && (
+        <button
+          type="button"
+          onClick={onOpenLatest}
+          className={cn(
+            "rounded-md border border-border bg-background px-2 py-1",
+            "font-mono text-[10px] text-foreground",
+            "hover:bg-accent",
+          )}
+        >
+          Open latest · {expectedLatest}
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function MarketPanel({
@@ -88,7 +152,9 @@ export function MarketPanel({
   contentLang: ContentLang | null;
 }) {
   const lang = contentLang ?? "ko";
-  const [date, setDate] = useState(() => seoulYmd());
+  const calendarToday = seoulYmd();
+  const expectedLatest = expectedLatestYmd();
+  const [date, setDate] = useState(() => expectedLatestYmd());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [brief, setBrief] = useState<BriefResponse | null>(null);
@@ -151,6 +217,8 @@ export function MarketPanel({
 
   const pulse = metaString(briefItem?.metadata, "pulse");
   const takeaway = metaString(briefItem?.metadata, "takeaway");
+  const showingExpectedLatest = date === expectedLatest;
+  const openLatest = () => setDate(expectedLatest);
 
   return (
     <section>
@@ -181,7 +249,7 @@ export function MarketPanel({
         }
       />
 
-      <div className="mb-3 flex items-center gap-1">
+      <div className="mb-2 flex items-center gap-1">
         <button
           type="button"
           disabled={loading}
@@ -216,22 +284,51 @@ export function MarketPanel({
         </button>
         <button
           type="button"
-          disabled={loading || date === seoulYmd()}
-          onClick={() => setDate(seoulYmd())}
+          disabled={loading || showingExpectedLatest}
+          onClick={openLatest}
+          className={cn(
+            "rounded-md px-2 py-1 text-[11px]",
+            showingExpectedLatest
+              ? "cursor-not-allowed text-muted-foreground/40"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+          )}
+          title={`Expected newest market_date (Seoul yesterday · ${expectedLatest})`}
+        >
+          Latest
+        </button>
+        <button
+          type="button"
+          disabled={loading || date === calendarToday}
+          onClick={() => setDate(calendarToday)}
           className={cn(
             "rounded-md px-2 py-1 text-[11px] text-muted-foreground",
             "hover:bg-accent hover:text-foreground",
             "disabled:cursor-not-allowed disabled:opacity-40",
           )}
+          title="Seoul calendar today (often not published yet)"
         >
           Today
         </button>
       </div>
 
-      <p className="mb-3 text-[10px] leading-relaxed text-muted-foreground">
-        Language follows Settings → Market content language. Not chat reply
-        language.
-      </p>
+      <div className="mb-3 space-y-1 text-[10px] leading-relaxed text-muted-foreground">
+        <p>
+          Language follows Settings → Market content language. Not chat reply
+          language.
+        </p>
+        <p>
+          Daily batch ~<span className="font-mono">22:30 UTC</span> — newest
+          market_date is usually Seoul yesterday
+          {showingExpectedLatest ? (
+            <>
+              {" "}
+              · showing{" "}
+              <span className="font-mono text-foreground">latest</span>
+            </>
+          ) : null}
+          .
+        </p>
+      </div>
 
       {loading && !brief && !voice ? (
         <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted-foreground">
@@ -240,11 +337,15 @@ export function MarketPanel({
         </div>
       ) : (
         <div className="space-y-3">
-          {/* Voice first — play without scrolling past long text */}
           <div className="paper-inset px-3 py-2.5">
             <div className="mb-2 flex items-center gap-1.5">
               <Volume2 className="h-3.5 w-3.5 text-muted-foreground" />
               <p className="text-xs font-medium">Voice</p>
+              {briefItem && !voiceItem && (
+                <span className="ml-auto text-[10px] text-muted-foreground">
+                  Brief ready · Voice pending
+                </span>
+              )}
             </div>
             {voiceItem && playPath ? (
               <div className="space-y-2">
@@ -270,9 +371,14 @@ export function MarketPanel({
                 </audio>
               </div>
             ) : (
-              <p className="text-[11px] italic text-muted-foreground">
-                No completed voice for {date} / {lang}.
-              </p>
+              <EmptyHint
+                kind="voice"
+                date={date}
+                lang={lang}
+                calendarToday={calendarToday}
+                expectedLatest={expectedLatest}
+                onOpenLatest={openLatest}
+              />
             )}
           </div>
 
@@ -329,9 +435,14 @@ export function MarketPanel({
                 </div>
               </div>
             ) : (
-              <p className="text-[11px] italic text-muted-foreground">
-                No final brief for {date} / {lang}.
-              </p>
+              <EmptyHint
+                kind="brief"
+                date={date}
+                lang={lang}
+                calendarToday={calendarToday}
+                expectedLatest={expectedLatest}
+                onOpenLatest={openLatest}
+              />
             )}
           </div>
         </div>
