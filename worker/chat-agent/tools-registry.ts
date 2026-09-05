@@ -28,8 +28,8 @@ export function getChatTools(agent: ChatAgent, env: Env): ToolSet {
     recall: createRecallTool(agent, env),
     navigate: createNavigateTool(agent),
     screenshot: createScreenshotTool(agent, env),
-    getTodayMarketBrief: createGetTodayMarketBriefTool(env),
-    getTodayMarketVoice: createGetTodayMarketVoiceTool(env),
+    getTodayMarketBrief: createGetTodayMarketBriefTool(agent, env),
+    getTodayMarketVoice: createGetTodayMarketVoiceTool(agent, env),
 
     // load_extension + list_extensions — extension management tools.
     // Per-extension tools are auto-merged by Think internally.

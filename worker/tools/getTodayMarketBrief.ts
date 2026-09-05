@@ -4,15 +4,22 @@
 // PATTERN: SERVER-SIDE TOOL WITH ENV + SHARED DOMAIN QUERY
 // ─────────────────────────────────────────────────────────────────────────
 // Reuses getTodayContentBrief() from worker/content-briefs.ts (Phase A).
+// lang_code comes from ChatAgent Settings (content_lang), not chat UI language.
 // Do not duplicate Supabase select logic here.
 // ─────────────────────────────────────────────────────────────────────────
 
 import { tool } from "ai";
 import { z } from "zod";
 
+import type { ChatAgent } from "../chat-agent";
+import { getSettings } from "../chat-agent/settings";
 import { getTodayContentBrief } from "../content-briefs";
 import { isMarketDateYmd } from "../market-date";
 import { isSupabaseConfigured } from "../supabase";
+import {
+  resolveToolMarketDate,
+  seoulDateHints,
+} from "./market-date-resolve";
 
 function metaString(metadata: unknown, key: string): string | null {
   if (!metadata || typeof metadata !== "object") return null;
@@ -20,23 +27,21 @@ function metaString(metadata: unknown, key: string): string | null {
   return typeof value === "string" ? value : null;
 }
 
-export function createGetTodayMarketBriefTool(env: Env) {
+export function createGetTodayMarketBriefTool(agent: ChatAgent, env: Env) {
+  const { today, yesterday } = seoulDateHints();
+
   return tool({
     description:
-      "Fetch today's market-issue briefing text from Market Memory (content_briefs). Use when the user asks for today's market briefing, market issues, 오늘의 마켓 브리핑, 마켓 이슈, Today in 30 Seconds, or similar. Prefer this over guessing. Optional date overrides Seoul calendar today.",
+      `Fetch today's market-issue briefing text from Market Memory (content_briefs). REQUIRED whenever the user asks for 브리핑 / briefing / 마켓 이슈 (text) — call EVERY time, even if shown earlier; never say already requested. Do NOT use this for 보이스/voice (use getTodayMarketVoice). Language from Settings content_lang — present title/content VERBATIM. Calendar: Asia/Seoul today=${today}, yesterday=${yesterday}. If the user omits the year (e.g. "9월 4일", "어제"), use ${today.slice(0, 4)} — never a past training-data year.`,
     inputSchema: z.object({
       date: z
         .string()
         .optional()
         .describe(
-          "Optional market_date YYYY-MM-DD. Omit for Asia/Seoul today. Use when the user names a specific day.",
+          `Optional market_date YYYY-MM-DD. Omit for Seoul today (${today}). For 어제/yesterday use ${yesterday}. Month/day without year → year ${today.slice(0, 4)}.`,
         ),
-      lang: z
-        .string()
-        .optional()
-        .describe("Language code. Default ko. Examples: ko, en, ja."),
     }),
-    execute: async ({ date, lang }) => {
+    execute: async ({ date }) => {
       if (!isSupabaseConfigured(env)) {
         return {
           ok: false as const,
@@ -46,8 +51,8 @@ export function createGetTodayMarketBriefTool(env: Env) {
         };
       }
 
-      const dateTrimmed = date?.trim();
-      if (dateTrimmed && !isMarketDateYmd(dateTrimmed)) {
+      const resolved = resolveToolMarketDate(date);
+      if (resolved.marketDate && !isMarketDateYmd(resolved.marketDate)) {
         return {
           ok: false as const,
           reason: "invalid_date",
@@ -55,11 +60,29 @@ export function createGetTodayMarketBriefTool(env: Env) {
         };
       }
 
+      const { content_lang: lang } = getSettings(agent);
+
       try {
-        const result = await getTodayContentBrief(env, {
-          marketDate: dateTrimmed || undefined,
-          lang: lang?.trim() || undefined,
+        let result = await getTodayContentBrief(env, {
+          marketDate: resolved.marketDate,
+          lang,
         });
+        let correctedFrom: string | undefined;
+
+        if (
+          !result.item &&
+          resolved.fallbackMarketDate &&
+          resolved.fallbackMarketDate !== resolved.marketDate
+        ) {
+          const retry = await getTodayContentBrief(env, {
+            marketDate: resolved.fallbackMarketDate,
+            lang,
+          });
+          if (retry.item) {
+            correctedFrom = resolved.marketDate;
+            result = retry;
+          }
+        }
 
         if (!result.item) {
           return {
@@ -69,7 +92,8 @@ export function createGetTodayMarketBriefTool(env: Env) {
             lang: result.lang,
             briefType: result.briefType,
             contentType: result.contentType,
-            message: `No final brief found for market_date=${result.marketDate} lang=${result.lang}.`,
+            requestedDate: resolved.requestedDate,
+            message: `No final brief found for market_date=${result.marketDate} lang=${result.lang}. Do not invent content.`,
           };
         }
 
@@ -86,6 +110,10 @@ export function createGetTodayMarketBriefTool(env: Env) {
           content: item.content,
           pulse: metaString(item.metadata, "pulse"),
           takeaway: metaString(item.metadata, "takeaway"),
+          requestedDate: resolved.requestedDate,
+          correctedFrom,
+          presentation:
+            `Present title and content VERBATIM in lang=${result.lang}. Do not translate.`,
         };
       } catch (error) {
         return {

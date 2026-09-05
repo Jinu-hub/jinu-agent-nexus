@@ -15,7 +15,7 @@
 //   • Add a callable RPC  → add an @callable() method here (or panel-ops.ts)
 // ─────────────────────────────────────────────────────────────────────────
 
-import { Think, type Session } from "@cloudflare/think";
+import { Think, type Session, type PrepareStepContext } from "@cloudflare/think";
 import type { ToolSet, LanguageModel } from "ai";
 import { callable } from "agents";
 import type { Browser, Page } from "@cloudflare/puppeteer";
@@ -25,6 +25,10 @@ import { INITIAL_STATE } from "./constants";
 import { configureChatSession } from "./configure-session";
 import { getChatTools } from "./tools-registry";
 import { refreshPanelState } from "./refresh-state";
+import {
+  detectMarketMemoryTool,
+  latestUserText,
+} from "./market-intent";
 import {
   uploadPdf as uploadPdfImpl,
   deleteSource as deleteSourceImpl,
@@ -68,7 +72,7 @@ export class ChatAgent extends Think<Env, State> {
 
   extensionLoader = this.env.LOADER;
 
-  override maxSteps = 3;
+  override maxSteps = 5;
   override chatRecovery = false;
 
   browser?: Browser;
@@ -84,6 +88,24 @@ export class ChatAgent extends Think<Env, State> {
 
   override getTools(): ToolSet {
     return getChatTools(this, this.env);
+  }
+
+  /**
+   * Market Memory turns often stall after reasoning-only (no tool call),
+   * or the model reuses a prior voice/brief instead of fetching again.
+   * Force the matching tool on step 0 when the user clearly asks.
+   */
+  override beforeStep(ctx: PrepareStepContext) {
+    if (ctx.stepNumber !== 0) return;
+    if (ctx.steps.some((step) => step.toolResults.length > 0)) return;
+
+    const tool = detectMarketMemoryTool(latestUserText(ctx.messages));
+    if (!tool) return;
+
+    return {
+      activeTools: [tool],
+      toolChoice: { type: "tool" as const, toolName: tool },
+    };
   }
 
   override async onStart() {

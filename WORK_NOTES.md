@@ -550,3 +550,48 @@ curl -sS 'http://localhost:5173/api/briefs/today?date=2026-09-03' | python3 -c "
 * **증상:** `getTodayMarketBrief` 첫 호출이 `{ error: "No client handler…" }` 후 재시도 성공
 * **원인:** `Chat.tsx` `onToolCall`이 `getUserTimezone` 외 모든 툴에 `addToolOutput(error)` — 서버 `execute`를 가로챔
 * **수정:** `src/chat/Chat.tsx` — 알 수 없는(서버) 툴은 `addToolOutput` 하지 않고 return
+
+### 9.4 Settings `content_lang` (ko/en) → Market Memory 조회 *(완료)*
+
+* **목적:** 챗에서 “한국어/영어 브리핑”을 말하지 않아도 Settings 선호 언어로 Supabase `lang_code` 조회
+* **챗 UI 언어와 무관** — Market Memory content language만 제어
+* **변경:**
+  * `worker/chat-agent/settings.ts` — `content_lang: "ko" | "en"` (기본 `ko`), DO SQLite 마이그레이션(`PRAGMA` + `ALTER` if missing)
+  * `src/panels/SettingsPanel.tsx` — ko/en 토글 UI
+  * `src/App.tsx` — `updateSettings({ content_lang })`
+  * `getTodayMarketBrief` / `getTodayMarketVoice` — tool `lang` 인자 제거, `getSettings(agent).content_lang`을 Supabase에 전달
+* **이 Phase에서 하지 않은 것:** HTTP `?lang=` 기본값을 Settings에 묶기(curl은 여전히 query/`ko` 기본), ja 등 확장, 폴백
+
+확인:
+
+1. Settings → Market content language → `en` 선택
+2. 「2026년 9월 3일 마켓 브리핑 보여줘」 → tool 결과에 `lang: "en"` (해당 row 있을 때)
+3. 다시 `ko` → 같은 질문 → `lang: "ko"`
+
+### 9.5 Brief/voice — LLM 번역 금지 *(완료)*
+
+* **증상:** Settings `en`인데 챗 답변이 한국어로 보임
+* **원인:** tool은 `lang: "en"` + 영어 `content`를 정상 반환했으나, 한국어 질문에 맞춰 모델이 번역해 재작성
+* **수정:**
+  * `configure-session.ts` soul RULE 5 — Market Memory 본문은 tool `lang` 그대로
+  * tool 결과에 `presentation: "…VERBATIM…"` 필드 추가
+
+### 9.6 Voice 재요청 / 무응답 *(완료)*
+
+* **증상:**
+  * 같은 날짜 보이스 재요청 → “이전에 이미 요청하신 정보입니다” (tool 미호출)
+  * 다른 날짜 보이스 → reasoning만 남고 tool/텍스트 없이 종료 (무응답)
+* **원인:** 모델이 prior tool 결과를 재사용하거나, reasoning 후 tool call을 안 냄. API/데이터는 `2026-09-03` en/ko 모두 존재
+* **수정:**
+  * `ChatAgent.beforeStep` step 0에서 보이스/브리핑 의도 감지 시 `toolChoice` 강제 (`market-intent.ts`)
+  * soul RULE 6 — 매번 fresh tool call, “이미 요청” 금지
+  * `maxSteps` 3 → 5
+  * tool description 강화
+
+### 9.7 market_date 년도 보정 *(완료)*
+
+* **증상:** “어제” / “9월 4일” → 모델이 `2025-09-04` 전달 → `found: false` → 플레이어 UI 없음 (이전 답 환각)
+* **수정:**
+  * `worker/tools/market-date-resolve.ts` — tool `date` 년도가 Seoul 현재 년이 아니면, miss 시 현재 년+MM-DD로 1회 재조회
+  * brief/voice tool description에 Seoul `today`/`yesterday` 힌트 삽입
+  * soul RULE 7

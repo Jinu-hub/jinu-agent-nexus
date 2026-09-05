@@ -9,11 +9,23 @@
 
 import type { SqlAgentHost } from "./agent-host";
 
+/** Market Memory (Supabase) content language — not chat UI language. */
+export type ContentLang = "ko" | "en";
+
+export const CONTENT_LANGS = ["ko", "en"] as const;
+export const DEFAULT_CONTENT_LANG: ContentLang = "ko";
+
+export function isContentLang(value: unknown): value is ContentLang {
+  return value === "ko" || value === "en";
+}
+
 export type ChatSettings = {
   alarm_enabled: boolean;
   message_cleanup_enabled: boolean;
   message_retention_seconds: number;
   alarm_interval_seconds: number;
+  /** Preferred lang_code for content_briefs / content_audio reads. */
+  content_lang: ContentLang;
   updated_at: string;
 };
 
@@ -24,6 +36,7 @@ export type ChatSettingsPatch = Partial<
     | "message_cleanup_enabled"
     | "message_retention_seconds"
     | "alarm_interval_seconds"
+    | "content_lang"
   >
 >;
 
@@ -42,6 +55,7 @@ type StoredSettings = {
   message_cleanup_enabled: number;
   message_retention_seconds: number;
   alarm_interval_seconds: number;
+  content_lang: string;
   updated_at: string;
 };
 
@@ -50,6 +64,7 @@ export const DEFAULT_CHAT_SETTINGS: ChatSettings = {
   message_cleanup_enabled: true,
   message_retention_seconds: 300,
   alarm_interval_seconds: 60,
+  content_lang: DEFAULT_CONTENT_LANG,
   updated_at: "",
 };
 
@@ -65,6 +80,8 @@ export function ensureSettings(agent: SqlAgentHost): void {
         CHECK (message_retention_seconds >= 60),
       alarm_interval_seconds INTEGER NOT NULL DEFAULT 60
         CHECK (alarm_interval_seconds >= 60),
+      content_lang TEXT NOT NULL DEFAULT 'ko'
+        CHECK (content_lang IN ('ko', 'en')),
       updated_at TEXT NOT NULL
     )
   `;
@@ -78,6 +95,14 @@ export function ensureSettings(agent: SqlAgentHost): void {
       source TEXT NOT NULL
     )
   `;
+  // Existing DOs created before content_lang — add column if missing.
+  const columns = agent.sql<{ name: string }>`PRAGMA table_info(settings)`;
+  if (!columns.some((col) => col.name === "content_lang")) {
+    void agent.sql`
+      ALTER TABLE settings
+      ADD COLUMN content_lang TEXT NOT NULL DEFAULT 'ko'
+    `;
+  }
   void agent.sql`
     INSERT OR IGNORE INTO settings (
       id,
@@ -85,9 +110,10 @@ export function ensureSettings(agent: SqlAgentHost): void {
       message_cleanup_enabled,
       message_retention_seconds,
       alarm_interval_seconds,
+      content_lang,
       updated_at
     )
-    VALUES (1, 1, 1, 300, 60, ${new Date().toISOString()})
+    VALUES (1, 1, 1, 300, 60, ${DEFAULT_CONTENT_LANG}, ${new Date().toISOString()})
   `;
 }
 
@@ -100,6 +126,7 @@ export function getSettings(agent: SqlAgentHost): ChatSettings {
       message_cleanup_enabled,
       message_retention_seconds,
       alarm_interval_seconds,
+      content_lang,
       updated_at
     FROM settings
     WHERE id = 1
@@ -119,6 +146,7 @@ export function updateSettings(
     "message_cleanup_enabled",
     "message_retention_seconds",
     "alarm_interval_seconds",
+    "content_lang",
   ]);
   for (const name of Object.keys(patch)) {
     if (!allowedNames.has(name as keyof ChatSettingsPatch)) {
@@ -140,6 +168,7 @@ export function updateSettings(
     "message_cleanup_enabled",
     "message_retention_seconds",
     "alarm_interval_seconds",
+    "content_lang",
   ];
   const changed = settingNames.filter((name) => current[name] !== next[name]);
 
@@ -152,6 +181,7 @@ export function updateSettings(
       message_cleanup_enabled = ${next.message_cleanup_enabled ? 1 : 0},
       message_retention_seconds = ${next.message_retention_seconds},
       alarm_interval_seconds = ${next.alarm_interval_seconds},
+      content_lang = ${next.content_lang},
       updated_at = ${next.updated_at}
     WHERE id = 1
   `;
@@ -198,6 +228,9 @@ function fromStored(row: StoredSettings): ChatSettings {
     message_cleanup_enabled: row.message_cleanup_enabled === 1,
     message_retention_seconds: row.message_retention_seconds,
     alarm_interval_seconds: row.alarm_interval_seconds,
+    content_lang: isContentLang(row.content_lang)
+      ? row.content_lang
+      : DEFAULT_CONTENT_LANG,
     updated_at: row.updated_at,
   };
 }
@@ -220,5 +253,8 @@ function validateSettings(settings: ChatSettings): void {
     settings.alarm_interval_seconds < 60
   ) {
     throw new Error("alarm_interval_seconds must be an integer >= 60");
+  }
+  if (!isContentLang(settings.content_lang)) {
+    throw new Error("content_lang must be 'ko' or 'en'");
   }
 }

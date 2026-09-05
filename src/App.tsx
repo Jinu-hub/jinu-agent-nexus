@@ -37,7 +37,11 @@ import {
 } from "lucide-react";
 
 import type { ChatAgent, State } from "../worker/chat-agent";
-import type { ChatSettings, ChatSettingsPatch } from "../worker/chat-agent/settings";
+import type {
+  ChatSettings,
+  ChatSettingsPatch,
+  ContentLang,
+} from "../worker/chat-agent/settings";
 import { Chat } from "@/chat/Chat";
 import {
   Tabs,
@@ -331,6 +335,9 @@ export default function App() {
               }
               onToggleCleanup={(enabled) =>
                 updateSettings({ message_cleanup_enabled: enabled })
+              }
+              onContentLangChange={(lang: ContentLang) =>
+                updateSettings({ content_lang: lang })
               }
             />
           </TabsContent>

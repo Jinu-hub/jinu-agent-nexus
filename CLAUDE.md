@@ -167,7 +167,9 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts` |
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
-| Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today`; chat tool `worker/tools/getTodayMarketBrief.ts` |
+| Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`) |
+| ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) for Market Memory; UI `src/panels/SettingsPanel.tsx` |
+| Market Memory intent | `worker/chat-agent/market-intent.ts` + `ChatAgent.beforeStep` — force brief/voice tool on step 0 |
 | Voice audio pipeline | `worker/content-audio.ts` + `voice-audio-cron.ts` → `/api/audio/*`; today play `GET /api/audio/today` + tool `getTodayMarketVoice.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
@@ -193,8 +195,8 @@ setReminder: createSetReminderTool(this),
 Reference implementations:
 
 - Server + API: `getWeather.ts`
-- Server + Market Memory read: `getTodayMarketBrief.ts` (uses `content-briefs.ts`)
-- Server + Market Memory Voice: `getTodayMarketVoice.ts` (uses `content-audio.ts` → playPath)
+- Server + Market Memory read: `getTodayMarketBrief.ts` (uses `content-briefs.ts`; `lang` from Settings `content_lang`)
+- Server + Market Memory Voice: `getTodayMarketVoice.ts` (uses `content-audio.ts` → playPath; `lang` from Settings `content_lang`)
 - Server + agent: `setReminder.ts`, `recall.ts`, `screenshot.ts`
 - Client-side (no execute): `getUserTimezone.ts` → resolve in `Chat.tsx`
 - Approval: `sendNotification.ts`

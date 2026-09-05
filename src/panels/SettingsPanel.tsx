@@ -1,5 +1,9 @@
 import { LoaderCircle, Settings2 } from "lucide-react";
-import type { ChatSettings } from "../../worker/chat-agent/settings";
+import type {
+  ChatSettings,
+  ContentLang,
+} from "../../worker/chat-agent/settings";
+import { CONTENT_LANGS } from "../../worker/chat-agent/settings";
 import { cn } from "@/lib/utils";
 import { PanelHeader } from "./PanelHeader";
 
@@ -77,6 +81,7 @@ export function SettingsPanel({
   error,
   onToggleAlarm,
   onToggleCleanup,
+  onContentLangChange,
 }: {
   settings: ChatSettings | null;
   loading: boolean;
@@ -84,6 +89,7 @@ export function SettingsPanel({
   error: string | null;
   onToggleAlarm: (enabled: boolean) => Promise<void>;
   onToggleCleanup: (enabled: boolean) => Promise<void>;
+  onContentLangChange: (lang: ContentLang) => Promise<void>;
 }) {
   return (
     <section>
@@ -104,6 +110,38 @@ export function SettingsPanel({
         </div>
       ) : settings ? (
         <div className="space-y-2">
+          <div className="paper-inset px-3 py-2.5">
+            <p className="text-xs font-medium">Market content language</p>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+              Preferred lang_code for Market Memory briefs and voice (Supabase).
+              Independent of chat reply language.
+            </p>
+            <div className="mt-2.5 flex gap-1.5">
+              {CONTENT_LANGS.map((lang) => {
+                const selected = settings.content_lang === lang;
+                return (
+                  <button
+                    key={lang}
+                    type="button"
+                    disabled={updating}
+                    aria-pressed={selected}
+                    onClick={() => void onContentLangChange(lang)}
+                    className={cn(
+                      "min-w-12 rounded-md px-3 py-1.5 font-mono text-xs transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      "disabled:cursor-not-allowed disabled:opacity-50",
+                      selected
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80",
+                    )}
+                  >
+                    {lang}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <SettingRow
             title="Alarm scheduling"
             description="Allow the agent to schedule background cleanup work."
