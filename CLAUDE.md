@@ -168,6 +168,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
 | Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`) |
+| Market panel (sidebar) | `src/panels/MarketPanel.tsx` — briefs/today + audio/today by date + Settings `content_lang`; wired in `App.tsx` PANELS |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) for Market Memory; UI `src/panels/SettingsPanel.tsx` |
 | Market Memory intent | `worker/chat-agent/market-intent.ts` + `ChatAgent.beforeStep` — force brief/voice tool on step 0 |
 | Voice audio pipeline | `worker/content-audio.ts` + `voice-audio-cron.ts` → `/api/audio/*`; today play `GET /api/audio/today` + tool `getTodayMarketVoice.ts` |

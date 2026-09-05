@@ -12,7 +12,7 @@
 
 A **single-user AI chat agent** that runs on Cloudflare:
 
-- **Frontend** — React app in the browser (chat + 9 side panels)
+- **Frontend** — React app in the browser (chat + side panels)
 - **Backend** — one **Durable Object** (`ChatAgent`) per agent name (`"default"`)
 - **AI** — Workers AI by default; optional AI Gateway for production
 - **Storage** — DO SQLite (chat, workspace, RAG chunks), R2 (skills, PDFs,
@@ -147,6 +147,7 @@ in `Message.tsx` → then server `execute` runs.
 | Market Pulse poll | `/live` page | `worker/live-market-room.ts`, `src/live/` | DO state + SQLite (`LiveMarketRoomAgent`) |
 | Supabase (prep) | `GET /api/supabase/health` | `worker/supabase.ts` | External Postgres (Market Memory) |
 | Content briefs | `GET /api/briefs/today` | `worker/content-briefs.ts`, `market-date.ts` | Supabase `content_briefs` |
+| Market panel | Market tab | `src/panels/MarketPanel.tsx` | briefs/today + audio/today + Settings `content_lang` |
 | Browser | Browser | `navigate.ts`, `screenshot.ts`, Puppeteer | Remote browser session + R2 screenshots |
 | Schedules | Schedules | `setReminder.ts`, DO alarms | DO schedule store |
 | Runtime tools | Extensions | `load_extension`, `worker_loaders` | Sandboxed worker per extension |

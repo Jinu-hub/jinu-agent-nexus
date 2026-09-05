@@ -4,7 +4,7 @@
 //
 // Layout: two columns, full viewport.
 //   Left  — <Chat>                       (messages + input)
-//   Right — Tabs over 9 panels          (one panel visible at a time)
+//   Right — Tabs over panels             (one panel visible at a time)
 //
 // The agent connection lives here. We pass it down to <Chat> for chat
 // I/O, and read `agent.state` to power the right-side panels.
@@ -34,6 +34,7 @@ import {
   Puzzle,
   Plug,
   Settings2,
+  Newspaper,
 } from "lucide-react";
 
 import type { ChatAgent, State } from "../worker/chat-agent";
@@ -51,6 +52,7 @@ import {
 } from "@/components/ui/tabs";
 
 import { MemoryPanel } from "@/panels/MemoryPanel";
+import { MarketPanel } from "@/panels/MarketPanel";
 import { SkillsPanel } from "@/panels/SkillsPanel";
 import { FilesPanel } from "@/panels/FilesPanel";
 import { ToolsPanel } from "@/panels/ToolsPanel";
@@ -77,6 +79,7 @@ const INITIAL_STATE: State = {
 // between trigger and content.
 const PANELS = [
   { value: "memory", label: "Memory", icon: Brain },
+  { value: "market", label: "Market", icon: Newspaper },
   { value: "skills", label: "Skills", icon: BookOpen },
   { value: "files", label: "Files", icon: FolderTree },
   { value: "tools", label: "Tools", icon: Wrench },
@@ -246,6 +249,10 @@ export default function App() {
               memory={state.memory}
               onClear={() => agent.stub.clearMemory()}
             />
+          </TabsContent>
+
+          <TabsContent value="market">
+            <MarketPanel contentLang={settings?.content_lang ?? null} />
           </TabsContent>
 
           <TabsContent value="skills">

@@ -477,6 +477,7 @@ curl -sS http://localhost:5173/api/audio/today | python3 -m json.tool
 | A | `content_briefs` 조회 + `GET /api/briefs/today` | 완료 |
 | B | Chat tool `getTodayMarketBrief` — Phase A 함수 재사용 | 완료 |
 | C | 공용 query 헬퍼 정리 (두 번째 테이블 때) | 선택 |
+| D | Market 사이드바 패널 (brief + voice) | 완료 |
 
 ### 9.1 Phase A — Today brief HTTP API *(완료)*
 
@@ -595,3 +596,18 @@ curl -sS 'http://localhost:5173/api/briefs/today?date=2026-09-03' | python3 -c "
   * `worker/tools/market-date-resolve.ts` — tool `date` 년도가 Seoul 현재 년이 아니면, miss 시 현재 년+MM-DD로 1회 재조회
   * brief/voice tool description에 Seoul `today`/`yesterday` 힌트 삽입
   * soul RULE 7
+
+### 9.8 Market 패널 (사이드바) *(완료)*
+
+* **목적:** 챗 없이 Settings `content_lang` + 날짜로 brief/voice를 바로 보기·재생
+* **추가:**
+  * `src/panels/MarketPanel.tsx` — `GET /api/briefs/today` + `GET /api/audio/today` 병렬 fetch
+  * 날짜 prev/next / date input / Today, 수동 Refresh, brief 복사, `<audio>` 플레이어
+  * `src/App.tsx` — `PANELS`에 Market 탭 (Memory 다음)
+* **이 Phase에서 하지 않은 것:** 최근 N일 리스트 API, ChatAgent `State` 동기화, Settings lang 토글을 패널로 이동
+
+확인:
+
+1. 사이드바 Market → Seoul 오늘 로드 (없으면 empty 문구)
+2. 날짜를 `2026-09-03`으로 → brief/voice 표시 (데이터 있을 때)
+3. Settings `content_lang` ko↔en 변경 → 패널 자동 재조회
