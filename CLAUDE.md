@@ -171,13 +171,13 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
 | Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`) |
-| Market panel (sidebar) | `src/panels/MarketPanel.tsx` — briefs/today + audio/today by date + Settings `content_lang`; wired in `App.tsx` PANELS |
+| Market panel (sidebar) | `src/panels/MarketPanel.tsx` — briefs/today + audio/today + Ask in chat chips (`src/lib/market-suggestions.ts`); wired in `App.tsx` |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) for Market Memory; UI `src/panels/SettingsPanel.tsx` |
 | Market Memory intent | `market-intent.ts` + `market-prefetch.ts` — `beforeTurn` prefetches brief/voice/compare into system (`toolChoice: none`); `beforeStep` forces tools only as fallback (weather / no prefetch) |
 | Voice audio pipeline | `worker/content-audio.ts` + `voice-audio-cron.ts` → `/api/audio/*`; today play `GET /api/audio/today` + tool `getTodayMarketVoice.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
-| UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` |
+| UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` — empty state shares Market Memory suggestions |
 | Voice in-chat player | `src/chat/Message.tsx` — `<audio>` when `getTodayMarketVoice` returns `playPath` |
 
 ## Extension patterns

@@ -23,6 +23,7 @@ import { Send, Square, Trash2, RotateCcw, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { MARKET_SUGGESTIONS } from "@/lib/market-suggestions";
 import { Message } from "./Message";
 
 // useAgentChat returns a value whose shape includes `messages`,
@@ -35,22 +36,21 @@ type ChatHelpers = ReturnType<typeof useAgentChat>;
 // so the App's typed `useAgent<ChatAgent, State>(...)` flows through.
 type AgentForChat = Parameters<typeof useAgentChat>[0]["agent"];
 
-const SUGGESTIONS = [
-  "Latest 브리핑에서 가장 큰 리스크만 정리해줘",
-  "어제 pulse/takeaway 한 줄로 말해줘",
-  "그제랑 어제 브리핑 톤이 어떻게 달라졌지?",
-];
-
 export function Chat({
   agent,
   theme,
   onToggleTheme,
   onReset,
+  pendingAsk = null,
+  onPendingAskConsumed,
 }: {
   agent: AgentForChat;
   theme: "light" | "dark";
   onToggleTheme: () => void;
   onReset: () => void;
+  /** Set by Market panel "Ask in chat" — Chat sends then clears via callback. */
+  pendingAsk?: { text: string; nonce: number } | null;
+  onPendingAskConsumed?: () => void;
 }) {
   // Stable identity for onToolCall — without useCallback a fresh
   // closure is created on every render, and the chat hook treats
@@ -73,6 +73,17 @@ export function Chat({
   }, []);
 
   const chat = useAgentChat({ agent, onToolCall });
+  const sendRef = useRef(chat.sendMessage);
+  sendRef.current = chat.sendMessage;
+  const consumedRef = useRef(onPendingAskConsumed);
+  consumedRef.current = onPendingAskConsumed;
+
+  useEffect(() => {
+    const text = pendingAsk?.text?.trim();
+    if (!text || pendingAsk == null) return;
+    void sendRef.current({ text });
+    consumedRef.current?.();
+  }, [pendingAsk]);
 
   return (
     <div className="flex h-full flex-col">
@@ -233,22 +244,25 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
           <span className="ml-1 inline-block h-[1em] w-[0.5em] translate-y-[0.15em] bg-foreground animate-caret" />
         </h2>
         <p className="text-sm text-muted-foreground">
-          Memory, skills, RAG, browser, schedules, and MCP — all wired
-          up. Try one of these or ask anything.
+          Chat interprets Market Memory. Full brief text and voice live in
+          the Market tab.
         </p>
       </div>
       <div className="flex flex-col items-stretch gap-2 self-stretch">
-        {SUGGESTIONS.map((s) => (
+        <p className="text-[11px] font-medium tracking-wide text-muted-foreground">
+          Market Memory · 이렇게 물어보세요
+        </p>
+        {MARKET_SUGGESTIONS.map((s) => (
           <button
-            key={s}
+            key={s.id}
             type="button"
-            onClick={() => onPick(s)}
+            onClick={() => onPick(s.prompt)}
             className="group flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left text-xs text-foreground hover:border-foreground/40"
           >
             <span className="font-mono text-muted-foreground group-hover:text-foreground">
               ›
             </span>
-            <span>{s}</span>
+            <span>{s.prompt}</span>
           </button>
         ))}
       </div>

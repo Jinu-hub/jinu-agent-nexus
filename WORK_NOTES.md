@@ -647,3 +647,17 @@ curl -sS 'http://localhost:5173/api/briefs/today?date=2026-09-03' | python3 -c "
 3. 「어제 보이스 틀어줘」→ Market 탭 안내 (먹통 아님)
 4. 「브리핑 전문 보여줘」→ 전문 dump 없이 Market 탭 Latest 안내
 5. 「서울 날씨」→ getWeather 호출 후 답
+
+### 9.12 Market Memory 추천 질문 UI *(완료)*
+
+* **목적:** Chat empty / Market 패널에 같은 예시 프롬프트를 드러내어 해석·비교·패널 유도 명령을 발견하기 쉽게
+* **추가:**
+  * `src/lib/market-suggestions.ts` — 공유 `MARKET_SUGGESTIONS` (intent와 맞춤)
+  * `Chat.tsx` empty — 「Market Memory · 이렇게 물어보세요」+ 클릭 시 전송
+  * `MarketPanel` — Ask in chat 칩 → `App` `pendingAsk` → Chat `sendMessage`
+* **이 Phase에서 하지 않은 것:** 대화 중 입력창 위 상시 칩, 영문 예시 토글
+
+확인:
+
+1. 빈 채팅 → Market 예시 5개 클릭 전송
+2. Market 탭 → Ask in chat 칩 → 왼쪽 채팅에 같은 문장 전송

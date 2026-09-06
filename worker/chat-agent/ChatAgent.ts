@@ -121,7 +121,7 @@ export class ChatAgent extends Think<Env, State> {
 ## Prefetched Market Memory (authoritative for this turn)
 ${block}`,
       // Text-only: model often hangs after reasoning when tools are required.
-      toolChoice: "none",
+      toolChoice: "none" as const,
     };
   }
 

@@ -15,11 +15,13 @@ import {
   Copy,
   Check,
   LoaderCircle,
+  MessageSquare,
   Newspaper,
   RefreshCw,
   Volume2,
 } from "lucide-react";
 import type { ContentLang } from "../../worker/chat-agent/settings";
+import { MARKET_SUGGESTIONS } from "@/lib/market-suggestions";
 import { cn } from "@/lib/utils";
 import { PanelHeader } from "./PanelHeader";
 
@@ -148,8 +150,11 @@ function EmptyHint({
 
 export function MarketPanel({
   contentLang,
+  onAskInChat,
 }: {
   contentLang: ContentLang | null;
+  /** Send a Market Memory example prompt into the left chat. */
+  onAskInChat?: (prompt: string) => void;
 }) {
   const lang = contentLang ?? "ko";
   const calendarToday = seoulYmd();
@@ -452,6 +457,37 @@ export function MarketPanel({
         <p className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
           {error}
         </p>
+      )}
+
+      {onAskInChat && (
+        <div className="mt-4 border-t border-border pt-3">
+          <div className="mb-1.5 flex items-center gap-1.5">
+            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+            <p className="text-[11px] font-medium text-foreground">
+              Ask in chat
+            </p>
+          </div>
+          <p className="mb-2 text-[10px] leading-relaxed text-muted-foreground">
+            Chat interprets · full text / voice stay in this tab.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {MARKET_SUGGESTIONS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                title={s.prompt}
+                onClick={() => onAskInChat(s.prompt)}
+                className={cn(
+                  "rounded-md border border-border bg-background px-2 py-1",
+                  "text-[10px] text-muted-foreground",
+                  "hover:border-foreground/30 hover:bg-accent hover:text-foreground",
+                )}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
     </section>
   );

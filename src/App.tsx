@@ -121,6 +121,15 @@ export default function App() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
+  // Market panel → left chat example prompts
+  const [pendingAsk, setPendingAsk] = useState<{
+    text: string;
+    nonce: number;
+  } | null>(null);
+  const askInChat = useCallback((prompt: string) => {
+    setPendingAsk({ text: prompt, nonce: Date.now() });
+  }, []);
+
   // ─── Agent connection ──────────────────────────────────────────────────
   // `useAgent<ChatAgent, State>` gives us a fully typed RPC stub
   // (`agent.stub.method()`) plus live state syncing via WebSocket.
@@ -229,6 +238,8 @@ export default function App() {
           theme={theme}
           onToggleTheme={() => setTheme(theme === "light" ? "dark" : "light")}
           onReset={() => void agent.stub.resetSession()}
+          pendingAsk={pendingAsk}
+          onPendingAskConsumed={() => setPendingAsk(null)}
         />
       </main>
 
@@ -252,7 +263,10 @@ export default function App() {
           </TabsContent>
 
           <TabsContent value="market">
-            <MarketPanel contentLang={settings?.content_lang ?? null} />
+            <MarketPanel
+              contentLang={settings?.content_lang ?? null}
+              onAskInChat={askInChat}
+            />
           </TabsContent>
 
           <TabsContent value="skills">
