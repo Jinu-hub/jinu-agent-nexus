@@ -1,5 +1,6 @@
 // Shared Market Memory date resolution for chat tools.
 // LLMs often invent the wrong year (e.g. 2025) for "어제" / "9월 4일".
+// Omit date → Seoul yesterday (same "Latest" as Market panel; daily ~22:30 UTC batch).
 
 import {
   isMarketDateYmd,
@@ -9,16 +10,18 @@ import {
 } from "../market-date";
 
 export type ResolvedMarketDate = {
-  /** First date to query (tool arg as given, if valid). */
+  /** Date passed to Supabase after resolution. */
   marketDate: string | undefined;
   /** Same MM-DD with Asia/Seoul current year — try if first query misses. */
   fallbackMarketDate?: string;
   requestedDate?: string;
+  /** True when tool omitted date and we defaulted to Seoul yesterday. */
+  usedExpectedLatest?: boolean;
 };
 
 /**
  * Resolve tool `date` for Market Memory reads.
- * - omit → undefined (domain helper uses Seoul today)
+ * - omit → Seoul yesterday (expected latest / Market panel Latest)
  * - year ≠ Seoul current year → keep requested first, offer current-year fallback
  */
 export function resolveToolMarketDate(
@@ -27,7 +30,11 @@ export function resolveToolMarketDate(
 ): ResolvedMarketDate {
   const requested = date?.trim() || undefined;
   if (!requested) {
-    return { marketDate: undefined };
+    const { yesterday } = seoulDateHints(now);
+    return {
+      marketDate: yesterday,
+      usedExpectedLatest: true,
+    };
   }
   if (!isMarketDateYmd(requested)) {
     return { marketDate: requested, requestedDate: requested };
@@ -50,10 +57,14 @@ export function resolveToolMarketDate(
 export function seoulDateHints(now: Date = new Date()): {
   today: string;
   yesterday: string;
+  /** Alias: expected newest market_date after ~22:30 UTC batch. */
+  latest: string;
 } {
   const today = marketDateYmdInTimeZone(now);
+  const yesterday = shiftMarketDateYmd(today, -1);
   return {
     today,
-    yesterday: shiftMarketDateYmd(today, -1),
+    yesterday,
+    latest: yesterday,
   };
 }

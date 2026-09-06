@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 // Reuses getTodayContentAudio() from worker/content-audio.ts.
 // Returns metadata + /api/audio/file/:id — does NOT stream MP3 bytes into chat.
-// lang_code comes from ChatAgent Settings (content_lang), not chat UI language.
+// Full listening UI is the Market sidebar; chat keeps replies short.
 // ─────────────────────────────────────────────────────────────────────────
 
 import { tool } from "ai";
@@ -22,17 +22,17 @@ import {
 } from "./market-date-resolve";
 
 export function createGetTodayMarketVoiceTool(agent: ChatAgent, env: Env) {
-  const { today, yesterday } = seoulDateHints();
+  const { today, yesterday, latest } = seoulDateHints();
 
   return tool({
     description:
-      `Fetch today's market-issue Voice briefing from Market Memory (content_audio → R2). REQUIRED whenever the user asks for 보이스, voice, 음성 브리핑, listen, or play market audio — call this tool EVERY time, even if you already returned a player for the same date. Never say the user already requested it; never answer from memory alone. Returns a playPath URL for the MP3 — do not invent audio content. Language comes from Settings (content_lang: ko|en). Calendar: Asia/Seoul today=${today}, yesterday=${yesterday}. If the user omits the year (e.g. "9월 4일", "어제"), use ${today.slice(0, 4)} — never a past training-data year.`,
+      `Fetch Market Memory Voice meta + playPath (content_audio → R2). Use when the user asks about voice/오디오. Prefer pointing them to Market tab Latest player for listening. Omit date → expected latest ${latest} (Seoul yesterday). Calendar today=${today}. Language = Settings content_lang. Do not invent audio.`,
     inputSchema: z.object({
       date: z
         .string()
         .optional()
         .describe(
-          `Optional market_date YYYY-MM-DD. Omit for Seoul today (${today}). For 어제/yesterday use ${yesterday}. Month/day without year → year ${today.slice(0, 4)}.`,
+          `Optional market_date YYYY-MM-DD. Omit for expected latest (${latest}). For calendar today use ${today}. For 어제 use ${yesterday}. Month/day without year → year ${today.slice(0, 4)}.`,
         ),
     }),
     execute: async ({ date }) => {
@@ -87,7 +87,8 @@ export function createGetTodayMarketVoiceTool(agent: ChatAgent, env: Env) {
             audioType: result.audioType,
             contentType: result.contentType,
             requestedDate: resolved.requestedDate,
-            message: `No completed voice brief found for market_date=${result.marketDate} lang=${result.lang}. Do not invent audio or reuse a previous day's player.`,
+            usedExpectedLatest: resolved.usedExpectedLatest,
+            message: `No completed voice brief found for market_date=${result.marketDate} lang=${result.lang}. Do not invent audio. Suggest Market tab Latest or another day.`,
           };
         }
 
@@ -107,9 +108,10 @@ export function createGetTodayMarketVoiceTool(agent: ChatAgent, env: Env) {
           playPath,
           requestedDate: resolved.requestedDate,
           correctedFrom,
-          howToPlay: `Open ${playPath} (same origin) to stream the MP3. Tell the user the title and duration in lang=${result.lang} without translating; they can play via that URL.`,
+          usedExpectedLatest: resolved.usedExpectedLatest,
+          howToPlay: `Inline player may appear in the tool card; prefer Market tab Latest for listening. Title/duration in lang=${result.lang}.`,
           presentation:
-            `Title is in lang=${result.lang}. Do not translate the title.`,
+            `Reply briefly (title + duration). Prefer directing the user to Market tab for playback. Do not invent transcript.`,
         };
       } catch (error) {
         return {

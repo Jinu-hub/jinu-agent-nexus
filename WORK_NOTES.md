@@ -616,3 +616,34 @@ curl -sS 'http://localhost:5173/api/briefs/today?date=2026-09-03' | python3 -c "
 1. 사이드바 Market → 기본이 Seoul **어제**(latest)로 로드
 2. Today 클릭 → 오늘 empty면 배치 설명 + Open latest
 3. Settings `content_lang` ko↔en 변경 → 패널 자동 재조회
+
+### 9.9 Chat = 해석 / Panel = 원문 *(완료)*
+
+* **목적:** Market 패널이 원문·보이스 UI이므로 챗은 해석·비교·행동에 집중
+* **변경:**
+  * `configure-session.ts` RULE 5–7 — 전문 dump 금지, Market 탭 안내, omit date = Seoul yesterday (latest)
+  * `market-date-resolve.ts` — tool `date` 생략 시 expected latest (어제)
+  * brief/voice tool description + `presentation` — 짧은 답 + 패널 유도
+  * `market-intent.ts` — 해석형 질문도 brief tool 강제
+  * `Chat.tsx` SUGGESTIONS — Market 해석형 예시로 교체
+* **이 Phase에서 하지 않은 것:** 멀티데이 비교 전용 API, 패널↔챗 date 동기화 RPC
+
+### 9.10 Chat 먹통 — reasoning-only / tool 미호출 *(완료)*
+
+* **증상:** `어제 pulse/takeaway`는 OK. 이후 `그제랑 어제 톤 비교`, `어제 보이스`, `브리핑 전문`, `서울 날씨` 등에서 reasoning만 하고 tool/답변 없이 종료하거나 의도와 다른 요약
+* **원인:** GLM이 toolChoice를 무시하고 reasoning 후 stop. 비교는 2회 brief 호출을 계획만 하고 실행 안 함. `beforeStep` 강제만으로는 부족
+* **수정:**
+  * `market-prefetch.ts` — `beforeTurn`에서 brief/voice/compare를 서버가 조회해 system에 JSON 주입
+  * Market 턴은 `toolChoice: "none"` → 텍스트만 답 (tool stall 회피)
+  * `market-intent.ts` — `compare` / `fullText` / `voice` / `brief` 의도 분리; `detectWeatherTool`
+  * `beforeStep` — prefetch 성공 시 Market force 스킵; 날씨·prefetch 실패 시에만 tool 강제
+  * soul RULE 5–6 — Prefetch 우선, 전문/틀어줘는 Market 탭 안내
+* **이 Phase에서 하지 않은 것:** 보이스 인라인 플레이어를 prefetch 경로에 연결, 멀티데이 HTTP API
+
+확인:
+
+1. 「어제 pulse/takeaway 한 줄로」→ 짧은 답 + Market 탭 안내
+2. 「그제랑 어제 브리핑 톤이 어떻게 달라졌지?」→ 비교 답 (먹통 아님)
+3. 「어제 보이스 틀어줘」→ Market 탭 안내 (먹통 아님)
+4. 「브리핑 전문 보여줘」→ 전문 dump 없이 Market 탭 Latest 안내
+5. 「서울 날씨」→ getWeather 호출 후 답

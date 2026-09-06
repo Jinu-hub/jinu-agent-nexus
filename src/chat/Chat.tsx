@@ -36,9 +36,9 @@ type ChatHelpers = ReturnType<typeof useAgentChat>;
 type AgentForChat = Parameters<typeof useAgentChat>[0]["agent"];
 
 const SUGGESTIONS = [
-  "What's the weather in Seoul?",
-  "Remind me to drink water in 30 seconds.",
-  "Summarize the last PDF I uploaded.",
+  "Latest 브리핑에서 가장 큰 리스크만 정리해줘",
+  "어제 pulse/takeaway 한 줄로 말해줘",
+  "그제랑 어제 브리핑 톤이 어떻게 달라졌지?",
 ];
 
 export function Chat({

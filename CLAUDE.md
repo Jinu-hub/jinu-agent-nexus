@@ -129,12 +129,15 @@ worker/
     configure-session.ts
     tools-registry.ts
     refresh-state.ts
+    market-intent.ts   Market / weather intent detection
+    market-prefetch.ts beforeTurn Market Memory JSON inject
     rag.ts
     browser.ts
     reminders.ts
     panel-ops.ts
     types.ts           State types (imported by React panels)
     constants.ts
+    settings.ts
   ai.ts                Model routing — change provider logic here
   ingest.ts            Markdown chunker for RAG ingest
   tools/               One tool per file. See "Extension patterns" below.
@@ -170,7 +173,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`) |
 | Market panel (sidebar) | `src/panels/MarketPanel.tsx` — briefs/today + audio/today by date + Settings `content_lang`; wired in `App.tsx` PANELS |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) for Market Memory; UI `src/panels/SettingsPanel.tsx` |
-| Market Memory intent | `worker/chat-agent/market-intent.ts` + `ChatAgent.beforeStep` — force brief/voice tool on step 0 |
+| Market Memory intent | `market-intent.ts` + `market-prefetch.ts` — `beforeTurn` prefetches brief/voice/compare into system (`toolChoice: none`); `beforeStep` forces tools only as fallback (weather / no prefetch) |
 | Voice audio pipeline | `worker/content-audio.ts` + `voice-audio-cron.ts` → `/api/audio/*`; today play `GET /api/audio/today` + tool `getTodayMarketVoice.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
