@@ -173,6 +173,7 @@ All live under `worker/tools/` and register in `getTools()` inside
 | `screenshot.ts` | Capture page → R2 | Server |
 | `getTodayMarketBrief.ts` | Market-issue brief; `lang` = Settings `content_lang`. Chat often uses `beforeTurn` prefetch instead of a tool call | Server (Supabase) |
 | `getTodayMarketVoice.ts` | Voice meta + play URL; listen UI = Market panel; same prefetch path | Server (Supabase + R2) |
+| `getTodayMarketReport.ts` | Full report grounding (summary/excerpt/highlights only); UI = Market panel Report | Server (Supabase) |
 
 Built-in **Think** tools (not in `worker/tools/`): `read`, `write`, `edit`,
 `list`, `find`, `grep`, `delete`, `set_context`, `load_context`,

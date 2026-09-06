@@ -26,13 +26,28 @@ export const MARKET_SUGGESTIONS: MarketSuggestion[] = [
     prompt: "그제랑 어제 브리핑 톤이 어떻게 달라졌지?",
   },
   {
+    id: "reportCore",
+    label: "풀리포트 핵심",
+    prompt: "어제 풀리포트 핵심만 정리해줘",
+  },
+  {
+    id: "highlights",
+    label: "하이라이트만",
+    prompt: "어제 풀리포트 하이라이트만 말해줘",
+  },
+  {
+    id: "briefVsReport",
+    label: "리포트가 더 담은 것",
+    prompt: "어제 브리프에 없는 풀리포트 내용만 짚어줘",
+  },
+  {
     id: "voice",
     label: "보이스 → 탭",
     prompt: "어제 보이스 틀어줘",
   },
   {
-    id: "fullText",
-    label: "전문 → 탭",
-    prompt: "브리핑 전문 보여줘",
+    id: "fullReport",
+    label: "리포트 → 탭",
+    prompt: "풀리포트 전문 보여줘",
   },
 ];

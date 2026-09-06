@@ -3,7 +3,8 @@
 
 export type MarketMemoryTool =
   | "getTodayMarketVoice"
-  | "getTodayMarketBrief";
+  | "getTodayMarketBrief"
+  | "getTodayMarketReport";
 
 export type MarketDateHint = "today" | "yesterday" | "latest";
 
@@ -14,6 +15,16 @@ export type MarketMemoryIntent =
     }
   | {
       kind: "compare";
+    }
+  | {
+      kind: "reportVsBrief";
+      dateHint?: MarketDateHint;
+    }
+  | {
+      kind: "report";
+      dateHint?: MarketDateHint;
+      /** User wants panel redirect for full report (no dump). */
+      fullText?: boolean;
     }
   | {
       kind: "fullText";
@@ -46,15 +57,48 @@ export function detectMarketMemoryIntent(
     return { kind: "voice", dateHint: dateHintFromText(t) };
   }
 
+  // Brief vs full report (same day) — BEFORE day-over-day compare.
+  // Otherwise "어제 … 차이" matches the compare regex and skips report.
+  // Also: "브리프에 없는 … 풀리포트" (what Report adds beyond Brief).
   if (
-    /(그제|어제).{0,24}(톤|비교|달라|차이)/i.test(t) ||
+    /(브리프|brief).{0,24}(풀\s*리포트|풀리포트|리포트|report|원문)/i.test(t) ||
+    /(풀\s*리포트|풀리포트|리포트|report).{0,24}(브리프|brief)/i.test(t) ||
+    /(브리프|brief).{0,16}(없|빠진|빠진\s*것|없는).{0,16}(풀\s*리포트|풀리포트|리포트|report)/i.test(
+      t,
+    )
+  ) {
+    return { kind: "reportVsBrief", dateHint: dateHintFromText(t) };
+  }
+
+  // Day-over-day brief compare (그제 vs 어제, multi-day) — not "어제 A vs B"
+  if (
+    /(그제).{0,32}(어제|톤|비교|달라|차이)/i.test(t) ||
+    /(어제).{0,32}(그제)/i.test(t) ||
     /(며칠|연속).{0,12}(이슈|테마|리스크)/i.test(t) ||
-    /(톤|비교).{0,16}(그제|어제|달라)/i.test(t)
+    /(톤\s*비교|비교).{0,16}(그제|어제)/i.test(t)
   ) {
     return { kind: "compare" };
   }
 
-  // Full-text / "show me the brief" → panel redirect, not chat dump
+  // Full report / digest (item_contents)
+  if (
+    /풀\s*리포트|풀리포트|full\s*report|digest\s*report|다이제스트\s*리포트/i.test(
+      t,
+    ) ||
+    /(하이라이트).{0,12}(만|풀|리포트|report)/i.test(t) ||
+    /(리포트|report).{0,12}(하이라이트|핵심|요약)/i.test(t)
+  ) {
+    const fullText =
+      /(전문|원문|보여|보여줘|full\s*text)/i.test(t) &&
+      !/(핵심|하이라이트|요약|정리|차이|비교)/i.test(t);
+    return {
+      kind: "report",
+      dateHint: dateHintFromText(t),
+      fullText,
+    };
+  }
+
+  // Brief full-text / "show me the brief" → panel redirect, not chat dump
   if (
     /(전문|원문|full\s*text|full\s*brief)/i.test(t) ||
     /(브리핑|brief|이슈).{0,12}(보여|보여줘|전체)/i.test(t) ||
@@ -89,6 +133,9 @@ export function detectMarketMemoryTool(
   const intent = detectMarketMemoryIntent(text);
   if (!intent) return null;
   if (intent.kind === "voice") return "getTodayMarketVoice";
+  if (intent.kind === "report" || intent.kind === "reportVsBrief") {
+    return "getTodayMarketReport";
+  }
   return "getTodayMarketBrief";
 }
 

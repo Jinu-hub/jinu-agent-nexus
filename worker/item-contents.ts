@@ -8,6 +8,7 @@
 //   Cloudflare Worker       = read path for curl + (later) panel / chat
 //
 // Phase A: GET /api/reports/today — brief → target_id → item_contents.
+// Phase C: getTodayMarketReport chat tool + prefetch reuse getTodayItemContent().
 // ─────────────────────────────────────────────────────────────────────────
 
 import { getTodayContentBrief } from "./content-briefs";

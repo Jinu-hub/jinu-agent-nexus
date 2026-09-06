@@ -11,6 +11,7 @@ import { createNavigateTool } from "../tools/navigate";
 import { createScreenshotTool } from "../tools/screenshot";
 import { createGetTodayMarketBriefTool } from "../tools/getTodayMarketBrief";
 import { createGetTodayMarketVoiceTool } from "../tools/getTodayMarketVoice";
+import { createGetTodayMarketReportTool } from "../tools/getTodayMarketReport";
 
 import type { ChatAgent } from "../chat-agent";
 
@@ -30,6 +31,7 @@ export function getChatTools(agent: ChatAgent, env: Env): ToolSet {
     screenshot: createScreenshotTool(agent, env),
     getTodayMarketBrief: createGetTodayMarketBriefTool(agent, env),
     getTodayMarketVoice: createGetTodayMarketVoiceTool(agent, env),
+    getTodayMarketReport: createGetTodayMarketReportTool(agent, env),
 
     // load_extension + list_extensions — extension management tools.
     // Per-extension tools are auto-merged by Think internally.

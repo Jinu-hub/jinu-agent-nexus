@@ -6,12 +6,17 @@ import type { ChatAgent } from "./ChatAgent";
 import { getSettings } from "./settings";
 import { getTodayContentAudio } from "../content-audio";
 import { getTodayContentBrief } from "../content-briefs";
+import { getTodayItemContent } from "../item-contents";
 import { isMarketDateYmd, shiftMarketDateYmd } from "../market-date";
 import { isSupabaseConfigured } from "../supabase";
 import {
   resolveToolMarketDate,
   seoulDateHints,
 } from "../tools/market-date-resolve";
+import {
+  reportChatExcerpt,
+  reportHighlightHeadings,
+} from "../tools/getTodayMarketReport";
 import {
   detectMarketMemoryIntent,
   type MarketMemoryIntent,
@@ -149,6 +154,73 @@ async function loadVoice(
   };
 }
 
+async function loadReport(
+  agent: ChatAgent,
+  env: Env,
+  date: string | undefined,
+) {
+  const resolved = resolveToolMarketDate(date);
+  if (resolved.marketDate && !isMarketDateYmd(resolved.marketDate)) {
+    return {
+      ok: false as const,
+      reason: "invalid_date",
+      requestedDate: resolved.requestedDate,
+    };
+  }
+
+  const { content_lang: lang } = getSettings(agent);
+  let result = await getTodayItemContent(env, {
+    marketDate: resolved.marketDate,
+    lang,
+  });
+  let correctedFrom: string | undefined;
+
+  if (
+    !result.item &&
+    resolved.fallbackMarketDate &&
+    resolved.fallbackMarketDate !== resolved.marketDate
+  ) {
+    const retry = await getTodayItemContent(env, {
+      marketDate: resolved.fallbackMarketDate,
+      lang,
+    });
+    if (retry.item) {
+      correctedFrom = resolved.marketDate;
+      result = retry;
+    }
+  }
+
+  if (!result.item) {
+    return {
+      ok: true as const,
+      found: false as const,
+      marketDate: result.marketDate,
+      lang: result.lang,
+      briefId: result.briefId,
+      targetId: result.targetId,
+      requestedDate: resolved.requestedDate,
+      usedExpectedLatest: resolved.usedExpectedLatest,
+    };
+  }
+
+  const item = result.item;
+  return {
+    ok: true as const,
+    found: true as const,
+    marketDate: result.marketDate,
+    lang: result.lang,
+    title: item.title,
+    summary: item.summary,
+    excerpt: reportChatExcerpt(item.content, item.summary),
+    highlights: reportHighlightHeadings(item.content),
+    tags: item.tags,
+    reportType: item.report_type,
+    requestedDate: resolved.requestedDate,
+    correctedFrom,
+    usedExpectedLatest: resolved.usedExpectedLatest,
+  };
+}
+
 function resolveAskDate(
   intent: MarketMemoryIntent,
   hints: ReturnType<typeof seoulDateHints>,
@@ -219,7 +291,48 @@ export async function buildMarketPrefetchBlock(
           seoulHints: hints,
           briefs: { dayBeforeYesterday: a, yesterday: b },
           instruction:
-            "Compare tone/themes using pulse/takeaway/title (and excerpts if needed). Answer the comparison only — short. Do NOT paste full content. One line: full text in Market tab by date. Do not call getTodayMarketBrief unless a date is missing here.",
+            "Compare tone/themes using pulse/takeaway/title (and excerpts if needed). Answer the comparison only — short natural language. Do NOT paste full content. Do NOT emit <tool_call> or XML tool markup — facts are already here. One line: full text in Market tab by date.",
+        },
+        null,
+        2,
+      );
+    }
+
+    if (intent.kind === "reportVsBrief") {
+      const askDate = resolveAskDate(intent, hints);
+      const [brief, report] = await Promise.all([
+        loadBrief(agent, env, askDate),
+        loadReport(agent, env, askDate),
+      ]);
+      return JSON.stringify(
+        {
+          intent: "reportVsBrief",
+          seoulHints: hints,
+          brief,
+          report,
+          instruction:
+            "Same-day Brief vs Report — content only, not format. Product fact: Brief is usually distilled FROM Report highlights (pulse/takeaway ≈ highlight themes), so do NOT say 'Brief is short / Report is long' or 'Brief compresses, Report expands' — that is empty. Instead: (1) name 1–2 themes both share; (2) name what Report adds beyond Brief (e.g. 주요/추가 항목, extra companies/events, 마무리, 용어) using summary/excerpt/highlights vs brief pulse/takeaway/excerpt; (3) if they largely align, say so in one line. Short natural language. No full markdown dump. No <tool_call>/XML. One line: details in Market tab → Brief / Report.",
+        },
+        null,
+        2,
+      );
+    }
+
+    if (intent.kind === "report") {
+      const report = await loadReport(
+        agent,
+        env,
+        resolveAskDate(intent, hints),
+      );
+      return JSON.stringify(
+        {
+          intent: "report",
+          fullTextAsk: Boolean(intent.fullText),
+          seoulHints: hints,
+          report,
+          instruction: intent.fullText
+            ? "User wants the FULL report. Do NOT paste content/excerpt into chat. Do NOT emit <tool_call> or XML. Reply in 1–2 short lines pointing to Market tab → Report (include marketDate)."
+            : "Answer briefly using title/summary/excerpt/highlights in natural language. Do NOT paste the full report. Do NOT emit <tool_call> or XML — facts are already here. One short line: Market tab → Report.",
         },
         null,
         2,
@@ -235,7 +348,7 @@ export async function buildMarketPrefetchBlock(
         seoulHints: hints,
         brief,
         instruction: fullTextAsk
-          ? "User wants the FULL brief. Do NOT paste content/excerpt into chat. Reply in 1–2 short lines pointing to Market tab → Latest (include marketDate). Tools unnecessary."
+          ? "User wants the FULL brief. Do NOT paste content/excerpt into chat. Reply in 1–2 short lines pointing to Market tab → Brief / Latest (include marketDate). Tools unnecessary."
           : "Answer the user's question briefly using title/pulse/takeaway/excerpt as evidence. Do NOT paste the full brief. One short line: Market tab → Latest for the full text. Do not call getTodayMarketBrief unless a needed date is missing.",
       },
       null,

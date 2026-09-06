@@ -173,10 +173,10 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
 | Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`) |
-| Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today` (`content_briefs.target_id` → `item_contents.id`) |
+| Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today` (`content_briefs.target_id` → `item_contents.id`); chat tool `worker/tools/getTodayMarketReport.ts` (excerpt only; lang = Settings `content_lang`) |
 | Market panel (sidebar) | `src/panels/MarketPanel.tsx` — briefs/today + audio/today + reports/today (lazy Report section) + Ask in chat chips (`src/lib/market-suggestions.ts`); wired in `App.tsx` |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) for Market Memory; UI `src/panels/SettingsPanel.tsx` |
-| Market Memory intent | `market-intent.ts` + `market-prefetch.ts` — `beforeTurn` prefetches brief/voice/compare into system (`toolChoice: none`); `beforeStep` forces tools only as fallback (weather / no prefetch) |
+| Market Memory intent | `market-intent.ts` + `market-prefetch.ts` — `beforeTurn` prefetches brief/voice/report/compare into system (`toolChoice: none`); `beforeStep` forces tools only as fallback (weather / no prefetch) |
 | Voice audio pipeline | `worker/content-audio.ts` + `voice-audio-cron.ts` → `/api/audio/*`; today play `GET /api/audio/today` + tool `getTodayMarketVoice.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
@@ -204,6 +204,7 @@ Reference implementations:
 - Server + API: `getWeather.ts`
 - Server + Market Memory read: `getTodayMarketBrief.ts` (uses `content-briefs.ts`; `lang` from Settings `content_lang`)
 - Server + Market Memory Voice: `getTodayMarketVoice.ts` (uses `content-audio.ts` → playPath; `lang` from Settings `content_lang`)
+- Server + Market Memory Report: `getTodayMarketReport.ts` (uses `item-contents.ts`; summary/excerpt/highlights only; `lang` from Settings `content_lang`)
 - Server + agent: `setReminder.ts`, `recall.ts`, `screenshot.ts`
 - Client-side (no execute): `getUserTimezone.ts` → resolve in `Chat.tsx`
 - Approval: `sendNotification.ts`

@@ -681,7 +681,7 @@ curl -sS 'http://localhost:5173/api/briefs/today?date=2026-09-03' | python3 -c "
 |-------|------|------|
 | A | `item_contents` 조회 + `GET /api/reports/today` (brief → target_id) | 완료 |
 | B | Market 패널 Report 섹션 (기본 접힘 + lazy fetch + markdown) | 완료 |
-| C | Chat tool / prefetch / Ask chips — 해석만, 탭 유도 | 예정 |
+| C | Chat tool / prefetch / Ask chips — 해석만, 탭 유도 | 완료 |
 | D | UX 개선 (모달·TOC·섹션 점프 등) — A–C 보고 나서 | 보류 |
 
 ### 제품 계층 (고정)
@@ -749,14 +749,42 @@ curl -sS 'http://localhost:5173/api/reports/today?date=09-04'
 2. Report 펼침 → lazy fetch → 하이라이트/주요 항목 등 섹션 보임
 3. ko/en Settings 변경 → date 유지한 채 report 캐시 무효화 후 재펼침 시 재조회
 
-### 10.3 Phase C — Chat = 해석 / Report는 탭 *(예정)*
+### 10.3 Phase C — Chat = 해석 / Report는 탭 *(완료)*
 
 * **목적:** 풀리포트도 §9.9 정책 유지 — 챗에 전문 dump 금지.
-* **추가 예정:**
-  * tool `getTodayMarketReport` (또는 prefetch 전용 로드) — `found` + `title` + **짧은 excerpt**(lead 문단만) + Market 탭 안내
-  * `market-intent` / `market-prefetch` — report 의도 시 excerpt만 system 주입 (`toolChoice: none` 경로 유지)
-  * `MARKET_SUGGESTIONS` — 예: `풀리포트 핵심`, `하이라이트만`, `브리프 vs 풀리포트` + 「전문 → 탭」을 Report로 명확화
-* **이 Phase에서 하지 않는 것:** 전문을 챗 메시지에 붙이기, 멀티데이 report 비교 API
+* **추가:**
+  * `worker/tools/getTodayMarketReport.ts` — `found` + `title`/`summary`/`excerpt`/`highlights` (+ Market 탭 Report 안내). 전문 markdown 미반환
+  * `tools-registry.ts` — `getTodayMarketReport` 등록
+  * `market-intent.ts` — `report` / `reportVsBrief` 의도; fallback tool 매핑
+  * `market-prefetch.ts` — report / brief+report prefetch (`toolChoice: none` 경로 유지)
+  * `configure-session.ts` RULE 5–6 — Brief / Voice / Report 역할 분리
+  * `MARKET_SUGGESTIONS` — 풀리포트 핵심 / 하이라이트만 / 브리프 vs 리포트 / 리포트 → 탭
+* **이 Phase에서 하지 않은 것:** 전문을 챗에 붙이기, 멀티데이 report 비교 API, 패널↔챗 date 동기화
+
+확인:
+
+1. 「어제 풀리포트 핵심만 정리해줘」→ 짧은 요약 + Market 탭 Report 안내 (전문 dump 없음)
+2. 「어제 풀리포트 하이라이트만 말해줘」→ highlights 기반 짧은 답
+3. 「어제 브리프랑 풀리포트 차이가 뭐야?」→ 짧은 비교
+4. 「풀리포트 전문 보여줘」→ Market 탭 → Report 안내만
+5. Tools 패널에 `getTodayMarketReport` 노출
+
+### 10.3b reportVsBrief — 가짜 tool_call XML / 의도 오분류 *(완료)*
+
+* **증상:** 「어제 브리프랑 풀리포트 차이가 뭐야?」→ 답이 없고 `<tool_call>getTodayMarketBrief…` XML 텍스트 덤프
+* **원인:**
+  1. `(어제).{0,24}(차이)` day-compare 정규식이 `reportVsBrief`보다 먼저 매칭
+  2. GLM이 prefetch/`toolChoice:none` 대신 가짜 XML tool call을 본문으로 출력
+* **수정:**
+  * `market-intent.ts` — `reportVsBrief`를 compare보다 먼저; compare는 그제↔어제·멀티데이 위주로 좁힘
+  * prefetch instruction + soul RULE 5 — `<tool_call>` / XML 금지, 자연어만
+
+### 10.3c reportVsBrief — 형식 비교 답변 무의미 *(완료)*
+
+* **피드백:** 「Brief compresses / Report expands」는 틀리지 않지만 의미 없음 — Brief는 원래 하이라이트에서 씀
+* **수정:**
+  * prefetch instruction — 형식 비교 금지; 공유 테마 + **Brief에 없고 Report만 있는 내용**을 근거로 답
+  * Ask chip — `리포트가 더 담은 것` / 「어제 브리프에 없는 풀리포트 내용만 짚어줘」
 
 ### 10.4 Phase D — UX 개선 *(보류 — A–C 보고 결정)*
 
