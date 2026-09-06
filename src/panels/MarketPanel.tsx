@@ -8,8 +8,9 @@
 // usually Asia/Seoul *yesterday*. The panel defaults to that day.
 // ─────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -148,6 +149,77 @@ function EmptyHint({
   );
 }
 
+/** Collapse only when content exists; empty states stay always-open (no toggle). */
+function MarketSection({
+  icon: Icon,
+  title,
+  collapsible,
+  open,
+  onToggle,
+  summary,
+  trailing,
+  children,
+}: {
+  icon: typeof Volume2;
+  title: string;
+  collapsible: boolean;
+  open: boolean;
+  onToggle: () => void;
+  summary?: string | null;
+  trailing?: ReactNode;
+  children: ReactNode;
+}) {
+  const titleRow = (
+    <>
+      <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <p className="text-xs font-medium">{title}</p>
+      {collapsible && !open && summary ? (
+        <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">
+          {summary}
+        </span>
+      ) : (
+        <span className="min-w-0 flex-1" />
+      )}
+      {collapsible && (
+        <ChevronDown
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
+      )}
+    </>
+  );
+
+  return (
+    <div className="paper-inset px-3 py-2.5">
+      <div
+        className={cn(
+          "flex items-center gap-1",
+          (open || !collapsible) && "mb-2",
+        )}
+      >
+        {collapsible ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={open}
+            className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+          >
+            {titleRow}
+          </button>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            {titleRow}
+          </div>
+        )}
+        {trailing}
+      </div>
+      {(!collapsible || open) && children}
+    </div>
+  );
+}
+
 export function MarketPanel({
   contentLang,
   onAskInChat,
@@ -165,6 +237,8 @@ export function MarketPanel({
   const [brief, setBrief] = useState<BriefResponse | null>(null);
   const [voice, setVoice] = useState<VoiceResponse | null>(null);
   const [copied, setCopied] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(true);
+  const [briefOpen, setBriefOpen] = useState(true);
 
   const load = useCallback(async (marketDate: string, marketLang: string) => {
     setLoading(true);
@@ -224,6 +298,14 @@ export function MarketPanel({
   const takeaway = metaString(briefItem?.metadata, "takeaway");
   const showingExpectedLatest = date === expectedLatest;
   const openLatest = () => setDate(expectedLatest);
+  const hasVoice = Boolean(voiceItem && playPath);
+  const hasBrief = Boolean(briefItem);
+
+  // New day with content → start expanded (empty days have no toggle).
+  useEffect(() => {
+    if (hasVoice) setVoiceOpen(true);
+    if (hasBrief) setBriefOpen(true);
+  }, [date, lang, hasVoice, hasBrief]);
 
   return (
     <section>
@@ -342,35 +424,40 @@ export function MarketPanel({
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="paper-inset px-3 py-2.5">
-            <div className="mb-2 flex items-center gap-1.5">
-              <Volume2 className="h-3.5 w-3.5 text-muted-foreground" />
-              <p className="text-xs font-medium">Voice</p>
-              {briefItem && !voiceItem && (
-                <span className="ml-auto text-[10px] text-muted-foreground">
+          <MarketSection
+            icon={Volume2}
+            title="Voice"
+            collapsible={hasVoice}
+            open={voiceOpen}
+            onToggle={() => setVoiceOpen((v) => !v)}
+            summary={voiceItem?.title}
+            trailing={
+              briefItem && !voiceItem ? (
+                <span className="text-[10px] text-muted-foreground">
                   Brief ready · Voice pending
                 </span>
-              )}
-            </div>
-            {voiceItem && playPath ? (
+              ) : null
+            }
+          >
+            {hasVoice ? (
               <div className="space-y-2">
                 <p className="text-[11px] leading-snug text-foreground">
-                  {voiceItem.title ?? "Voice briefing"}
+                  {voiceItem!.title ?? "Voice briefing"}
                 </p>
                 <p className="font-mono text-[10px] text-muted-foreground">
-                  {voiceItem.duration_seconds != null
-                    ? `${voiceItem.duration_seconds}s`
+                  {voiceItem!.duration_seconds != null
+                    ? `${voiceItem!.duration_seconds}s`
                     : "—"}
                   {" · "}
-                  {voiceItem.lang_code}
+                  {voiceItem!.lang_code}
                 </p>
                 <audio
                   className="w-full"
                   controls
                   preload="metadata"
-                  src={playPath}
+                  src={playPath!}
                 >
-                  <a href={playPath} target="_blank" rel="noreferrer">
+                  <a href={playPath!} target="_blank" rel="noreferrer">
                     Download MP3
                   </a>
                 </audio>
@@ -385,17 +472,21 @@ export function MarketPanel({
                 onOpenLatest={openLatest}
               />
             )}
-          </div>
+          </MarketSection>
 
-          <div className="paper-inset px-3 py-2.5">
-            <div className="mb-2 flex items-center gap-1.5">
-              <Newspaper className="h-3.5 w-3.5 text-muted-foreground" />
-              <p className="text-xs font-medium">Brief</p>
-              {briefItem?.content && (
+          <MarketSection
+            icon={Newspaper}
+            title="Brief"
+            collapsible={hasBrief}
+            open={briefOpen}
+            onToggle={() => setBriefOpen((v) => !v)}
+            summary={briefItem?.title}
+            trailing={
+              briefItem?.content ? (
                 <button
                   type="button"
                   onClick={() => void copyBrief()}
-                  className="ml-auto rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
                   title="Copy title + content"
                 >
                   {copied ? (
@@ -404,16 +495,17 @@ export function MarketPanel({
                     <Copy className="h-3.5 w-3.5" />
                   )}
                 </button>
-              )}
-            </div>
-            {briefItem ? (
+              ) : null
+            }
+          >
+            {hasBrief ? (
               <div className="space-y-2">
                 <p className="text-[11px] font-medium leading-snug">
-                  {briefItem.title ?? "Untitled brief"}
+                  {briefItem!.title ?? "Untitled brief"}
                 </p>
                 <p className="font-mono text-[10px] text-muted-foreground">
-                  {briefItem.brief_type} · {briefItem.lang_code} ·{" "}
-                  {briefItem.status}
+                  {briefItem!.brief_type} · {briefItem!.lang_code} ·{" "}
+                  {briefItem!.status}
                 </p>
                 {(pulse || takeaway) && (
                   <div className="space-y-1 rounded-md bg-muted/40 px-2 py-1.5 text-[10px] leading-relaxed text-muted-foreground">
@@ -436,7 +528,7 @@ export function MarketPanel({
                   </div>
                 )}
                 <div className="max-h-64 overflow-y-auto whitespace-pre-wrap text-[11px] leading-relaxed text-foreground">
-                  {briefItem.content}
+                  {briefItem!.content}
                 </div>
               </div>
             ) : (
@@ -449,7 +541,7 @@ export function MarketPanel({
                 onOpenLatest={openLatest}
               />
             )}
-          </div>
+          </MarketSection>
         </div>
       )}
 

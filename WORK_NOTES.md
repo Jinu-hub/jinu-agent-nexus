@@ -661,3 +661,9 @@ curl -sS 'http://localhost:5173/api/briefs/today?date=2026-09-03' | python3 -c "
 
 1. 빈 채팅 → Market 예시 5개 클릭 전송
 2. Market 탭 → Ask in chat 칩 → 왼쪽 채팅에 같은 문장 전송
+
+### 9.13 Market Voice/Brief 여닫이 *(완료)*
+
+* **목적:** 내용 있는 Voice/Brief만 접기; empty hint는 토글 없이 그대로 노출
+* **변경:** `MarketPanel` `MarketSection` — `collapsible={hasVoice|hasBrief}`, 접힌 헤더에 title 요약
+* **이 Phase에서 하지 않은 것:** 접힘 상태 localStorage 유지
