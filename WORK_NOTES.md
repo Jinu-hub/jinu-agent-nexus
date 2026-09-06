@@ -89,6 +89,7 @@ worker/index.ts (HTTP Gateway)
  ├── /settings, /settings/events                   → ChatAgent DO (설정 SQLite)
  ├── GET  /api/supabase/health                     → Supabase 도달성 점검
  ├── GET  /api/briefs/today                        → content_briefs 당일 브리핑 조회 (Phase A)
+ ├── GET  /api/reports/today                       → item_contents 풀리포트 (via brief.target_id) (§10 Phase A)
  ├── GET  /api/audio/pending                       → content_audio script_ready 조회 (Phase 1)
  ├── GET  /api/audio/today                         → completed Voice 메타 + play URL (Phase 7)
  ├── POST /api/audio/claim                         → script_ready → generating claim (Phase 2)
@@ -667,3 +668,109 @@ curl -sS 'http://localhost:5173/api/briefs/today?date=2026-09-03' | python3 -c "
 * **목적:** 내용 있는 Voice/Brief만 접기; empty hint는 토글 없이 그대로 노출
 * **변경:** `MarketPanel` `MarketSection` — `collapsible={hasVoice|hasBrief}`, 접힌 헤더에 title 요약
 * **이 Phase에서 하지 않은 것:** 접힘 상태 localStorage 유지
+
+---
+
+## 10. Full Report 조회 (item_contents → Worker read path)
+
+> Market Memory **원문(풀리포트)**. `content_briefs.target_id` = `item_contents.id`.
+> Brief = 30초 티저, Report = markdown 본문, Chat = 해석만 (전문 dump 금지 — §9.9와 동일).
+> 샘플 본문 구조: lead 요약 → `## 하이라이트` / `## 주요 항목` / `## 추가 항목` / `## 마무리` / `## 용어 정리`.
+
+| Phase | 내용 | 상태 |
+|-------|------|------|
+| A | `item_contents` 조회 + `GET /api/reports/today` (brief → target_id) | 완료 |
+| B | Market 패널 Report 섹션 (기본 접힘 + lazy fetch + markdown) | 예정 |
+| C | Chat tool / prefetch / Ask chips — 해석만, 탭 유도 | 예정 |
+| D | UX 개선 (모달·TOC·섹션 점프 등) — A–C 보고 나서 | 보류 |
+
+### 제품 계층 (고정)
+
+```text
+Voice  → content_audio   (듣기)
+Brief  → content_briefs  (한눈에)
+Report → item_contents   (깊이 읽기)  ← 이 섹션
+Chat   → 해석·비교·리스크 (본문은 Market 탭)
+```
+
+### 10.1 Phase A — Today report HTTP API *(완료)*
+
+* **목적:** curl로 `item_contents` 원문을 검증. Panel/Chat 없음.
+* **조인 규칙:**
+  1. `getTodayContentBrief()`와 동일 필터로 brief 1건 (없으면 `found: false`)
+  2. `brief.target_id` → `item_contents.id` select
+  3. brief는 있는데 report row 없으면 `found: false` + `briefId`/`targetId` 힌트
+* **스키마 확정 (2026-09-06 probe):**
+  * `status` 컬럼 **없음** → `is_active` / `is_public` 사용
+  * 제품 select: `id, title, content, summary, lang_code, market_date, report_type, report_tier, category, tags, countries, regions, is_active, is_public, created_at, metadata`
+  * 샘플 `target_type` / `report_type`: `digest-report`
+  * 본문 `content` = markdown; `summary` = lead 요약 (패널 접힘 헤더에 유용)
+* **기본 필터 (report):** `id = target_id`, `is_active = true`, `content` non-empty
+* **쿼리:** `?date=` `?lang=` `?brief_type=` `?content_type=` — brief today와 동일
+* **수정 및 추가 파일:**
+  * `worker/item-contents.ts` *(신규)* — `getTodayItemContent()` + `GET /api/reports/today`
+  * `worker/index.ts` — briefs 다음, audio 이전에 라우트
+  * `worker/supabase.ts` — 주석에 `item-contents` 언급
+* **이 Phase에서 하지 않은 것:** Panel, Chat tool, markdown 렌더, 스키마 변경, `content_sns`/`html_body` 노출
+
+로컬 확인:
+
+```bash
+curl -sS 'http://localhost:5173/api/reports/today?date=2026-09-04' | python3 -m json.tool
+# found:true → item.title / item.content (markdown) / item.summary
+
+curl -sS 'http://localhost:5173/api/reports/today?date=2099-01-01' | python3 -m json.tool
+# found:false
+
+curl -sS 'http://localhost:5173/api/reports/today?date=09-04'
+# 400 date must be YYYY-MM-DD
+```
+
+로컬 확인 결과 (2026-09-06):
+* `?date=2026-09-04` → `found: true`, `targetType: digest-report`, content ~2588자, summary 있음
+* `?date=2099-01-01` → `found: false`
+* 잘못된 date → `400`
+
+### 10.2 Phase B — Market 패널 Report 섹션 *(예정)*
+
+* **목적:** Voice / Brief 아래 **Report** 3단. 일단 사이드바에서 보고, 불편하면 Phase D에서 모달.
+* **UX:**
+  * 기본 **접힘**. 펼칠 때(또는 첫 펼침 시) `GET /api/reports/today` **lazy** fetch
+  * 헤더: 짧은 요약(제목 truncate) + 있으면 `Report` 뱃지 on Brief trailing
+  * 본문: markdown 렌더 (`##` / `###` / `**중요성:**` / bullet) — 기존 `Markdown.tsx` 재사용 검토
+  * `max-h` + scroll (사이드바). Copy = title + content
+  * empty: brief만 있고 report 없음 / 둘 다 없음 구분 힌트
+* **라벨:** Ask chip 「전문 → 탭」은 Brief가 아니라 **Report**를 가리키도록 이후 Phase C에서 정리
+* **이 Phase에서 하지 않는 것:** 챗 tool, prefetch, TOC/모달
+
+확인:
+
+1. Market → Latest → Brief 있고 Report 접힌 채 로드
+2. Report 펼침 → lazy fetch → 하이라이트/주요 항목 등 섹션 보임
+3. ko/en Settings 변경 → date 유지한 채 report 재조회
+
+### 10.3 Phase C — Chat = 해석 / Report는 탭 *(예정)*
+
+* **목적:** 풀리포트도 §9.9 정책 유지 — 챗에 전문 dump 금지.
+* **추가 예정:**
+  * tool `getTodayMarketReport` (또는 prefetch 전용 로드) — `found` + `title` + **짧은 excerpt**(lead 문단만) + Market 탭 안내
+  * `market-intent` / `market-prefetch` — report 의도 시 excerpt만 system 주입 (`toolChoice: none` 경로 유지)
+  * `MARKET_SUGGESTIONS` — 예: `풀리포트 핵심`, `하이라이트만`, `브리프 vs 풀리포트` + 「전문 → 탭」을 Report로 명확화
+* **이 Phase에서 하지 않는 것:** 전문을 챗 메시지에 붙이기, 멀티데이 report 비교 API
+
+### 10.4 Phase D — UX 개선 *(보류 — A–C 보고 결정)*
+
+후보 (필요해 보이는 것만):
+
+* Report 본문 → **넓은 모달/드로어** (사이드바 scroll이 답답할 때)
+* 섹션 TOC (`하이라이트` / `주요 항목` / …) 점프
+* Brief trailing에서 원클릭 Open report
+* 접힘 상태 localStorage
+* report 전용 `market_date`가 brief와 어긋날 때 표시
+
+### 결정해 둔 것 / 나중에 확정
+
+* **조인:** 항상 brief → `target_id` → `item_contents` (날짜·lang은 brief 필터와 공유)
+* **1차 UI:** 패널 내 접힘 + lazy (모달은 D)
+* **본문 포맷:** markdown (샘플 기준)
+* **스키마 (A 확정):** `status` 없음; `is_active`; `summary` 별도 컬럼; `report_type=digest-report`

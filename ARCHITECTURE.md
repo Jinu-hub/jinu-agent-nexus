@@ -147,6 +147,7 @@ in `Message.tsx` → then server `execute` runs.
 | Market Pulse poll | `/live` page | `worker/live-market-room.ts`, `src/live/` | DO state + SQLite (`LiveMarketRoomAgent`) |
 | Supabase (prep) | `GET /api/supabase/health` | `worker/supabase.ts` | External Postgres (Market Memory) |
 | Content briefs | `GET /api/briefs/today` | `worker/content-briefs.ts`, `market-date.ts` | Supabase `content_briefs` |
+| Full reports | `GET /api/reports/today` | `worker/item-contents.ts` | Supabase `item_contents` via `content_briefs.target_id` |
 | Market panel | Market tab | `src/panels/MarketPanel.tsx`, `src/lib/market-suggestions.ts` | briefs/today + audio/today + Ask in chat |
 | Browser | Browser | `navigate.ts`, `screenshot.ts`, Puppeteer | Remote browser session + R2 screenshots |
 | Schedules | Schedules | `setReminder.ts`, DO alarms | DO schedule store |
@@ -190,6 +191,7 @@ worker/index.ts          HTTP entry — routes only, thin
     ├── GET  /screenshots/*  → stream from R2
     ├── GET  /api/supabase/health → Supabase reachability probe
     ├── GET  /api/briefs/today → content_briefs (Seoul market_date)
+    ├── GET  /api/reports/today → item_contents via brief.target_id
     ├── /api/audio/* → content_audio Voice pipeline (+ GET /api/audio/today)
     ├── /agents/live-market-room-agent/market-pulse → poll room WS + RPC
     └── /agents/ChatAgent/default  → WebSocket + RPC

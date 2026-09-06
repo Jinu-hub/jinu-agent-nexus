@@ -83,6 +83,7 @@ flowchart LR
 - `/live` — SPA-served Market Pulse poll room (LiveMarketRoomAgent over WS)
 - `GET /api/supabase/health` — Supabase connectivity probe (Market Memory prep)
 - `GET /api/briefs/today` — `content_briefs` daily market-issue text (Seoul `market_date`)
+- `GET /api/reports/today` — `item_contents` full report via `content_briefs.target_id`
 - `POST /api/upload` — PDF upload (not RPC; large FormData)
 - `/screenshots/*` — R2 screenshot proxy
 - Everything else → `routeAgentRequest` → ChatAgent DO
@@ -121,6 +122,7 @@ worker/
   live-market-room.ts  Market Pulse poll room Agent — state + vote log
   supabase.ts          Supabase client factory + `/api/supabase/health`
   content-briefs.ts    content_briefs today read (`/api/briefs/today`)
+  item-contents.ts     item_contents full report (`/api/reports/today` via brief.target_id)
   market-date.ts       Calendar YYYY-MM-DD helpers (default Asia/Seoul)
   content-audio.ts     content_audio Voice queue + `/api/audio/*`
   chat-agent.ts        Re-export shim (imports use this path)
@@ -171,6 +173,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
 | Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`) |
+| Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today` (`content_briefs.target_id` → `item_contents.id`) |
 | Market panel (sidebar) | `src/panels/MarketPanel.tsx` — briefs/today + audio/today + Ask in chat chips (`src/lib/market-suggestions.ts`); wired in `App.tsx` |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) for Market Memory; UI `src/panels/SettingsPanel.tsx` |
 | Market Memory intent | `market-intent.ts` + `market-prefetch.ts` — `beforeTurn` prefetches brief/voice/compare into system (`toolChoice: none`); `beforeStep` forces tools only as fallback (weather / no prefetch) |
