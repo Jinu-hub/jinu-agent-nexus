@@ -682,7 +682,7 @@ curl -sS 'http://localhost:5173/api/briefs/today?date=2026-09-03' | python3 -c "
 | A | `item_contents` 조회 + `GET /api/reports/today` (brief → target_id) | 완료 |
 | B | Market 패널 Report 섹션 (기본 접힘 + lazy fetch + markdown) | 완료 |
 | C | Chat tool / prefetch / Ask chips — 해석만, 탭 유도 | 완료 |
-| D | UX 개선 (모달·TOC·섹션 점프 등) — A–C 보고 나서 | 보류 |
+| D | UX 개선 (모달·TOC·Brief→Report 리더) | 완료 |
 
 ### 제품 계층 (고정)
 
@@ -733,7 +733,7 @@ curl -sS 'http://localhost:5173/api/reports/today?date=09-04'
 
 ### 10.2 Phase B — Market 패널 Report 섹션 *(완료)*
 
-* **목적:** Voice / Brief 아래 **Report** 3단. 사이드바에서 먼저 보고, 불편하면 Phase D에서 모달.
+* **목적:** Voice / Brief 아래 **Report** 3단. 사이드바 미리보기 + (Phase D) 넓은 리더 모달.
 * **UX:**
   * 기본 **접힘**. 펼칠 때 `GET /api/reports/today` **lazy** fetch (date|lang 캐시)
   * Brief에 `target_id` 있으면 trailing `Report` 뱃지 + 접힌 헤더 `Tap to load full report`
@@ -786,19 +786,24 @@ curl -sS 'http://localhost:5173/api/reports/today?date=09-04'
   * prefetch instruction — 형식 비교 금지; 공유 테마 + **Brief에 없고 Report만 있는 내용**을 근거로 답
   * Ask chip — `리포트가 더 담은 것` / 「어제 브리프에 없는 풀리포트 내용만 짚어줘」
 
-### 10.4 Phase D — UX 개선 *(보류 — A–C 보고 결정)*
+### 10.4 Phase D — Report 리더 UX *(완료 · 유지)*
 
-후보 (필요해 보이는 것만):
+* **목적:** 사이드바 scroll만으로는 긴 풀리포트 읽기가 답답 → wide 리더 + TOC.
+* **유지 (사용자 합격 2026-09-06):**
+  * `src/panels/ReportReader.tsx` — wide **모달** + `##` **TOC** 점프 + Esc/backdrop 닫기
+  * Market Report 섹션 — TOC 칩, 사이드바 미리보기, **Open wide reader** / Maximize
+  * Brief trailing **Report** 뱃지 → 원클릭 리더 오픈 (lazy load)
+  * `market_date` 패널일과 다르면 경고 한 줄
+* **넣지 않음:** 접힘 localStorage
 
-* Report 본문 → **넓은 모달/드로어** (사이드바 scroll이 답답할 때)
-* 섹션 TOC (`하이라이트` / `주요 항목` / …) 점프
-* Brief trailing에서 원클릭 Open report
-* 접힘 상태 localStorage
-* report 전용 `market_date`가 brief와 어긋날 때 표시
+확인:
+
+1. Market → Report 펼침 → TOC 칩으로 하이라이트/주요 항목 점프
+2. **Open wide reader** 또는 Brief의 **Report** → 넓은 모달, Esc로 닫기
 
 ### 결정해 둔 것 / 나중에 확정
 
 * **조인:** 항상 brief → `target_id` → `item_contents` (날짜·lang은 brief 필터와 공유)
-* **1차 UI:** 패널 내 접힘 + lazy (모달은 D)
-* **본문 포맷:** markdown (샘플 기준)
+* **UI:** 패널 접힘 + lazy + wide 리더 모달 + TOC (Phase D 유지)
+* **본문 포맷:** markdown
 * **스키마 (A 확정):** `status` 없음; `is_active`; `summary` 별도 컬럼; `report_type=digest-report`

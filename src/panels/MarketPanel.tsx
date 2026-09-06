@@ -8,9 +8,10 @@
 // usually Asia/Seoul *yesterday*. The panel defaults to that day.
 //
 // Report (item_contents) loads lazily when the Report section is expanded.
+// Wide reader modal + ## TOC: src/panels/ReportReader.tsx.
 // ─────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ChevronDown,
   ChevronLeft,
@@ -19,16 +20,23 @@ import {
   Check,
   FileText,
   LoaderCircle,
+  Maximize2,
   MessageSquare,
   Newspaper,
   RefreshCw,
   Volume2,
 } from "lucide-react";
 import type { ContentLang } from "../../worker/chat-agent/settings";
-import { Markdown } from "@/chat/Markdown";
 import { MARKET_SUGGESTIONS } from "@/lib/market-suggestions";
 import { cn } from "@/lib/utils";
 import { PanelHeader } from "./PanelHeader";
+import {
+  ReportArticle,
+  ReportReaderModal,
+  ReportToc,
+  extractReportSections,
+  jumpToSection,
+} from "./ReportReader";
 
 type BriefItem = {
   id: string;
@@ -274,11 +282,14 @@ export function MarketPanel({
   const [voiceOpen, setVoiceOpen] = useState(true);
   const [briefOpen, setBriefOpen] = useState(true);
   const [reportOpen, setReportOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const reportScrollRef = useRef<HTMLDivElement>(null);
 
   const invalidateReport = useCallback(() => {
     setReport(null);
     setReportCacheKey(null);
     setReportOpen(false);
+    setReportModalOpen(false);
   }, []);
 
   const loadReport = useCallback(
@@ -298,12 +309,14 @@ export function MarketPanel({
         }
         setReport(json);
         setReportCacheKey(key);
+        return json;
       } catch (err) {
         setReport(null);
         setReportCacheKey(null);
         setError(
           err instanceof Error ? err.message : "Failed to load full report",
         );
+        return null;
       } finally {
         setReportLoading(false);
       }
@@ -405,9 +418,40 @@ export function MarketPanel({
     });
   };
 
+  /** Load report if needed, expand section, open wide reader. */
+  const openReportReader = useCallback(async () => {
+    setReportOpen(true);
+    let item =
+      reportCacheKey === cacheKey(date, lang) && report?.found
+        ? report.item
+        : null;
+    if (!item?.content) {
+      const json = await loadReport(date, lang);
+      item = json?.found ? (json.item ?? null) : null;
+    }
+    if (item?.content) setReportModalOpen(true);
+  }, [date, lang, loadReport, report, reportCacheKey]);
+
   const reportCollapsedSummary =
     reportItem?.title ??
     (hasReportCandidate ? "Tap to load full report" : null);
+
+  const reportSections = reportItem?.content
+    ? extractReportSections(reportItem.content)
+    : [];
+  const reportMeta = reportItem
+    ? [
+        reportItem.report_type ?? "digest-report",
+        reportItem.lang_code,
+        reportItem.market_date,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
+  const reportDateMismatch =
+    reportItem?.market_date && reportItem.market_date !== date
+      ? `Report market_date ${reportItem.market_date} ≠ panel ${date}`
+      : null;
 
   return (
     <section>
@@ -586,9 +630,19 @@ export function MarketPanel({
             trailing={
               <div className="flex items-center gap-1">
                 {hasReportCandidate ? (
-                  <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                  <button
+                    type="button"
+                    disabled={reportLoading}
+                    onClick={() => void openReportReader()}
+                    className={cn(
+                      "rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px]",
+                      "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      "disabled:opacity-50",
+                    )}
+                    title="Open full report reader"
+                  >
                     Report
-                  </span>
+                  </button>
                 ) : null}
                 {briefItem?.content ? (
                   <button
@@ -662,26 +716,39 @@ export function MarketPanel({
             onToggle={toggleReport}
             summary={reportCollapsedSummary}
             trailing={
-              hasReport ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    void copyText(
-                      "report",
-                      reportItem!.title,
-                      reportItem!.content,
-                    )
-                  }
-                  className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                  title="Copy title + full report"
-                >
-                  {copied === "report" ? (
-                    <Check className="h-3.5 w-3.5 text-primary" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
-                </button>
-              ) : null
+              <div className="flex items-center gap-0.5">
+                {hasReportCandidate || hasReport ? (
+                  <button
+                    type="button"
+                    disabled={reportLoading}
+                    onClick={() => void openReportReader()}
+                    className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
+                    title="Open wide reader"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+                {hasReport ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void copyText(
+                        "report",
+                        reportItem!.title,
+                        reportItem!.content,
+                      )
+                    }
+                    className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                    title="Copy title + full report"
+                  >
+                    {copied === "report" ? (
+                      <Check className="h-3.5 w-3.5 text-primary" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                ) : null}
+              </div>
             }
           >
             {reportOpen && reportLoading ? (
@@ -695,29 +762,42 @@ export function MarketPanel({
                   {reportItem!.title ?? "Untitled report"}
                 </p>
                 <p className="font-mono text-[10px] text-muted-foreground">
-                  {reportItem!.report_type ?? "digest-report"}
-                  {reportItem!.lang_code ? ` · ${reportItem!.lang_code}` : ""}
-                  {reportItem!.market_date
-                    ? ` · ${reportItem!.market_date}`
-                    : ""}
+                  {reportMeta}
                 </p>
+                {reportDateMismatch ? (
+                  <p className="text-[10px] text-amber-700 dark:text-amber-400">
+                    {reportDateMismatch}
+                  </p>
+                ) : null}
                 {reportItem!.summary ? (
                   <p className="rounded-md bg-muted/40 px-2 py-1.5 text-[10px] leading-relaxed text-muted-foreground">
                     {reportItem!.summary}
                   </p>
                 ) : null}
-                <div
+                <ReportToc
+                  sections={reportSections}
+                  onJump={(id) =>
+                    jumpToSection(reportScrollRef.current, id)
+                  }
+                />
+                <ReportArticle
+                  content={reportItem!.content!}
+                  sections={reportSections}
+                  scrollRef={reportScrollRef}
+                  compact
+                  className="max-h-64"
+                />
+                <button
+                  type="button"
+                  onClick={() => void openReportReader()}
                   className={cn(
-                    "max-h-96 overflow-y-auto text-[11px] leading-relaxed",
-                    "[&_.prose-styles]:text-[11px] [&_.prose-styles]:leading-relaxed",
-                    "[&_h2]:mt-3 [&_h2]:mb-1.5 [&_h2]:text-xs [&_h2]:font-semibold",
-                    "[&_h3]:mt-2.5 [&_h3]:mb-1 [&_h3]:text-[11px] [&_h3]:font-semibold",
-                    "[&_p]:my-1.5 [&_ul]:my-1.5 [&_li]:my-0.5",
-                    "[&_hr]:my-3 [&_hr]:border-border",
+                    "w-full rounded-md border border-border bg-background px-2 py-1.5",
+                    "text-[10px] text-muted-foreground",
+                    "hover:border-foreground/30 hover:bg-accent hover:text-foreground",
                   )}
                 >
-                  <Markdown>{reportItem!.content!}</Markdown>
-                </div>
+                  Open wide reader
+                </button>
               </div>
             ) : reportCheckedMissing && hasBrief ? (
               <p className="text-[11px] leading-relaxed text-muted-foreground">
@@ -742,6 +822,18 @@ export function MarketPanel({
           {error}
         </p>
       )}
+
+      {hasReport && reportItem?.content ? (
+        <ReportReaderModal
+          open={reportModalOpen}
+          onClose={() => setReportModalOpen(false)}
+          title={reportItem.title ?? "Untitled report"}
+          meta={reportMeta}
+          summary={reportItem.summary}
+          content={reportItem.content}
+          dateMismatch={reportDateMismatch}
+        />
+      ) : null}
 
       {onAskInChat && (
         <div className="mt-4 border-t border-border pt-3">

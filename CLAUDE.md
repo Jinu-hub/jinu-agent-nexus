@@ -174,7 +174,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
 | Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`) |
 | Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today` (`content_briefs.target_id` → `item_contents.id`); chat tool `worker/tools/getTodayMarketReport.ts` (excerpt only; lang = Settings `content_lang`) |
-| Market panel (sidebar) | `src/panels/MarketPanel.tsx` — briefs/today + audio/today + reports/today (lazy Report section) + Ask in chat chips (`src/lib/market-suggestions.ts`); wired in `App.tsx` |
+| Market panel (sidebar) | `src/panels/MarketPanel.tsx` + `ReportReader.tsx` (wide modal + ## TOC) — briefs/today + audio/today + reports/today (lazy) + Ask in chat chips (`src/lib/market-suggestions.ts`); wired in `App.tsx` |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) for Market Memory; UI `src/panels/SettingsPanel.tsx` |
 | Market Memory intent | `market-intent.ts` + `market-prefetch.ts` — `beforeTurn` prefetches brief/voice/report/compare into system (`toolChoice: none`); `beforeStep` forces tools only as fallback (weather / no prefetch) |
 | Voice audio pipeline | `worker/content-audio.ts` + `voice-audio-cron.ts` → `/api/audio/*`; today play `GET /api/audio/today` + tool `getTodayMarketVoice.ts` |
