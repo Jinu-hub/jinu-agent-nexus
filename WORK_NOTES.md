@@ -680,7 +680,7 @@ curl -sS 'http://localhost:5173/api/briefs/today?date=2026-09-03' | python3 -c "
 | Phase | 내용 | 상태 |
 |-------|------|------|
 | A | `item_contents` 조회 + `GET /api/reports/today` (brief → target_id) | 완료 |
-| B | Market 패널 Report 섹션 (기본 접힘 + lazy fetch + markdown) | 예정 |
+| B | Market 패널 Report 섹션 (기본 접힘 + lazy fetch + markdown) | 완료 |
 | C | Chat tool / prefetch / Ask chips — 해석만, 탭 유도 | 예정 |
 | D | UX 개선 (모달·TOC·섹션 점프 등) — A–C 보고 나서 | 보류 |
 
@@ -731,23 +731,23 @@ curl -sS 'http://localhost:5173/api/reports/today?date=09-04'
 * `?date=2099-01-01` → `found: false`
 * 잘못된 date → `400`
 
-### 10.2 Phase B — Market 패널 Report 섹션 *(예정)*
+### 10.2 Phase B — Market 패널 Report 섹션 *(완료)*
 
-* **목적:** Voice / Brief 아래 **Report** 3단. 일단 사이드바에서 보고, 불편하면 Phase D에서 모달.
+* **목적:** Voice / Brief 아래 **Report** 3단. 사이드바에서 먼저 보고, 불편하면 Phase D에서 모달.
 * **UX:**
-  * 기본 **접힘**. 펼칠 때(또는 첫 펼침 시) `GET /api/reports/today` **lazy** fetch
-  * 헤더: 짧은 요약(제목 truncate) + 있으면 `Report` 뱃지 on Brief trailing
-  * 본문: markdown 렌더 (`##` / `###` / `**중요성:**` / bullet) — 기존 `Markdown.tsx` 재사용 검토
-  * `max-h` + scroll (사이드바). Copy = title + content
-  * empty: brief만 있고 report 없음 / 둘 다 없음 구분 힌트
-* **라벨:** Ask chip 「전문 → 탭」은 Brief가 아니라 **Report**를 가리키도록 이후 Phase C에서 정리
-* **이 Phase에서 하지 않는 것:** 챗 tool, prefetch, TOC/모달
+  * 기본 **접힘**. 펼칠 때 `GET /api/reports/today` **lazy** fetch (date|lang 캐시)
+  * Brief에 `target_id` 있으면 trailing `Report` 뱃지 + 접힌 헤더 `Tap to load full report`
+  * 본문: `Markdown.tsx` + `max-h-96` scroll; 상단에 `summary` 박스
+  * Copy = title + content (brief / report 각각)
+  * empty: brief만 있고 report 없음 → `Brief ready · Full report missing…`
+* **변경 파일:** `src/panels/MarketPanel.tsx`
+* **이 Phase에서 하지 않은 것:** Chat tool, prefetch, Ask chip 문구 정리(→ C), TOC/모달(→ D)
 
 확인:
 
-1. Market → Latest → Brief 있고 Report 접힌 채 로드
+1. Market → Latest → Brief 있고 Report **접힌** 채 로드
 2. Report 펼침 → lazy fetch → 하이라이트/주요 항목 등 섹션 보임
-3. ko/en Settings 변경 → date 유지한 채 report 재조회
+3. ko/en Settings 변경 → date 유지한 채 report 캐시 무효화 후 재펼침 시 재조회
 
 ### 10.3 Phase C — Chat = 해석 / Report는 탭 *(예정)*
 

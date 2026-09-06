@@ -1,11 +1,13 @@
 // ─────────────────────────────────────────────────────────────────────────
-// MarketPanel — Market Memory brief + voice for a Seoul market_date
+// MarketPanel — Market Memory brief + voice + full report for a Seoul day
 // ─────────────────────────────────────────────────────────────────────────
 // Fetches existing HTTP APIs (no ChatAgent State). Language comes from
 // Settings content_lang — independent of chat reply language.
 //
 // Publishing is a daily batch (~22:30 UTC), so the newest market_date is
 // usually Asia/Seoul *yesterday*. The panel defaults to that day.
+//
+// Report (item_contents) loads lazily when the Report section is expanded.
 // ─────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
@@ -15,6 +17,7 @@ import {
   ChevronRight,
   Copy,
   Check,
+  FileText,
   LoaderCircle,
   MessageSquare,
   Newspaper,
@@ -22,6 +25,7 @@ import {
   Volume2,
 } from "lucide-react";
 import type { ContentLang } from "../../worker/chat-agent/settings";
+import { Markdown } from "@/chat/Markdown";
 import { MARKET_SUGGESTIONS } from "@/lib/market-suggestions";
 import { cn } from "@/lib/utils";
 import { PanelHeader } from "./PanelHeader";
@@ -35,6 +39,7 @@ type BriefItem = {
   lang_code: string;
   status: string;
   market_date: string | null;
+  target_id?: string | null;
   metadata: unknown;
 };
 
@@ -45,6 +50,17 @@ type VoiceItem = {
   lang_code: string;
   status: string;
   market_date: string | null;
+};
+
+type ReportItem = {
+  id: string;
+  title: string | null;
+  content: string | null;
+  summary: string | null;
+  lang_code: string | null;
+  market_date: string | null;
+  report_type: string | null;
+  tags?: unknown;
 };
 
 type BriefResponse = {
@@ -63,6 +79,16 @@ type VoiceResponse = {
   lang?: string;
   playPath?: string | null;
   item?: VoiceItem | null;
+  message?: string;
+};
+
+type ReportResponse = {
+  ok: boolean;
+  found?: boolean;
+  marketDate?: string;
+  lang?: string;
+  targetId?: string | null;
+  item?: ReportItem | null;
   message?: string;
 };
 
@@ -93,6 +119,10 @@ function metaString(metadata: unknown, key: string): string | null {
   return typeof value === "string" ? value : null;
 }
 
+function cacheKey(marketDate: string, marketLang: string): string {
+  return `${marketDate}|${marketLang}`;
+}
+
 function EmptyHint({
   kind,
   date,
@@ -101,7 +131,7 @@ function EmptyHint({
   expectedLatest,
   onOpenLatest,
 }: {
-  kind: "voice" | "brief";
+  kind: "voice" | "brief" | "report";
   date: string;
   lang: string;
   calendarToday: string;
@@ -110,7 +140,8 @@ function EmptyHint({
 }) {
   const isCalendarToday = date === calendarToday;
   const isExpectedLatest = date === expectedLatest;
-  const label = kind === "voice" ? "voice" : "brief";
+  const label =
+    kind === "voice" ? "voice" : kind === "brief" ? "brief" : "full report";
 
   return (
     <div className="space-y-2 text-[11px] leading-relaxed text-muted-foreground">
@@ -236,42 +267,88 @@ export function MarketPanel({
   const [error, setError] = useState<string | null>(null);
   const [brief, setBrief] = useState<BriefResponse | null>(null);
   const [voice, setVoice] = useState<VoiceResponse | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [report, setReport] = useState<ReportResponse | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportCacheKey, setReportCacheKey] = useState<string | null>(null);
+  const [copied, setCopied] = useState<"brief" | "report" | null>(null);
   const [voiceOpen, setVoiceOpen] = useState(true);
   const [briefOpen, setBriefOpen] = useState(true);
+  const [reportOpen, setReportOpen] = useState(false);
 
-  const load = useCallback(async (marketDate: string, marketLang: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const qs = new URLSearchParams({
-        date: marketDate,
-        lang: marketLang,
-      });
-      const [briefRes, voiceRes] = await Promise.all([
-        fetch(`/api/briefs/today?${qs}`),
-        fetch(`/api/audio/today?${qs}`),
-      ]);
-      const briefJson = (await briefRes.json()) as BriefResponse;
-      const voiceJson = (await voiceRes.json()) as VoiceResponse;
-
-      if (!briefRes.ok && !briefJson.ok) {
-        throw new Error(briefJson.message || `briefs HTTP ${briefRes.status}`);
-      }
-      if (!voiceRes.ok && !voiceJson.ok) {
-        throw new Error(voiceJson.message || `audio HTTP ${voiceRes.status}`);
-      }
-
-      setBrief(briefJson);
-      setVoice(voiceJson);
-    } catch (err) {
-      setBrief(null);
-      setVoice(null);
-      setError(err instanceof Error ? err.message : "Failed to load Market Memory");
-    } finally {
-      setLoading(false);
-    }
+  const invalidateReport = useCallback(() => {
+    setReport(null);
+    setReportCacheKey(null);
+    setReportOpen(false);
   }, []);
+
+  const loadReport = useCallback(
+    async (marketDate: string, marketLang: string) => {
+      const key = cacheKey(marketDate, marketLang);
+      setReportLoading(true);
+      setError(null);
+      try {
+        const qs = new URLSearchParams({
+          date: marketDate,
+          lang: marketLang,
+        });
+        const res = await fetch(`/api/reports/today?${qs}`);
+        const json = (await res.json()) as ReportResponse;
+        if (!res.ok && !json.ok) {
+          throw new Error(json.message || `reports HTTP ${res.status}`);
+        }
+        setReport(json);
+        setReportCacheKey(key);
+      } catch (err) {
+        setReport(null);
+        setReportCacheKey(null);
+        setError(
+          err instanceof Error ? err.message : "Failed to load full report",
+        );
+      } finally {
+        setReportLoading(false);
+      }
+    },
+    [],
+  );
+
+  const load = useCallback(
+    async (marketDate: string, marketLang: string) => {
+      setLoading(true);
+      setError(null);
+      invalidateReport();
+      try {
+        const qs = new URLSearchParams({
+          date: marketDate,
+          lang: marketLang,
+        });
+        const [briefRes, voiceRes] = await Promise.all([
+          fetch(`/api/briefs/today?${qs}`),
+          fetch(`/api/audio/today?${qs}`),
+        ]);
+        const briefJson = (await briefRes.json()) as BriefResponse;
+        const voiceJson = (await voiceRes.json()) as VoiceResponse;
+
+        if (!briefRes.ok && !briefJson.ok) {
+          throw new Error(briefJson.message || `briefs HTTP ${briefRes.status}`);
+        }
+        if (!voiceRes.ok && !voiceJson.ok) {
+          throw new Error(voiceJson.message || `audio HTTP ${voiceRes.status}`);
+        }
+
+        setBrief(briefJson);
+        setVoice(voiceJson);
+      } catch (err) {
+        setBrief(null);
+        setVoice(null);
+        setError(
+          err instanceof Error ? err.message : "Failed to load Market Memory",
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [invalidateReport],
+  );
 
   useEffect(() => {
     void load(date, lang);
@@ -281,14 +358,25 @@ export function MarketPanel({
   const voiceItem = voice?.found ? voice.item : null;
   const playPath =
     voice?.found && typeof voice.playPath === "string" ? voice.playPath : null;
+  const reportCached = reportCacheKey === cacheKey(date, lang);
+  const reportItem =
+    reportCached && report?.found ? (report.item ?? null) : null;
+  const hasReportCandidate = Boolean(briefItem?.target_id);
+  const hasReport = Boolean(reportItem?.content);
+  const reportCheckedMissing =
+    reportCached && report !== null && !report.found;
 
-  const copyBrief = async () => {
-    if (!briefItem?.content) return;
-    const text = [briefItem.title, briefItem.content].filter(Boolean).join("\n\n");
+  const copyText = async (
+    which: "brief" | "report",
+    title: string | null | undefined,
+    content: string | null | undefined,
+  ) => {
+    if (!content) return;
+    const text = [title, content].filter(Boolean).join("\n\n");
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
+      setCopied(which);
+      window.setTimeout(() => setCopied(null), 1500);
     } catch {
       setError("Clipboard copy failed");
     }
@@ -301,11 +389,25 @@ export function MarketPanel({
   const hasVoice = Boolean(voiceItem && playPath);
   const hasBrief = Boolean(briefItem);
 
-  // New day with content → start expanded (empty days have no toggle).
+  // New day with content → Voice/Brief start expanded; Report stays collapsed.
   useEffect(() => {
     if (hasVoice) setVoiceOpen(true);
     if (hasBrief) setBriefOpen(true);
   }, [date, lang, hasVoice, hasBrief]);
+
+  const toggleReport = () => {
+    setReportOpen((wasOpen) => {
+      const next = !wasOpen;
+      if (next && reportCacheKey !== cacheKey(date, lang) && !reportLoading) {
+        void loadReport(date, lang);
+      }
+      return next;
+    });
+  };
+
+  const reportCollapsedSummary =
+    reportItem?.title ??
+    (hasReportCandidate ? "Tap to load full report" : null);
 
   return (
     <section>
@@ -482,20 +584,29 @@ export function MarketPanel({
             onToggle={() => setBriefOpen((v) => !v)}
             summary={briefItem?.title}
             trailing={
-              briefItem?.content ? (
-                <button
-                  type="button"
-                  onClick={() => void copyBrief()}
-                  className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                  title="Copy title + content"
-                >
-                  {copied ? (
-                    <Check className="h-3.5 w-3.5 text-primary" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
-                </button>
-              ) : null
+              <div className="flex items-center gap-1">
+                {hasReportCandidate ? (
+                  <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    Report
+                  </span>
+                ) : null}
+                {briefItem?.content ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void copyText("brief", briefItem.title, briefItem.content)
+                    }
+                    className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                    title="Copy title + content"
+                  >
+                    {copied === "brief" ? (
+                      <Check className="h-3.5 w-3.5 text-primary" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                ) : null}
+              </div>
             }
           >
             {hasBrief ? (
@@ -534,6 +645,87 @@ export function MarketPanel({
             ) : (
               <EmptyHint
                 kind="brief"
+                date={date}
+                lang={lang}
+                calendarToday={calendarToday}
+                expectedLatest={expectedLatest}
+                onOpenLatest={openLatest}
+              />
+            )}
+          </MarketSection>
+
+          <MarketSection
+            icon={FileText}
+            title="Report"
+            collapsible={hasReportCandidate || hasReport}
+            open={reportOpen}
+            onToggle={toggleReport}
+            summary={reportCollapsedSummary}
+            trailing={
+              hasReport ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void copyText(
+                      "report",
+                      reportItem!.title,
+                      reportItem!.content,
+                    )
+                  }
+                  className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  title="Copy title + full report"
+                >
+                  {copied === "report" ? (
+                    <Check className="h-3.5 w-3.5 text-primary" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              ) : null
+            }
+          >
+            {reportOpen && reportLoading ? (
+              <div className="flex items-center gap-2 py-3 text-[11px] text-muted-foreground">
+                <LoaderCircle className="size-3.5 animate-spin" />
+                Loading full report…
+              </div>
+            ) : hasReport ? (
+              <div className="space-y-2">
+                <p className="text-[11px] font-medium leading-snug">
+                  {reportItem!.title ?? "Untitled report"}
+                </p>
+                <p className="font-mono text-[10px] text-muted-foreground">
+                  {reportItem!.report_type ?? "digest-report"}
+                  {reportItem!.lang_code ? ` · ${reportItem!.lang_code}` : ""}
+                  {reportItem!.market_date
+                    ? ` · ${reportItem!.market_date}`
+                    : ""}
+                </p>
+                {reportItem!.summary ? (
+                  <p className="rounded-md bg-muted/40 px-2 py-1.5 text-[10px] leading-relaxed text-muted-foreground">
+                    {reportItem!.summary}
+                  </p>
+                ) : null}
+                <div
+                  className={cn(
+                    "max-h-96 overflow-y-auto text-[11px] leading-relaxed",
+                    "[&_.prose-styles]:text-[11px] [&_.prose-styles]:leading-relaxed",
+                    "[&_h2]:mt-3 [&_h2]:mb-1.5 [&_h2]:text-xs [&_h2]:font-semibold",
+                    "[&_h3]:mt-2.5 [&_h3]:mb-1 [&_h3]:text-[11px] [&_h3]:font-semibold",
+                    "[&_p]:my-1.5 [&_ul]:my-1.5 [&_li]:my-0.5",
+                    "[&_hr]:my-3 [&_hr]:border-border",
+                  )}
+                >
+                  <Markdown>{reportItem!.content!}</Markdown>
+                </div>
+              </div>
+            ) : reportCheckedMissing && hasBrief ? (
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Brief ready · Full report missing for this day / language.
+              </p>
+            ) : (
+              <EmptyHint
+                kind="report"
                 date={date}
                 lang={lang}
                 calendarToday={calendarToday}

@@ -148,7 +148,7 @@ in `Message.tsx` → then server `execute` runs.
 | Supabase (prep) | `GET /api/supabase/health` | `worker/supabase.ts` | External Postgres (Market Memory) |
 | Content briefs | `GET /api/briefs/today` | `worker/content-briefs.ts`, `market-date.ts` | Supabase `content_briefs` |
 | Full reports | `GET /api/reports/today` | `worker/item-contents.ts` | Supabase `item_contents` via `content_briefs.target_id` |
-| Market panel | Market tab | `src/panels/MarketPanel.tsx`, `src/lib/market-suggestions.ts` | briefs/today + audio/today + Ask in chat |
+| Market panel | Market tab | `src/panels/MarketPanel.tsx`, `src/lib/market-suggestions.ts` | briefs/today + audio/today + reports/today (lazy) + Ask in chat |
 | Browser | Browser | `navigate.ts`, `screenshot.ts`, Puppeteer | Remote browser session + R2 screenshots |
 | Schedules | Schedules | `setReminder.ts`, DO alarms | DO schedule store |
 | Runtime tools | Extensions | `load_extension`, `worker_loaders` | Sandboxed worker per extension |
