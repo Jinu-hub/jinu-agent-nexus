@@ -14,6 +14,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  CircleHelp,
   Copy,
   Check,
   FileText,
@@ -22,6 +23,7 @@ import {
   MessageSquare,
   Newspaper,
   RefreshCw,
+  Tags,
   Volume2,
 } from "lucide-react";
 import type { ContentLang } from "../../worker/chat-agent/settings";
@@ -32,7 +34,11 @@ import {
   ReportArticle,
   ReportReaderModal,
   ReportToc,
+  ReportTopicChips,
+  SHOW_REPORT_TOPIC_CHIPS,
+  SHOW_TOPICS_SECTION,
   extractReportSections,
+  hasReportTopicFields,
   jumpToSection,
 } from "./ReportReader";
 
@@ -67,6 +73,8 @@ type ReportItem = {
   market_date: string | null;
   report_type: string | null;
   tags?: unknown;
+  countries?: unknown;
+  regions?: unknown;
 };
 
 type BriefResponse = {
@@ -279,15 +287,20 @@ export function MarketPanel({
   const [reportLoading, setReportLoading] = useState(false);
   const [reportCacheKey, setReportCacheKey] = useState<string | null>(null);
   const [copied, setCopied] = useState<"brief" | "report" | null>(null);
-  const [voiceOpen, setVoiceOpen] = useState(true);
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const [briefOpen, setBriefOpen] = useState(true);
+  const [topicsOpen, setTopicsOpen] = useState(false);
+  const [topicsLoadKey, setTopicsLoadKey] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const reportScrollRef = useRef<HTMLDivElement>(null);
+  const helpWrapRef = useRef<HTMLDivElement>(null);
 
   const invalidateReport = useCallback(() => {
     setReport(null);
     setReportCacheKey(null);
+    setTopicsLoadKey(null);
     setReportOpen(false);
     setReportModalOpen(false);
   }, []);
@@ -445,11 +458,49 @@ export function MarketPanel({
   const hasVoice = Boolean(voiceItem && playPath);
   const hasBrief = Boolean(briefItem);
 
-  // New day with content → Voice/Brief start expanded; Report stays collapsed.
+  // New day → Brief starts expanded; Voice / Topics / Report stay collapsed.
   useEffect(() => {
-    if (hasVoice) setVoiceOpen(true);
+    setVoiceOpen(false);
+    setTopicsOpen(false);
+    setReportOpen(false);
     if (hasBrief) setBriefOpen(true);
-  }, [date, lang, hasVoice, hasBrief]);
+  }, [date, lang, hasBrief]);
+
+  // Topics reads tags from item_contents — reuse report fetch (no personalization yet).
+  useEffect(() => {
+    if (!SHOW_TOPICS_SECTION || !SHOW_REPORT_TOPIC_CHIPS) return;
+    if (!topicsOpen || !date || !hasReportCandidate) return;
+    const key = cacheKey(date, lang);
+    if (reportCacheKey === key || topicsLoadKey === key || reportLoading) return;
+    setTopicsLoadKey(key);
+    void loadReport(date, lang);
+  }, [
+    topicsOpen,
+    date,
+    lang,
+    hasReportCandidate,
+    reportCacheKey,
+    topicsLoadKey,
+    reportLoading,
+    loadReport,
+  ]);
+
+  const toggleTopics = () => {
+    if (!date) return;
+    setTopicsOpen((wasOpen) => {
+      const next = !wasOpen;
+      if (
+        next &&
+        hasReportCandidate &&
+        reportCacheKey !== cacheKey(date, lang) &&
+        !reportLoading
+      ) {
+        setTopicsLoadKey(cacheKey(date, lang));
+        void loadReport(date, lang);
+      }
+      return next;
+    });
+  };
 
   const toggleReport = () => {
     if (!date) return;
@@ -498,6 +549,24 @@ export function MarketPanel({
       ? `Report market_date ${reportItem.market_date} ≠ panel ${date}`
       : null;
 
+  useEffect(() => {
+    if (!helpOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!helpWrapRef.current?.contains(event.target as Node)) {
+        setHelpOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setHelpOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [helpOpen]);
+
   return (
     <section>
       <PanelHeader
@@ -505,6 +574,56 @@ export function MarketPanel({
         title="Market"
         trailing={
           <div className="flex items-center gap-1.5">
+            <div
+              ref={helpWrapRef}
+              className="relative"
+              onMouseEnter={() => setHelpOpen(true)}
+              onMouseLeave={() => setHelpOpen(false)}
+            >
+              <button
+                type="button"
+                aria-expanded={helpOpen}
+                aria-label="Market panel help"
+                onClick={() => setHelpOpen((v) => !v)}
+                className={cn(
+                  "rounded-md p-1 text-muted-foreground transition-colors",
+                  "hover:bg-accent hover:text-foreground",
+                  helpOpen && "bg-accent text-foreground",
+                )}
+              >
+                <CircleHelp className="h-3.5 w-3.5" />
+              </button>
+              {helpOpen ? (
+                <div
+                  role="tooltip"
+                  className={cn(
+                    "absolute right-0 top-full z-20 mt-1 w-64 rounded-md border border-border",
+                    "bg-background px-2.5 py-2 shadow-md",
+                  )}
+                >
+                  <div className="space-y-1.5 text-[10px] leading-relaxed text-muted-foreground">
+                    <p>
+                      Language follows Settings → Market content language. Not
+                      chat reply language.
+                    </p>
+                    <p>
+                      Latest = newest day with a final brief (not always Seoul
+                      yesterday — weekends/holidays may be empty)
+                      {showingExpectedLatest && date ? (
+                        <>
+                          {" "}
+                          · showing{" "}
+                          <span className="font-mono text-foreground">
+                            {date}
+                          </span>
+                        </>
+                      ) : null}
+                      .
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+            </div>
             <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
               {lang}
             </span>
@@ -595,25 +714,6 @@ export function MarketPanel({
         </button>
       </div>
 
-      <div className="mb-3 space-y-1 text-[10px] leading-relaxed text-muted-foreground">
-        <p>
-          Language follows Settings → Market content language. Not chat reply
-          language.
-        </p>
-        <p>
-          Latest = newest day with a final brief (not always Seoul yesterday —
-          weekends/holidays may be empty)
-          {showingExpectedLatest && date ? (
-            <>
-              {" "}
-              · showing{" "}
-              <span className="font-mono text-foreground">{date}</span>
-            </>
-          ) : null}
-          .
-        </p>
-      </div>
-
       {(latestLoading && !date) || (loading && !brief && !voice) ? (
         <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted-foreground">
           <LoaderCircle className="size-3.5 animate-spin" />
@@ -621,56 +721,6 @@ export function MarketPanel({
         </div>
       ) : date ? (
         <div className="space-y-3">
-          <MarketSection
-            icon={Volume2}
-            title="Voice"
-            collapsible={hasVoice}
-            open={voiceOpen}
-            onToggle={() => setVoiceOpen((v) => !v)}
-            summary={voiceItem?.title}
-            trailing={
-              briefItem && !voiceItem ? (
-                <span className="text-[10px] text-muted-foreground">
-                  Brief ready · Voice pending
-                </span>
-              ) : null
-            }
-          >
-            {hasVoice ? (
-              <div className="space-y-2">
-                <p className="text-[11px] leading-snug text-foreground">
-                  {voiceItem!.title ?? "Voice briefing"}
-                </p>
-                <p className="font-mono text-[10px] text-muted-foreground">
-                  {voiceItem!.duration_seconds != null
-                    ? `${voiceItem!.duration_seconds}s`
-                    : "—"}
-                  {" · "}
-                  {voiceItem!.lang_code}
-                </p>
-                <audio
-                  className="w-full"
-                  controls
-                  preload="metadata"
-                  src={playPath!}
-                >
-                  <a href={playPath!} target="_blank" rel="noreferrer">
-                    Download MP3
-                  </a>
-                </audio>
-              </div>
-            ) : (
-              <EmptyHint
-                kind="voice"
-                date={date}
-                lang={lang}
-                calendarToday={calendarToday}
-                expectedLatest={effectiveLatest}
-                onOpenLatest={openLatest}
-              />
-            )}
-          </MarketSection>
-
           <MarketSection
             icon={Newspaper}
             title="Brief"
@@ -758,6 +808,104 @@ export function MarketPanel({
               />
             )}
           </MarketSection>
+
+          <MarketSection
+            icon={Volume2}
+            title="Voice"
+            collapsible={hasVoice}
+            open={voiceOpen}
+            onToggle={() => setVoiceOpen((v) => !v)}
+            summary={voiceItem?.title}
+            trailing={
+              briefItem && !voiceItem ? (
+                <span className="text-[10px] text-muted-foreground">
+                  Brief ready · Voice pending
+                </span>
+              ) : null
+            }
+          >
+            {hasVoice ? (
+              <div className="space-y-2">
+                <p className="text-[11px] leading-snug text-foreground">
+                  {voiceItem!.title ?? "Voice briefing"}
+                </p>
+                <p className="font-mono text-[10px] text-muted-foreground">
+                  {voiceItem!.duration_seconds != null
+                    ? `${voiceItem!.duration_seconds}s`
+                    : "—"}
+                  {" · "}
+                  {voiceItem!.lang_code}
+                </p>
+                <audio
+                  className="w-full"
+                  controls
+                  preload="metadata"
+                  src={playPath!}
+                >
+                  <a href={playPath!} target="_blank" rel="noreferrer">
+                    Download MP3
+                  </a>
+                </audio>
+              </div>
+            ) : (
+              <EmptyHint
+                kind="voice"
+                date={date}
+                lang={lang}
+                calendarToday={calendarToday}
+                expectedLatest={effectiveLatest}
+                onOpenLatest={openLatest}
+              />
+            )}
+          </MarketSection>
+
+          {SHOW_TOPICS_SECTION && SHOW_REPORT_TOPIC_CHIPS ? (
+            <MarketSection
+              icon={Tags}
+              title="Topics"
+              collapsible={hasReportCandidate || hasReport}
+              open={topicsOpen}
+              onToggle={toggleTopics}
+              summary={
+                hasReport
+                  ? "tags · places"
+                  : hasReportCandidate
+                    ? "From full report"
+                    : null
+              }
+            >
+              {topicsOpen && reportLoading && !hasReport ? (
+                <div className="flex items-center gap-2 py-2 text-[11px] text-muted-foreground">
+                  <LoaderCircle className="size-3.5 animate-spin" />
+                  Loading topics…
+                </div>
+              ) : hasReport ? (
+                hasReportTopicFields(reportItem!) ? (
+                  <ReportTopicChips
+                    tags={reportItem!.tags}
+                    countries={reportItem!.countries}
+                    regions={reportItem!.regions}
+                  />
+                ) : (
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    No tags / places on this report.
+                  </p>
+                )
+              ) : reportCheckedMissing && hasBrief ? (
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  No report topics for this day / language.
+                </p>
+              ) : hasReportCandidate ? (
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Expand to load topics from the full report.
+                </p>
+              ) : (
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Topics appear when a full report is linked to the brief.
+                </p>
+              )}
+            </MarketSection>
+          ) : null}
 
           <MarketSection
             icon={FileText}
@@ -883,6 +1031,9 @@ export function MarketPanel({
           summary={reportItem.summary}
           content={reportItem.content}
           dateMismatch={reportDateMismatch}
+          tags={reportItem.tags}
+          countries={reportItem.countries}
+          regions={reportItem.regions}
         />
       ) : null}
 

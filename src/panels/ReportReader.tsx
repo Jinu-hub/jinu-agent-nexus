@@ -1,6 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 // ReportReader — Market full-report wide reader (modal + ## TOC)
 // Used by MarketPanel: Open wide reader / Brief Report badge / Maximize.
+// T1 topic chips: tags / countries / regions — toggles below.
 // ─────────────────────────────────────────────────────────────────────────
 
 import {
@@ -14,6 +15,85 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// ── T1 topic chips (easy off-switches) ───────────────────────────────────
+/** Master: hide chips in Topics section AND report modal when false. */
+export const SHOW_REPORT_TOPIC_CHIPS = true;
+/** Sidebar Topics section (outside Report). Ignored when master is false. */
+export const SHOW_TOPICS_SECTION = true;
+
+const TOPIC_TAG_LIMIT = 8;
+
+export type ReportTopicFields = {
+  tags?: unknown;
+  countries?: unknown;
+  regions?: unknown;
+};
+
+function asStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+    .map((v) => v.trim());
+}
+
+export function ReportTopicChips({
+  tags,
+  countries,
+  regions,
+  className,
+}: ReportTopicFields & { className?: string }) {
+  if (!SHOW_REPORT_TOPIC_CHIPS) return null;
+  if (!hasReportTopicFields({ tags, countries, regions })) return null;
+
+  const tagList = asStringList(tags).slice(0, TOPIC_TAG_LIMIT);
+  const tagExtra = Math.max(0, asStringList(tags).length - tagList.length);
+  const placeList = [
+    ...asStringList(countries).map((c) => ({ key: `c:${c}`, label: c })),
+    ...asStringList(regions).map((r) => ({ key: `r:${r}`, label: r })),
+  ];
+
+  return (
+    <div className={cn("flex flex-wrap items-center gap-1", className)}>
+      {tagList.map((tag) => (
+        <span
+          key={`tag:${tag}`}
+          className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+        >
+          {tag}
+        </span>
+      ))}
+      {tagExtra > 0 ? (
+        <span className="font-mono text-[10px] text-muted-foreground/70">
+          +{tagExtra}
+        </span>
+      ) : null}
+      {tagList.length > 0 && placeList.length > 0 ? (
+        <span className="px-0.5 text-[10px] text-muted-foreground/50">·</span>
+      ) : null}
+      {placeList.map((place) => (
+        <span
+          key={place.key}
+          className="rounded-md border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+        >
+          {place.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export function hasReportTopicFields({
+  tags,
+  countries,
+  regions,
+}: ReportTopicFields): boolean {
+  return (
+    asStringList(tags).length > 0 ||
+    asStringList(countries).length > 0 ||
+    asStringList(regions).length > 0
+  );
+}
 
 export type ReportSection = {
   title: string;
@@ -161,6 +241,9 @@ export function ReportReaderModal({
   summary,
   content,
   dateMismatch,
+  tags,
+  countries,
+  regions,
 }: {
   open: boolean;
   onClose: () => void;
@@ -169,6 +252,9 @@ export function ReportReaderModal({
   summary?: string | null;
   content: string;
   dateMismatch?: string | null;
+  tags?: unknown;
+  countries?: unknown;
+  regions?: unknown;
 }) {
   const titleId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -225,6 +311,11 @@ export function ReportReaderModal({
                 {dateMismatch}
               </p>
             ) : null}
+            <ReportTopicChips
+              tags={tags}
+              countries={countries}
+              regions={regions}
+            />
           </div>
           <button
             type="button"
