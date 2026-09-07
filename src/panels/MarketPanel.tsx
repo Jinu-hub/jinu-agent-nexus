@@ -38,11 +38,22 @@ import {
   ReportTopicChips,
   SHOW_REPORT_TOPIC_CHIPS,
   SHOW_TOPIC_CHIP_ASK,
+  SHOW_TOPIC_CHIP_STAR,
   SHOW_TOPICS_SECTION,
   extractReportSections,
   hasReportTopicFields,
   jumpToSection,
 } from "./ReportReader";
+import { MyInterestsFold, SHOW_MY_INTERESTS } from "./MyInterestsFold";
+import {
+  fetchPreferences,
+  isPreferenceSaved,
+  mapTopicToPreference,
+  removeInterest,
+  saveInterest,
+  type PreferenceRow,
+  type TopicPreferenceSource,
+} from "@/lib/topic-preference";
 
 type BriefItem = {
   id: string;
@@ -297,6 +308,8 @@ export function MarketPanel({
   const [reportOpen, setReportOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [preferences, setPreferences] = useState<PreferenceRow[]>([]);
+  const [preferencesLoading, setPreferencesLoading] = useState(true);
   const reportScrollRef = useRef<HTMLDivElement>(null);
   const helpWrapRef = useRef<HTMLDivElement>(null);
 
@@ -307,6 +320,85 @@ export function MarketPanel({
     setReportOpen(false);
     setReportModalOpen(false);
   }, []);
+
+  const loadPreferences = useCallback(async () => {
+    if (!SHOW_MY_INTERESTS && !SHOW_TOPIC_CHIP_STAR) return;
+    setPreferencesLoading(true);
+    try {
+      setPreferences(await fetchPreferences());
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load interests",
+      );
+    } finally {
+      setPreferencesLoading(false);
+    }
+  }, []);
+
+  const toggleInterest = useCallback(async (source: TopicPreferenceSource) => {
+    const mapped = mapTopicToPreference(source);
+    if (!mapped) return;
+    const saved = isPreferenceSaved(
+      preferences,
+      mapped.kind,
+      mapped.target,
+    );
+    try {
+      if (saved) {
+        await removeInterest(mapped.kind, mapped.target);
+        setPreferences((prev) =>
+          prev.filter(
+            (p) =>
+              !(
+                p.kind === mapped.kind &&
+                p.target.trim().toLowerCase() ===
+                  mapped.target.trim().toLowerCase()
+              ),
+          ),
+        );
+      } else {
+        const row = await saveInterest(mapped.kind, mapped.target);
+        setPreferences((prev) => {
+          const without = prev.filter(
+            (p) =>
+              !(
+                p.kind === row.kind &&
+                p.target.trim().toLowerCase() ===
+                  row.target.trim().toLowerCase()
+              ),
+          );
+          return [row, ...without];
+        });
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to update interest",
+      );
+    }
+  }, [preferences]);
+
+  const removeInterestRow = useCallback(async (row: PreferenceRow) => {
+    try {
+      await removeInterest(row.kind, row.target);
+      setPreferences((prev) =>
+        prev.filter(
+          (p) =>
+            !(
+              p.kind === row.kind &&
+              p.target.trim().toLowerCase() === row.target.trim().toLowerCase()
+            ),
+        ),
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to remove interest",
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadPreferences();
+  }, [loadPreferences]);
 
   const loadReport = useCallback(
     async (marketDate: string, marketLang: string) => {
@@ -635,6 +727,7 @@ export function MarketPanel({
               disabled={loading || latestLoading}
               onClick={() => {
                 void loadLatestDate(lang);
+                void loadPreferences();
                 if (date) void load(date, lang);
               }}
               className={cn(
@@ -878,12 +971,28 @@ export function MarketPanel({
               }
             >
               {topicsOpen && reportLoading && !hasReport ? (
-                <div className="flex items-center gap-2 py-2 text-[11px] text-muted-foreground">
-                  <LoaderCircle className="size-3.5 animate-spin" />
-                  Loading topics…
+                <div className="space-y-3">
+                  {SHOW_MY_INTERESTS ? (
+                    <MyInterestsFold
+                      preferences={preferences}
+                      loading={preferencesLoading}
+                      onRemove={removeInterestRow}
+                    />
+                  ) : null}
+                  <div className="flex items-center gap-2 py-2 text-[11px] text-muted-foreground">
+                    <LoaderCircle className="size-3.5 animate-spin" />
+                    Loading topics…
+                  </div>
                 </div>
               ) : hasReport ? (
                 <div className="space-y-3">
+                  {SHOW_MY_INTERESTS ? (
+                    <MyInterestsFold
+                      preferences={preferences}
+                      loading={preferencesLoading}
+                      onRemove={removeInterestRow}
+                    />
+                  ) : null}
                   {hasReportTopicFields(reportItem!) ? (
                     <ReportTopicChips
                       tags={reportItem!.tags}
@@ -891,6 +1000,8 @@ export function MarketPanel({
                       regions={reportItem!.regions}
                       marketDate={date}
                       onAsk={onAskInChat}
+                      preferences={preferences}
+                      onToggleInterest={toggleInterest}
                     />
                   ) : (
                     <p className="text-[11px] leading-relaxed text-muted-foreground">
@@ -902,25 +1013,49 @@ export function MarketPanel({
                     placement="topics"
                     marketDate={date}
                     onAsk={onAskInChat}
+                    preferences={preferences}
+                    onToggleInterest={toggleInterest}
                   />
-                  {onAskInChat && SHOW_TOPIC_CHIP_ASK ? (
+                  {(onAskInChat && SHOW_TOPIC_CHIP_ASK) ||
+                  SHOW_TOPIC_CHIP_STAR ? (
                     <p className="text-[10px] leading-relaxed text-muted-foreground/80">
-                      Tap a chip to ask about it in chat.
+                      {onAskInChat && SHOW_TOPIC_CHIP_ASK
+                        ? "Tap a label to ask in chat"
+                        : null}
+                      {onAskInChat &&
+                      SHOW_TOPIC_CHIP_ASK &&
+                      SHOW_TOPIC_CHIP_STAR
+                        ? " · "
+                        : null}
+                      {SHOW_TOPIC_CHIP_STAR
+                        ? "Star to save an interest"
+                        : null}
                     </p>
                   ) : null}
                 </div>
-              ) : reportCheckedMissing && hasBrief ? (
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  No report topics for this day / language.
-                </p>
-              ) : hasReportCandidate ? (
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  Expand to load topics from the full report.
-                </p>
               ) : (
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  Topics appear when a full report is linked to the brief.
-                </p>
+                <div className="space-y-3">
+                  {SHOW_MY_INTERESTS ? (
+                    <MyInterestsFold
+                      preferences={preferences}
+                      loading={preferencesLoading}
+                      onRemove={removeInterestRow}
+                    />
+                  ) : null}
+                  {reportCheckedMissing && hasBrief ? (
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      No report topics for this day / language.
+                    </p>
+                  ) : hasReportCandidate ? (
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      Expand to load topics from the full report.
+                    </p>
+                  ) : (
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      Topics appear when a full report is linked to the brief.
+                    </p>
+                  )}
+                </div>
               )}
             </MarketSection>
           ) : null}
@@ -1055,6 +1190,8 @@ export function MarketPanel({
           metadata={reportItem.metadata}
           marketDate={date}
           onAsk={onAskInChat}
+          preferences={preferences}
+          onToggleInterest={toggleInterest}
         />
       ) : null}
 

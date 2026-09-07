@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 // ReportReader — Market full-report wide reader (modal + ## TOC)
 // Used by MarketPanel: Open wide reader / Brief Report badge / Maximize.
-// T1 topic chips + T2 entities fold + T4 chip→Ask — toggles below.
+// T1 chips + T2 entities + T4 Ask + P1 star interests — toggles below.
 // ─────────────────────────────────────────────────────────────────────────
 
 import {
@@ -14,12 +14,18 @@ import {
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, Star, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   topicChipAskPrompt,
   type TopicChipAskKind,
 } from "@/lib/market-suggestions";
+import {
+  isPreferenceSaved,
+  mapTopicToPreference,
+  type PreferenceRow,
+  type TopicPreferenceSource,
+} from "@/lib/topic-preference";
 
 // ── T1 topic chips (easy off-switches) ───────────────────────────────────
 /** Master: hide chips in Topics section AND report modal when false. */
@@ -36,6 +42,10 @@ export const SHOW_REPORT_ENTITIES_IN_TOPICS = true;
 // ── T4 chip → Ask in chat (easy off-switch) ──────────────────────────────
 /** When false, topic/entity chips stay non-clickable even if onAsk is passed. */
 export const SHOW_TOPIC_CHIP_ASK = true;
+
+// ── P1 chip → MyMemory star (easy off-switch) ────────────────────────────
+/** When false, star buttons are hidden even if onToggleInterest is passed. */
+export const SHOW_TOPIC_CHIP_STAR = true;
 
 const TOPIC_TAG_LIMIT = 8;
 const ENTITY_ITEM_LIMIT = 12;
@@ -89,11 +99,15 @@ export function ReportTopicChips({
   className,
   marketDate,
   onAsk,
+  preferences,
+  onToggleInterest,
 }: ReportTopicFields & {
   className?: string;
   /** Panel market_date for Ask prompts (YYYY-MM-DD). */
   marketDate?: string | null;
   onAsk?: (prompt: string) => void;
+  preferences?: PreferenceRow[];
+  onToggleInterest?: (source: TopicPreferenceSource) => void;
 }) {
   if (!SHOW_REPORT_TOPIC_CHIPS) return null;
   if (!hasReportTopicFields({ tags, countries, regions })) return null;
@@ -106,6 +120,8 @@ export function ReportTopicChips({
     ...asStringList(regions).map((r) => ({ key: `r:${r}`, label: r })),
   ];
   const askEnabled = Boolean(onAsk) && SHOW_TOPIC_CHIP_ASK;
+  const starEnabled = Boolean(onToggleInterest) && SHOW_TOPIC_CHIP_STAR;
+  const prefs = preferences ?? [];
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -119,12 +135,15 @@ export function ReportTopicChips({
           </TopicFieldLabel>
           <div className="flex flex-wrap gap-1">
             {tagList.map((tag) => (
-              <TopicAskChip
+              <TopicChip
                 key={`tag:${tag}`}
                 label={tag}
-                kind="tag"
+                askKind="tag"
+                source={{ source: "tag", label: tag }}
                 marketDate={marketDate}
                 onAsk={askEnabled ? onAsk : undefined}
+                preferences={prefs}
+                onToggleInterest={starEnabled ? onToggleInterest : undefined}
                 className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-foreground/85"
               />
             ))}
@@ -146,12 +165,15 @@ export function ReportTopicChips({
           </TopicFieldLabel>
           <div className="flex flex-wrap gap-1">
             {placeList.map((place) => (
-              <TopicAskChip
+              <TopicChip
                 key={place.key}
                 label={place.label}
-                kind="place"
+                askKind="place"
+                source={{ source: "place", label: place.label }}
                 marketDate={marketDate}
                 onAsk={askEnabled ? onAsk : undefined}
+                preferences={prefs}
+                onToggleInterest={starEnabled ? onToggleInterest : undefined}
                 className="rounded-md border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground"
               />
             ))}
@@ -162,35 +184,69 @@ export function ReportTopicChips({
   );
 }
 
-function TopicAskChip({
+function TopicChip({
   label,
-  kind,
+  askKind,
+  source,
   marketDate,
   onAsk,
+  preferences,
+  onToggleInterest,
   className,
 }: {
   label: string;
-  kind: TopicChipAskKind;
+  askKind: TopicChipAskKind;
+  source: TopicPreferenceSource;
   marketDate?: string | null;
   onAsk?: (prompt: string) => void;
+  preferences: PreferenceRow[];
+  onToggleInterest?: (source: TopicPreferenceSource) => void;
   className?: string;
 }) {
-  if (!onAsk) {
-    return <span className={className}>{label}</span>;
-  }
+  const mapped = mapTopicToPreference(source);
+  const saved =
+    mapped != null &&
+    isPreferenceSaved(preferences, mapped.kind, mapped.target);
+
   return (
-    <button
-      type="button"
-      title={`Ask in chat: ${label}`}
-      onClick={() => onAsk(topicChipAskPrompt(kind, label, marketDate))}
-      className={cn(
-        className,
-        "cursor-pointer transition-colors hover:border-foreground/30 hover:bg-accent hover:text-foreground",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+    <span className="inline-flex max-w-full items-center gap-0.5">
+      {onAsk ? (
+        <button
+          type="button"
+          title={`Ask in chat: ${label}`}
+          onClick={() => onAsk(topicChipAskPrompt(askKind, label, marketDate))}
+          className={cn(
+            className,
+            "cursor-pointer transition-colors hover:border-foreground/30 hover:bg-accent hover:text-foreground",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            saved && "ring-1 ring-amber-500/40",
+          )}
+        >
+          {label}
+        </button>
+      ) : (
+        <span className={cn(className, saved && "ring-1 ring-amber-500/40")}>
+          {label}
+        </span>
       )}
-    >
-      {label}
-    </button>
+      {onToggleInterest && mapped ? (
+        <button
+          type="button"
+          title={saved ? `Remove interest: ${label}` : `Save interest: ${label}`}
+          aria-pressed={saved}
+          onClick={() => onToggleInterest(source)}
+          className={cn(
+            "rounded-md p-0.5 transition-colors",
+            "hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            saved
+              ? "text-amber-600 dark:text-amber-400"
+              : "text-muted-foreground/50 hover:text-muted-foreground",
+          )}
+        >
+          <Star className={cn("h-3 w-3", saved && "fill-current")} />
+        </button>
+      ) : null}
+    </span>
   );
 }
 
@@ -252,7 +308,7 @@ export function hasReportEntityGroups(metadata: unknown): boolean {
 }
 
 /**
- * Collapsed-by-default entities fold (T2). T4: chips can Ask in chat via onAsk.
+ * Collapsed-by-default entities fold (T2). T4 Ask + P1 star via chip props.
  * `placement`: topics = sidebar Topics; modal = wide reader.
  */
 export function ReportEntitiesFold({
@@ -261,12 +317,16 @@ export function ReportEntitiesFold({
   className,
   marketDate,
   onAsk,
+  preferences,
+  onToggleInterest,
 }: {
   metadata?: unknown;
   placement?: "topics" | "modal";
   className?: string;
   marketDate?: string | null;
   onAsk?: (prompt: string) => void;
+  preferences?: PreferenceRow[];
+  onToggleInterest?: (source: TopicPreferenceSource) => void;
 }) {
   const [open, setOpen] = useState(false);
   if (!SHOW_REPORT_ENTITIES) return null;
@@ -281,6 +341,8 @@ export function ReportEntitiesFold({
     .map((g) => g.label)
     .join(" · ");
   const askEnabled = Boolean(onAsk) && SHOW_TOPIC_CHIP_ASK;
+  const starEnabled = Boolean(onToggleInterest) && SHOW_TOPIC_CHIP_STAR;
+  const prefs = preferences ?? [];
 
   return (
     <div className={cn("rounded-md border border-border bg-muted/20", className)}>
@@ -334,12 +396,21 @@ export function ReportEntitiesFold({
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {group.items.map((item) => (
-                    <TopicAskChip
+                    <TopicChip
                       key={`${group.key}:${item}`}
                       label={item}
-                      kind="entity"
+                      askKind="entity"
+                      source={{
+                        source: "entity",
+                        group: group.key,
+                        label: item,
+                      }}
                       marketDate={marketDate}
                       onAsk={askEnabled ? onAsk : undefined}
+                      preferences={prefs}
+                      onToggleInterest={
+                        starEnabled ? onToggleInterest : undefined
+                      }
                       className="rounded-md border border-border/80 bg-background px-1.5 py-0.5 text-[10px] leading-snug text-foreground/85"
                     />
                   ))}
@@ -510,6 +581,8 @@ export function ReportReaderModal({
   metadata,
   marketDate,
   onAsk,
+  preferences,
+  onToggleInterest,
 }: {
   open: boolean;
   onClose: () => void;
@@ -524,6 +597,8 @@ export function ReportReaderModal({
   metadata?: unknown;
   marketDate?: string | null;
   onAsk?: (prompt: string) => void;
+  preferences?: PreferenceRow[];
+  onToggleInterest?: (source: TopicPreferenceSource) => void;
 }) {
   const titleId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -586,12 +661,16 @@ export function ReportReaderModal({
               regions={regions}
               marketDate={marketDate}
               onAsk={onAsk}
+              preferences={preferences}
+              onToggleInterest={onToggleInterest}
             />
             <ReportEntitiesFold
               metadata={metadata}
               placement="modal"
               marketDate={marketDate}
               onAsk={onAsk}
+              preferences={preferences}
+              onToggleInterest={onToggleInterest}
             />
           </div>
           <button

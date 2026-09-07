@@ -890,11 +890,31 @@ curl -sS 'http://localhost:5173/api/briefs/latest-date?lang=ko' | python3 -m jso
 * **목적:** Topics / 모달의 tag·place·entity 칩 클릭 → 왼쪽 챗에 질문 전송 (저장 아님)
 * **프롬프트:** `topicChipAskPrompt()` — 패널 `market_date` 또는 Latest + 「라벨」관련 짧게 짚어줘
 * **끄기:** `SHOW_TOPIC_CHIP_ASK = false` (`ReportReader.tsx`)
-* **의도적으로 안 함:** MyMemory preference 저장 / 필터 / star
+* **의도적으로 안 함:** MyMemory preference 저장은 → §10.10 / 필터
 
 확인:
 
 1. Topics 칩 클릭 → 챗에 해당 날짜·키워드 질문 입력
 2. Named entities 펼침 후 기업명 클릭 → 동일
 3. wide reader 헤더 칩도 동일
+
+### 10.10 Topic → MyMemory interests (P0+P1) *(완료 · 시험)*
+
+* **P0 매핑** (`src/lib/topic-preference.ts`):
+  * tag / place → `theme`
+  * entity `companies` / `institutions` → `company`
+  * entity `industries` → `industry`
+  * 나머지 entity → `theme` (places는 당분간 theme; geo kind 없음)
+* **P1 UI:**
+  * Topics **My interests** 접힘 — `GET/DELETE /memory/preferences`
+  * 칩 옆 ★ — 저장 `POST` level=5 + `star` event / 다시 누르면 삭제
+  * Ask(라벨 클릭)과 Star 분리
+* **끄기:** `SHOW_TOPIC_CHIP_STAR` / `SHOW_MY_INTERESTS`
+* **의도적으로 안 함:** 챗 prefetch 관심 주입 (P3) / Brief weights 반영 / hide·less
+
+확인:
+
+1. Topics ★ → My interests에 나타남 · 새로고침 후 유지
+2. My interests × 또는 ★ 재클릭 → 삭제
+3. 저장된 칩에 amber ring + filled star
 

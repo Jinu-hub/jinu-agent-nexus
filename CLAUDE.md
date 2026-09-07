@@ -171,12 +171,12 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | AI provider logic | `worker/ai.ts` |
 | PDF ingest / chunking | `worker/ingest.ts`, RAG in `worker/tools/recall.ts` |
 | My Market Notes (KV) | `worker/notes.ts` + `wrangler.jsonc` `kv_namespaces` |
-| My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts` |
+| My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts`; panel interests UI `src/lib/topic-preference.ts` + `MyInterestsFold.tsx` |
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
 | Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today` + `GET /api/briefs/latest-date`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`; omit date = data-backed latest) |
 | Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today`; chat tool `getTodayMarketReport.ts` (excerpt + compact `keywords` via `report-keywords.ts`; lang = Settings `content_lang`) |
-| Market panel (sidebar) | `src/panels/MarketPanel.tsx` + `ReportReader.tsx` (wide modal + ## TOC + Topics chips + Entities fold; chip → Ask via `topicChipAskPrompt`) — briefs/today + audio/today + reports/today (lazy) + Ask chips (`market-suggestions.ts`); off-switches `SHOW_REPORT_TOPIC_CHIPS` / `SHOW_TOPICS_SECTION` / `SHOW_REPORT_ENTITIES` / `SHOW_REPORT_ENTITIES_IN_TOPICS` / `SHOW_TOPIC_CHIP_ASK`; wired in `App.tsx` |
+| Market panel (sidebar) | `src/panels/MarketPanel.tsx` + `ReportReader.tsx` + `MyInterestsFold.tsx` (Topics chips/entities; Ask + ★ interests via `topic-preference.ts` / `/memory/preferences`) — briefs/audio/reports + Ask chips; off-switches `SHOW_REPORT_TOPIC_CHIPS` / `SHOW_TOPICS_SECTION` / `SHOW_REPORT_ENTITIES` / `SHOW_TOPIC_CHIP_ASK` / `SHOW_TOPIC_CHIP_STAR` / `SHOW_MY_INTERESTS`; wired in `App.tsx` |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) for Market Memory; UI `src/panels/SettingsPanel.tsx` |
 | Market Memory intent | `market-intent.ts` + `market-prefetch.ts` — `beforeTurn` prefetches brief/voice/report/compare into system (`toolChoice: none`); `beforeStep` forces tools only as fallback (weather / no prefetch) |
 | Voice audio pipeline | `worker/content-audio.ts` + `voice-audio-cron.ts` → `/api/audio/*`; today play `GET /api/audio/today` + tool `getTodayMarketVoice.ts` |
