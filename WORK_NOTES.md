@@ -877,11 +877,24 @@ curl -sS 'http://localhost:5173/api/briefs/latest-date?lang=ko' | python3 -m jso
   * intent: 키워드/태그/토픽/주요 기업 → `report` + `keywordsOnly`
   * Ask chips: **키워드만**, **주요 기업** (`market-suggestions.ts`)
   * soul RULE 5 — keywords 객체 우선, 이름 날조 금지
-* **의도적으로 안 함:** Topics 칩 클릭→채팅 (T4) / MyMemory 저장
+* **의도적으로 안 함:** Topics 칩 클릭→채팅 (→ §10.9) / MyMemory 저장
 
 확인:
 
 1. Ask “키워드만” / 챗 “Latest 풀리포트 키워드만” → tags·places·기업 짧게
 2. “주요 기업·기관만” → companies/institutions 위주
 3. Prefetch에 `keywords` 있고 full metadata.entities 없음
+
+### 10.9 Topic chip → Ask in chat (T4) *(완료 · 시험)*
+
+* **목적:** Topics / 모달의 tag·place·entity 칩 클릭 → 왼쪽 챗에 질문 전송 (저장 아님)
+* **프롬프트:** `topicChipAskPrompt()` — 패널 `market_date` 또는 Latest + 「라벨」관련 짧게 짚어줘
+* **끄기:** `SHOW_TOPIC_CHIP_ASK = false` (`ReportReader.tsx`)
+* **의도적으로 안 함:** MyMemory preference 저장 / 필터 / star
+
+확인:
+
+1. Topics 칩 클릭 → 챗에 해당 날짜·키워드 질문 입력
+2. Named entities 펼침 후 기업명 클릭 → 동일
+3. wide reader 헤더 칩도 동일
 

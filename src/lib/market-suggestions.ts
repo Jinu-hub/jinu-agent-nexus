@@ -61,3 +61,25 @@ export const MARKET_SUGGESTIONS: MarketSuggestion[] = [
     prompt: "풀리포트 전문 보여줘",
   },
 ];
+
+/** T4 — Topics / entity chip → chat ask (panel date when known). */
+export type TopicChipAskKind = "tag" | "place" | "entity";
+
+export function topicChipAskPrompt(
+  kind: TopicChipAskKind,
+  label: string,
+  marketDate?: string | null,
+): string {
+  const name = label.trim();
+  const when =
+    marketDate && /^\d{4}-\d{2}-\d{2}$/.test(marketDate)
+      ? marketDate
+      : "Latest";
+  if (kind === "place") {
+    return `${when} 풀리포트에서 ${name} 관련 포인트만 짧게 짚어줘`;
+  }
+  if (kind === "entity") {
+    return `${when} 풀리포트에서 「${name}」 관련 내용만 짧게 짚어줘`;
+  }
+  return `${when} 풀리포트에서 「${name}」 키워드 관련 내용만 짧게 짚어줘`;
+}

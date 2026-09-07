@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 // ReportReader — Market full-report wide reader (modal + ## TOC)
 // Used by MarketPanel: Open wide reader / Brief Report badge / Maximize.
-// T1 topic chips + T2 entities fold — toggles below.
+// T1 topic chips + T2 entities fold + T4 chip→Ask — toggles below.
 // ─────────────────────────────────────────────────────────────────────────
 
 import {
@@ -16,6 +16,10 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  topicChipAskPrompt,
+  type TopicChipAskKind,
+} from "@/lib/market-suggestions";
 
 // ── T1 topic chips (easy off-switches) ───────────────────────────────────
 /** Master: hide chips in Topics section AND report modal when false. */
@@ -28,6 +32,10 @@ export const SHOW_TOPICS_SECTION = true;
 export const SHOW_REPORT_ENTITIES = true;
 /** Sidebar Topics only. Ignored when master is false. */
 export const SHOW_REPORT_ENTITIES_IN_TOPICS = true;
+
+// ── T4 chip → Ask in chat (easy off-switch) ──────────────────────────────
+/** When false, topic/entity chips stay non-clickable even if onAsk is passed. */
+export const SHOW_TOPIC_CHIP_ASK = true;
 
 const TOPIC_TAG_LIMIT = 8;
 const ENTITY_ITEM_LIMIT = 12;
@@ -79,7 +87,14 @@ export function ReportTopicChips({
   countries,
   regions,
   className,
-}: ReportTopicFields & { className?: string }) {
+  marketDate,
+  onAsk,
+}: ReportTopicFields & {
+  className?: string;
+  /** Panel market_date for Ask prompts (YYYY-MM-DD). */
+  marketDate?: string | null;
+  onAsk?: (prompt: string) => void;
+}) {
   if (!SHOW_REPORT_TOPIC_CHIPS) return null;
   if (!hasReportTopicFields({ tags, countries, regions })) return null;
 
@@ -90,6 +105,7 @@ export function ReportTopicChips({
     ...asStringList(countries).map((c) => ({ key: `c:${c}`, label: c })),
     ...asStringList(regions).map((r) => ({ key: `r:${r}`, label: r })),
   ];
+  const askEnabled = Boolean(onAsk) && SHOW_TOPIC_CHIP_ASK;
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -103,12 +119,14 @@ export function ReportTopicChips({
           </TopicFieldLabel>
           <div className="flex flex-wrap gap-1">
             {tagList.map((tag) => (
-              <span
+              <TopicAskChip
                 key={`tag:${tag}`}
+                label={tag}
+                kind="tag"
+                marketDate={marketDate}
+                onAsk={askEnabled ? onAsk : undefined}
                 className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-foreground/85"
-              >
-                {tag}
-              </span>
+              />
             ))}
             {tagExtra > 0 ? (
               <span className="self-center font-mono text-[10px] text-muted-foreground/70">
@@ -128,17 +146,51 @@ export function ReportTopicChips({
           </TopicFieldLabel>
           <div className="flex flex-wrap gap-1">
             {placeList.map((place) => (
-              <span
+              <TopicAskChip
                 key={place.key}
+                label={place.label}
+                kind="place"
+                marketDate={marketDate}
+                onAsk={askEnabled ? onAsk : undefined}
                 className="rounded-md border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground"
-              >
-                {place.label}
-              </span>
+              />
             ))}
           </div>
         </div>
       ) : null}
     </div>
+  );
+}
+
+function TopicAskChip({
+  label,
+  kind,
+  marketDate,
+  onAsk,
+  className,
+}: {
+  label: string;
+  kind: TopicChipAskKind;
+  marketDate?: string | null;
+  onAsk?: (prompt: string) => void;
+  className?: string;
+}) {
+  if (!onAsk) {
+    return <span className={className}>{label}</span>;
+  }
+  return (
+    <button
+      type="button"
+      title={`Ask in chat: ${label}`}
+      onClick={() => onAsk(topicChipAskPrompt(kind, label, marketDate))}
+      className={cn(
+        className,
+        "cursor-pointer transition-colors hover:border-foreground/30 hover:bg-accent hover:text-foreground",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      )}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -200,17 +252,21 @@ export function hasReportEntityGroups(metadata: unknown): boolean {
 }
 
 /**
- * Collapsed-by-default entities fold (T2). Read-only — no click actions yet.
+ * Collapsed-by-default entities fold (T2). T4: chips can Ask in chat via onAsk.
  * `placement`: topics = sidebar Topics; modal = wide reader.
  */
 export function ReportEntitiesFold({
   metadata,
   placement = "modal",
   className,
+  marketDate,
+  onAsk,
 }: {
   metadata?: unknown;
   placement?: "topics" | "modal";
   className?: string;
+  marketDate?: string | null;
+  onAsk?: (prompt: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   if (!SHOW_REPORT_ENTITIES) return null;
@@ -224,6 +280,7 @@ export function ReportEntitiesFold({
     .slice(0, 3)
     .map((g) => g.label)
     .join(" · ");
+  const askEnabled = Boolean(onAsk) && SHOW_TOPIC_CHIP_ASK;
 
   return (
     <div className={cn("rounded-md border border-border bg-muted/20", className)}>
@@ -277,12 +334,14 @@ export function ReportEntitiesFold({
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {group.items.map((item) => (
-                    <span
+                    <TopicAskChip
                       key={`${group.key}:${item}`}
+                      label={item}
+                      kind="entity"
+                      marketDate={marketDate}
+                      onAsk={askEnabled ? onAsk : undefined}
                       className="rounded-md border border-border/80 bg-background px-1.5 py-0.5 text-[10px] leading-snug text-foreground/85"
-                    >
-                      {item}
-                    </span>
+                    />
                   ))}
                   {group.extra > 0 ? (
                     <span className="self-center font-mono text-[10px] text-muted-foreground/70">
@@ -449,6 +508,8 @@ export function ReportReaderModal({
   countries,
   regions,
   metadata,
+  marketDate,
+  onAsk,
 }: {
   open: boolean;
   onClose: () => void;
@@ -461,6 +522,8 @@ export function ReportReaderModal({
   countries?: unknown;
   regions?: unknown;
   metadata?: unknown;
+  marketDate?: string | null;
+  onAsk?: (prompt: string) => void;
 }) {
   const titleId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -521,8 +584,15 @@ export function ReportReaderModal({
               tags={tags}
               countries={countries}
               regions={regions}
+              marketDate={marketDate}
+              onAsk={onAsk}
             />
-            <ReportEntitiesFold metadata={metadata} placement="modal" />
+            <ReportEntitiesFold
+              metadata={metadata}
+              placement="modal"
+              marketDate={marketDate}
+              onAsk={onAsk}
+            />
           </div>
           <button
             type="button"

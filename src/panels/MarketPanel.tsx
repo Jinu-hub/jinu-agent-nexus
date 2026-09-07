@@ -37,6 +37,7 @@ import {
   ReportToc,
   ReportTopicChips,
   SHOW_REPORT_TOPIC_CHIPS,
+  SHOW_TOPIC_CHIP_ASK,
   SHOW_TOPICS_SECTION,
   extractReportSections,
   hasReportTopicFields,
@@ -888,6 +889,8 @@ export function MarketPanel({
                       tags={reportItem!.tags}
                       countries={reportItem!.countries}
                       regions={reportItem!.regions}
+                      marketDate={date}
+                      onAsk={onAskInChat}
                     />
                   ) : (
                     <p className="text-[11px] leading-relaxed text-muted-foreground">
@@ -897,7 +900,14 @@ export function MarketPanel({
                   <ReportEntitiesFold
                     metadata={reportItem!.metadata}
                     placement="topics"
+                    marketDate={date}
+                    onAsk={onAskInChat}
                   />
+                  {onAskInChat && SHOW_TOPIC_CHIP_ASK ? (
+                    <p className="text-[10px] leading-relaxed text-muted-foreground/80">
+                      Tap a chip to ask about it in chat.
+                    </p>
+                  ) : null}
                 </div>
               ) : reportCheckedMissing && hasBrief ? (
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
@@ -1043,6 +1053,8 @@ export function MarketPanel({
           countries={reportItem.countries}
           regions={reportItem.regions}
           metadata={reportItem.metadata}
+          marketDate={date}
+          onAsk={onAskInChat}
         />
       ) : null}
 
