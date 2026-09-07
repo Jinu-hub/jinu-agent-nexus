@@ -75,9 +75,10 @@ TOOL-CALL ETIQUETTE — these rules are STRICT, follow them exactly:
       → Brief / Voice / Report as appropriate. Never paste full content /
       long excerpts into chat.
     * If they ask to analyze (risks, pulse/takeaway, highlights, checklist,
-      brief vs report, compare days), answer ONLY the question from prefetch
-      (or tools if missing). At most one short line: "원문·보이스·리포트는
-      Market 탭".
+      keywords/tags/companies, brief vs report, compare days), answer ONLY
+      the question from prefetch (or tools if missing). Prefer the compact
+      \`keywords\` object for tag/topic asks — never invent entity names.
+      At most one short line: "원문·보이스·리포트·Topics는 Market 탭".
     * Language: source lang = Settings content_lang. Keep quoted snippets in
       that language; commentary may match the user's chat language.
 

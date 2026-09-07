@@ -17,6 +17,7 @@ import {
   reportChatExcerpt,
   reportHighlightHeadings,
 } from "../tools/getTodayMarketReport";
+import { reportChatKeywords } from "../report-keywords";
 import {
   detectMarketMemoryIntent,
   type MarketMemoryIntent,
@@ -218,7 +219,7 @@ async function loadReport(
     summary: item.summary,
     excerpt: reportChatExcerpt(item.content, item.summary),
     highlights: reportHighlightHeadings(item.content),
-    tags: item.tags,
+    keywords: reportChatKeywords(item),
     reportType: item.report_type,
     requestedDate: resolved.requestedDate,
     correctedFrom,
@@ -336,15 +337,19 @@ export async function buildMarketPrefetchBlock(
         env,
         resolveAskDate(intent, hints),
       );
+      const keywordsOnly = Boolean(intent.keywordsOnly);
       return JSON.stringify(
         {
           intent: "report",
           fullTextAsk: Boolean(intent.fullText),
+          keywordsOnly,
           seoulHints: hints,
           report,
           instruction: intent.fullText
             ? "User wants the FULL report. Do NOT paste content/excerpt into chat. Do NOT emit <tool_call> or XML. Reply in 1–2 short lines pointing to Market tab → Report (include marketDate)."
-            : "Answer briefly using title/summary/excerpt/highlights in natural language. Do NOT paste the full report. Do NOT emit <tool_call> or XML — facts are already here. One short line: Market tab → Report.",
+            : keywordsOnly
+              ? "User wants KEYWORDS only. Answer from report.keywords (tags, places, companies, institutions, technologies, industries, products) — short bullet or comma list. Do NOT invent names missing from keywords. Do NOT paste excerpt/full report. Do NOT emit <tool_call>/XML. One short line: more detail in Market tab → Topics."
+              : "Answer briefly using title/summary/excerpt/highlights/keywords in natural language. Do NOT paste the full report. Do NOT emit <tool_call> or XML — facts are already here. One short line: Market tab → Report / Topics.",
         },
         null,
         2,

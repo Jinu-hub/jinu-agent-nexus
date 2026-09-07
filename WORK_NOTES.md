@@ -859,11 +859,29 @@ curl -sS 'http://localhost:5173/api/briefs/latest-date?lang=ko' | python3 -m jso
 * **끄기 (`ReportReader.tsx`):**
   * `SHOW_REPORT_ENTITIES = false` → Topics·모달 모두 숨김
   * `SHOW_REPORT_ENTITIES_IN_TOPICS = false` → 모달만 유지
-* **의도적으로 안 함:** 클릭→채팅 / MyMemory 저장 / chat prefetch 키워드 (T3+)
+* **의도적으로 안 함:** 클릭→채팅 / MyMemory 저장 (키워드 chat은 → §10.8)
 
 확인:
 
 1. Topics 펼침 → Entities 접힘 행 → 펼치면 Companies/Tech 등
 2. Open wide reader → 헤더에도 Entities 접힘
 3. Topics에서만 끄려면 `SHOW_REPORT_ENTITIES_IN_TOPICS` false
+
+### 10.8 Report keywords in chat (T3) *(완료 · 시험)*
+
+* **목적:** 챗/prefetch에 키워드만 짧게 제공 (전문·entities JSON 덤프 금지)
+* **헬퍼:** `worker/report-keywords.ts` → `reportChatKeywords()` (tags≤8, places≤6, companies/tech 등 소수)
+* **연결:**
+  * `getTodayMarketReport` 응답 `keywords` (기존 raw `tags` 제거)
+  * `market-prefetch` loadReport에도 `keywords`
+  * intent: 키워드/태그/토픽/주요 기업 → `report` + `keywordsOnly`
+  * Ask chips: **키워드만**, **주요 기업** (`market-suggestions.ts`)
+  * soul RULE 5 — keywords 객체 우선, 이름 날조 금지
+* **의도적으로 안 함:** Topics 칩 클릭→채팅 (T4) / MyMemory 저장
+
+확인:
+
+1. Ask “키워드만” / 챗 “Latest 풀리포트 키워드만” → tags·places·기업 짧게
+2. “주요 기업·기관만” → companies/institutions 위주
+3. Prefetch에 `keywords` 있고 full metadata.entities 없음
 

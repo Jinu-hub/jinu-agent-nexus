@@ -25,6 +25,8 @@ export type MarketMemoryIntent =
       dateHint?: MarketDateHint;
       /** User wants panel redirect for full report (no dump). */
       fullText?: boolean;
+      /** User wants tags / places / top entities only. */
+      keywordsOnly?: boolean;
     }
   | {
       kind: "fullText";
@@ -86,15 +88,26 @@ export function detectMarketMemoryIntent(
       t,
     ) ||
     /(하이라이트).{0,12}(만|풀|리포트|report)/i.test(t) ||
-    /(리포트|report).{0,12}(하이라이트|핵심|요약)/i.test(t)
+    /(리포트|report).{0,12}(하이라이트|핵심|요약)/i.test(t) ||
+    // Keyword / topic / entity asks (T3) — still grounded on report
+    /(키워드|태그|토픽|topics?|엔티티|entities)/i.test(t) ||
+    /(주요\s*기업|companies|institutions).{0,16}(리포트|report|풀|다이제스트)?/i.test(
+      t,
+    ) ||
+    /(리포트|report|풀리포트).{0,16}(키워드|태그|기업|기관)/i.test(t)
   ) {
     const fullText =
       /(전문|원문|보여|보여줘|full\s*text)/i.test(t) &&
-      !/(핵심|하이라이트|요약|정리|차이|비교)/i.test(t);
+      !/(핵심|하이라이트|요약|정리|차이|비교|키워드|태그|토픽|기업)/i.test(t);
+    const keywordsOnly =
+      !fullText &&
+      (/(키워드|태그|토픽|topics?|엔티티|entities)/i.test(t) ||
+        /(주요\s*기업|companies|institutions)/i.test(t));
     return {
       kind: "report",
       dateHint: dateHintFromText(t),
       fullText,
+      keywordsOnly,
     };
   }
 

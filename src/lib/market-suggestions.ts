@@ -31,6 +31,16 @@ export const MARKET_SUGGESTIONS: MarketSuggestion[] = [
     prompt: "어제 풀리포트 핵심만 정리해줘",
   },
   {
+    id: "keywords",
+    label: "키워드만",
+    prompt: "Latest 풀리포트 키워드만 말해줘",
+  },
+  {
+    id: "companies",
+    label: "주요 기업",
+    prompt: "Latest 풀리포트에 나온 주요 기업·기관만 말해줘",
+  },
+  {
     id: "highlights",
     label: "하이라이트만",
     prompt: "어제 풀리포트 하이라이트만 말해줘",
