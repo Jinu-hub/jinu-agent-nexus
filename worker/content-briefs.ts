@@ -18,6 +18,7 @@ import {
 import {
   isMarketDateYmd,
   marketDateYmdInTimeZone,
+  shiftMarketDateYmd,
 } from "./market-date";
 
 export const CONTENT_BRIEFS_TABLE = "content_briefs";
@@ -65,6 +66,66 @@ export type TodayContentBriefResult = {
   status: string;
   item: ContentBriefRow | null;
 };
+
+export type LatestContentBriefMarketDateResult = {
+  lang: string;
+  briefType: string;
+  contentType: string;
+  status: string;
+  /** Most recent market_date with a matching final brief, or null. */
+  marketDate: string | null;
+  /** Asia/Seoul calendar today / yesterday (for UI hints). */
+  calendarToday: string;
+  seoulYesterday: string;
+};
+
+/**
+ * Newest market_date that actually has a final brief for this product slice.
+ * Prefer this over "Seoul yesterday" — weekends / holidays often have no row.
+ */
+export async function getLatestContentBriefMarketDate(
+  env: Env,
+  options: Omit<GetTodayContentBriefOptions, "marketDate"> = {},
+): Promise<LatestContentBriefMarketDateResult> {
+  const lang = options.lang?.trim() || DEFAULT_BRIEF_LANG;
+  const briefType = options.briefType?.trim() || DEFAULT_BRIEF_TYPE;
+  const contentType =
+    options.contentType?.trim() || DEFAULT_BRIEF_CONTENT_TYPE;
+  const status = options.status?.trim() || DEFAULT_BRIEF_STATUS;
+  const calendarToday = marketDateYmdInTimeZone();
+  const seoulYesterday = shiftMarketDateYmd(calendarToday, -1);
+
+  const client = createSupabaseClient(env, { privileged: true });
+
+  const { data, error } = await client
+    .from(CONTENT_BRIEFS_TABLE)
+    .select("market_date")
+    .eq("lang_code", lang)
+    .eq("brief_type", briefType)
+    .eq("content_type", contentType)
+    .eq("status", status)
+    .not("content", "is", null)
+    .neq("content", "")
+    .not("market_date", "is", null)
+    .order("market_date", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+    .overrideTypes<{ market_date: string }, { merge: false }>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return {
+    lang,
+    briefType,
+    contentType,
+    status,
+    marketDate: data?.market_date ?? null,
+    calendarToday,
+    seoulYesterday,
+  };
+}
 
 /**
  * Fetch one final brief for the given market day / lang / type.
@@ -116,9 +177,10 @@ export async function getTodayContentBrief(
 /**
  * HTTP routes for content briefs:
  *   GET /api/briefs/today — one brief for market_date (query overrides)
+ *   GET /api/briefs/latest-date — newest market_date with a final brief
  *
  * Query params (all optional):
- *   date          YYYY-MM-DD (default: Asia/Seoul today)
+ *   date          YYYY-MM-DD (today route only; default: Asia/Seoul today)
  *   lang          default ko
  *   brief_type    default brief_30s
  *   content_type  default daily-market-issues
@@ -130,7 +192,12 @@ export async function handleBriefsRequest(
   env: Env,
 ): Promise<Response | null> {
   const url = new URL(request.url);
-  if (url.pathname !== "/api/briefs/today") return null;
+  if (
+    url.pathname !== "/api/briefs/today" &&
+    url.pathname !== "/api/briefs/latest-date"
+  ) {
+    return null;
+  }
 
   if (request.method !== "GET") {
     return Response.json({ error: "method not allowed" }, { status: 405 });
@@ -138,6 +205,36 @@ export async function handleBriefsRequest(
 
   const blocked = supabaseServiceRoleGuard(env);
   if (blocked) return blocked;
+
+  if (url.pathname === "/api/briefs/latest-date") {
+    try {
+      const result = await getLatestContentBriefMarketDate(env, {
+        lang: url.searchParams.get("lang") ?? undefined,
+        briefType: url.searchParams.get("brief_type") ?? undefined,
+        contentType: url.searchParams.get("content_type") ?? undefined,
+      });
+
+      return Response.json({
+        ok: true,
+        found: result.marketDate !== null,
+        marketDate: result.marketDate,
+        lang: result.lang,
+        briefType: result.briefType,
+        contentType: result.contentType,
+        status: result.status,
+        calendarToday: result.calendarToday,
+        seoulYesterday: result.seoulYesterday,
+      });
+    } catch (error) {
+      return Response.json(
+        {
+          ok: false,
+          message: error instanceof Error ? error.message : "query failed",
+        },
+        { status: 502 },
+      );
+    }
+  }
 
   const dateParam = url.searchParams.get("date")?.trim() || undefined;
   if (dateParam && !isMarketDateYmd(dateParam)) {

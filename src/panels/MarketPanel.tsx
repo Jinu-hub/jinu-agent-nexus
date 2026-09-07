@@ -4,11 +4,9 @@
 // Fetches existing HTTP APIs (no ChatAgent State). Language comes from
 // Settings content_lang — independent of chat reply language.
 //
-// Publishing is a daily batch (~22:30 UTC), so the newest market_date is
-// usually Asia/Seoul *yesterday*. The panel defaults to that day.
-//
-// Report (item_contents) loads lazily when the Report section is expanded.
-// Wide reader modal + ## TOC: src/panels/ReportReader.tsx.
+// Publishing is a daily batch (~22:30 UTC). "Latest" is the newest
+// market_date that actually has a final brief (GET /api/briefs/latest-date),
+// not blindly Seoul yesterday — weekends/holidays often have no US-market row.
 // ─────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -116,8 +114,8 @@ function shiftYmd(ymd: string, deltaDays: number): string {
   return seoulYmd(anchor);
 }
 
-/** Newest market_date is usually Seoul yesterday (daily batch ~22:30 UTC). */
-function expectedLatestYmd(now: Date = new Date()): string {
+/** Calendar Seoul yesterday — fallback only until /api/briefs/latest-date loads. */
+function calendarYesterdayYmd(now: Date = new Date()): string {
   return shiftYmd(seoulYmd(now), -1);
 }
 
@@ -269,9 +267,11 @@ export function MarketPanel({
 }) {
   const lang = contentLang ?? "ko";
   const calendarToday = seoulYmd();
-  const expectedLatest = expectedLatestYmd();
-  const [date, setDate] = useState(() => expectedLatestYmd());
+  const calendarYesterday = calendarYesterdayYmd();
+  const [latestDate, setLatestDate] = useState<string | null>(null);
+  const [date, setDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [latestLoading, setLatestLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [brief, setBrief] = useState<BriefResponse | null>(null);
   const [voice, setVoice] = useState<VoiceResponse | null>(null);
@@ -324,6 +324,41 @@ export function MarketPanel({
     [],
   );
 
+  const loadLatestDate = useCallback(async (marketLang: string) => {
+    setLatestLoading(true);
+    try {
+      const qs = new URLSearchParams({ lang: marketLang });
+      const res = await fetch(`/api/briefs/latest-date?${qs}`);
+      const json = (await res.json()) as {
+        ok?: boolean;
+        found?: boolean;
+        marketDate?: string | null;
+        seoulYesterday?: string;
+        message?: string;
+      };
+      if (!res.ok && !json.ok) {
+        throw new Error(json.message || `latest-date HTTP ${res.status}`);
+      }
+      const next =
+        json.found && typeof json.marketDate === "string"
+          ? json.marketDate
+          : (json.seoulYesterday ?? calendarYesterdayYmd());
+      setLatestDate(next);
+      setDate((prev) => prev ?? next);
+    } catch (err) {
+      const fallback = calendarYesterdayYmd();
+      setLatestDate(fallback);
+      setDate((prev) => prev ?? fallback);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to resolve latest market_date",
+      );
+    } finally {
+      setLatestLoading(false);
+    }
+  }, []);
+
   const load = useCallback(
     async (marketDate: string, marketLang: string) => {
       setLoading(true);
@@ -364,6 +399,12 @@ export function MarketPanel({
   );
 
   useEffect(() => {
+    setDate(null);
+    void loadLatestDate(lang);
+  }, [lang, loadLatestDate]);
+
+  useEffect(() => {
+    if (!date) return;
     void load(date, lang);
   }, [date, lang, load]);
 
@@ -371,7 +412,8 @@ export function MarketPanel({
   const voiceItem = voice?.found ? voice.item : null;
   const playPath =
     voice?.found && typeof voice.playPath === "string" ? voice.playPath : null;
-  const reportCached = reportCacheKey === cacheKey(date, lang);
+  const reportCached =
+    date !== null && reportCacheKey === cacheKey(date, lang);
   const reportItem =
     reportCached && report?.found ? (report.item ?? null) : null;
   const hasReportCandidate = Boolean(briefItem?.target_id);
@@ -397,8 +439,9 @@ export function MarketPanel({
 
   const pulse = metaString(briefItem?.metadata, "pulse");
   const takeaway = metaString(briefItem?.metadata, "takeaway");
-  const showingExpectedLatest = date === expectedLatest;
-  const openLatest = () => setDate(expectedLatest);
+  const effectiveLatest = latestDate ?? calendarYesterday;
+  const showingExpectedLatest = date !== null && date === effectiveLatest;
+  const openLatest = () => setDate(effectiveLatest);
   const hasVoice = Boolean(voiceItem && playPath);
   const hasBrief = Boolean(briefItem);
 
@@ -409,6 +452,7 @@ export function MarketPanel({
   }, [date, lang, hasVoice, hasBrief]);
 
   const toggleReport = () => {
+    if (!date) return;
     setReportOpen((wasOpen) => {
       const next = !wasOpen;
       if (next && reportCacheKey !== cacheKey(date, lang) && !reportLoading) {
@@ -420,6 +464,7 @@ export function MarketPanel({
 
   /** Load report if needed, expand section, open wide reader. */
   const openReportReader = useCallback(async () => {
+    if (!date) return;
     setReportOpen(true);
     let item =
       reportCacheKey === cacheKey(date, lang) && report?.found
@@ -465,8 +510,11 @@ export function MarketPanel({
             </span>
             <button
               type="button"
-              disabled={loading}
-              onClick={() => void load(date, lang)}
+              disabled={loading || latestLoading}
+              onClick={() => {
+                void loadLatestDate(lang);
+                if (date) void load(date, lang);
+              }}
               className={cn(
                 "rounded-md p-1 text-muted-foreground transition-colors",
                 "hover:bg-accent hover:text-foreground",
@@ -475,7 +523,10 @@ export function MarketPanel({
               title="Refresh"
             >
               <RefreshCw
-                className={cn("h-3.5 w-3.5", loading && "animate-spin")}
+                className={cn(
+                  "h-3.5 w-3.5",
+                  (loading || latestLoading) && "animate-spin",
+                )}
               />
             </button>
           </div>
@@ -485,8 +536,8 @@ export function MarketPanel({
       <div className="mb-2 flex items-center gap-1">
         <button
           type="button"
-          disabled={loading}
-          onClick={() => setDate((d) => shiftYmd(d, -1))}
+          disabled={loading || !date}
+          onClick={() => setDate((d) => (d ? shiftYmd(d, -1) : d))}
           className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
           title="Previous day"
         >
@@ -494,8 +545,8 @@ export function MarketPanel({
         </button>
         <input
           type="date"
-          value={date}
-          disabled={loading}
+          value={date ?? ""}
+          disabled={loading || latestLoading || !date}
           onChange={(e) => {
             if (e.target.value) setDate(e.target.value);
           }}
@@ -508,8 +559,8 @@ export function MarketPanel({
         />
         <button
           type="button"
-          disabled={loading}
-          onClick={() => setDate((d) => shiftYmd(d, 1))}
+          disabled={loading || !date}
+          onClick={() => setDate((d) => (d ? shiftYmd(d, 1) : d))}
           className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
           title="Next day"
         >
@@ -517,7 +568,7 @@ export function MarketPanel({
         </button>
         <button
           type="button"
-          disabled={loading || showingExpectedLatest}
+          disabled={loading || latestLoading || showingExpectedLatest}
           onClick={openLatest}
           className={cn(
             "rounded-md px-2 py-1 text-[11px]",
@@ -525,13 +576,13 @@ export function MarketPanel({
               ? "cursor-not-allowed text-muted-foreground/40"
               : "text-muted-foreground hover:bg-accent hover:text-foreground",
           )}
-          title={`Expected newest market_date (Seoul yesterday · ${expectedLatest})`}
+          title={`Newest market_date with a final brief · ${effectiveLatest}`}
         >
           Latest
         </button>
         <button
           type="button"
-          disabled={loading || date === calendarToday}
+          disabled={loading || !date || date === calendarToday}
           onClick={() => setDate(calendarToday)}
           className={cn(
             "rounded-md px-2 py-1 text-[11px] text-muted-foreground",
@@ -550,25 +601,25 @@ export function MarketPanel({
           language.
         </p>
         <p>
-          Daily batch ~<span className="font-mono">22:30 UTC</span> — newest
-          market_date is usually Seoul yesterday
-          {showingExpectedLatest ? (
+          Latest = newest day with a final brief (not always Seoul yesterday —
+          weekends/holidays may be empty)
+          {showingExpectedLatest && date ? (
             <>
               {" "}
               · showing{" "}
-              <span className="font-mono text-foreground">latest</span>
+              <span className="font-mono text-foreground">{date}</span>
             </>
           ) : null}
           .
         </p>
       </div>
 
-      {loading && !brief && !voice ? (
+      {(latestLoading && !date) || (loading && !brief && !voice) ? (
         <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted-foreground">
           <LoaderCircle className="size-3.5 animate-spin" />
           Loading…
         </div>
-      ) : (
+      ) : date ? (
         <div className="space-y-3">
           <MarketSection
             icon={Volume2}
@@ -614,7 +665,7 @@ export function MarketPanel({
                 date={date}
                 lang={lang}
                 calendarToday={calendarToday}
-                expectedLatest={expectedLatest}
+                expectedLatest={effectiveLatest}
                 onOpenLatest={openLatest}
               />
             )}
@@ -702,7 +753,7 @@ export function MarketPanel({
                 date={date}
                 lang={lang}
                 calendarToday={calendarToday}
-                expectedLatest={expectedLatest}
+                expectedLatest={effectiveLatest}
                 onOpenLatest={openLatest}
               />
             )}
@@ -809,13 +860,13 @@ export function MarketPanel({
                 date={date}
                 lang={lang}
                 calendarToday={calendarToday}
-                expectedLatest={expectedLatest}
+                expectedLatest={effectiveLatest}
                 onOpenLatest={openLatest}
               />
             )}
           </MarketSection>
         </div>
-      )}
+      ) : null}
 
       {error && (
         <p className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-[11px] text-destructive">

@@ -22,17 +22,17 @@ import {
 } from "./market-date-resolve";
 
 export function createGetTodayMarketVoiceTool(agent: ChatAgent, env: Env) {
-  const { today, yesterday, latest } = seoulDateHints();
+  const { today, yesterday, latestHint } = seoulDateHints();
 
   return tool({
     description:
-      `Fetch Market Memory Voice meta + playPath (content_audio → R2). Use when the user asks about voice/오디오. Prefer pointing them to Market tab Latest player for listening. Omit date → expected latest ${latest} (Seoul yesterday). Calendar today=${today}. Language = Settings content_lang. Do not invent audio.`,
+      `Fetch Market Memory Voice meta + playPath (content_audio → R2). Use when the user asks about voice/오디오. Prefer pointing them to Market tab Latest player for listening. Omit date → newest day with a final brief (often ${latestHint} on weekdays; earlier after weekends). Calendar today=${today}. Language = Settings content_lang. Do not invent audio.`,
     inputSchema: z.object({
       date: z
         .string()
         .optional()
         .describe(
-          `Optional market_date YYYY-MM-DD. Omit for expected latest (${latest}). For calendar today use ${today}. For 어제 use ${yesterday}. Month/day without year → year ${today.slice(0, 4)}.`,
+          `Optional market_date YYYY-MM-DD. Omit for data-backed latest. For calendar today use ${today}. For 어제 use ${yesterday}. Month/day without year → year ${today.slice(0, 4)}.`,
         ),
     }),
     execute: async ({ date }) => {
@@ -45,7 +45,8 @@ export function createGetTodayMarketVoiceTool(agent: ChatAgent, env: Env) {
         };
       }
 
-      const resolved = resolveToolMarketDate(date);
+      const { content_lang: lang } = getSettings(agent);
+      const resolved = await resolveToolMarketDate(env, date, { lang });
       if (resolved.marketDate && !isMarketDateYmd(resolved.marketDate)) {
         return {
           ok: false as const,
@@ -53,8 +54,6 @@ export function createGetTodayMarketVoiceTool(agent: ChatAgent, env: Env) {
           message: "date must be YYYY-MM-DD",
         };
       }
-
-      const { content_lang: lang } = getSettings(agent);
 
       try {
         let result = await getTodayContentAudio(env, {
@@ -88,12 +87,12 @@ export function createGetTodayMarketVoiceTool(agent: ChatAgent, env: Env) {
             contentType: result.contentType,
             requestedDate: resolved.requestedDate,
             usedExpectedLatest: resolved.usedExpectedLatest,
-            message: `No completed voice brief found for market_date=${result.marketDate} lang=${result.lang}. Do not invent audio. Suggest Market tab Latest or another day.`,
+            usedDataBackedLatest: resolved.usedDataBackedLatest,
+            message: `No completed voice for market_date=${result.marketDate} lang=${result.lang}. Do not invent audio. Suggest Market tab.`,
           };
         }
 
         const item = result.item;
-        const playPath = `/api/audio/file/${item.id}`;
         return {
           ok: true as const,
           found: true as const,
@@ -104,14 +103,13 @@ export function createGetTodayMarketVoiceTool(agent: ChatAgent, env: Env) {
           id: item.id,
           title: item.title,
           durationSeconds: item.duration_seconds,
-          storageKey: item.storage_key,
-          playPath,
+          playPath: `/api/audio/file/${item.id}`,
           requestedDate: resolved.requestedDate,
           correctedFrom,
           usedExpectedLatest: resolved.usedExpectedLatest,
-          howToPlay: `Inline player may appear in the tool card; prefer Market tab Latest for listening. Title/duration in lang=${result.lang}.`,
+          usedDataBackedLatest: resolved.usedDataBackedLatest,
           presentation:
-            `Reply briefly (title + duration). Prefer directing the user to Market tab for playback. Do not invent transcript.`,
+            `Reply briefly with title/duration if found. Direct the user to Market tab → Latest to listen. Do not invent a transcript.`,
         };
       } catch (error) {
         return {

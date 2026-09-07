@@ -9,7 +9,7 @@
 //   4. My Market Memory — personalization DO SQLite (`/memory/*`).
 //   5. ChatAgent Settings — runtime settings and change history (`/settings`).
 //   6. Supabase health — Market Memory connectivity probe (`/api/supabase/health`).
-//   7. Content briefs — today's market-issue brief text (`/api/briefs/today`).
+//   7. Content briefs — today + latest-date (`/api/briefs/today`, `/api/briefs/latest-date`).
 //   8. Full reports — item_contents via brief.target_id (`/api/reports/today`).
 //   9. Voice audio — pending, claim, R2, TTS, generate, Cron (`/api/audio/*`).
 //  10. Everything else (incl. WebSocket upgrades) → routeAgentRequest,

@@ -83,6 +83,7 @@ flowchart LR
 - `/live` — SPA-served Market Pulse poll room (LiveMarketRoomAgent over WS)
 - `GET /api/supabase/health` — Supabase connectivity probe (Market Memory prep)
 - `GET /api/briefs/today` — `content_briefs` daily market-issue text (Seoul `market_date`)
+- `GET /api/briefs/latest-date` — newest `market_date` with a final brief (data-backed Latest)
 - `GET /api/reports/today` — `item_contents` full report via `content_briefs.target_id`
 - `POST /api/upload` — PDF upload (not RPC; large FormData)
 - `/screenshots/*` — R2 screenshot proxy
@@ -172,7 +173,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts` |
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
-| Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`) |
+| Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today` + `GET /api/briefs/latest-date`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`; omit date = data-backed latest) |
 | Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today` (`content_briefs.target_id` → `item_contents.id`); chat tool `worker/tools/getTodayMarketReport.ts` (excerpt only; lang = Settings `content_lang`) |
 | Market panel (sidebar) | `src/panels/MarketPanel.tsx` + `ReportReader.tsx` (wide modal + ## TOC) — briefs/today + audio/today + reports/today (lazy) + Ask in chat chips (`src/lib/market-suggestions.ts`); wired in `App.tsx` |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) for Market Memory; UI `src/panels/SettingsPanel.tsx` |

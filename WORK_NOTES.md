@@ -89,6 +89,7 @@ worker/index.ts (HTTP Gateway)
  ├── /settings, /settings/events                   → ChatAgent DO (설정 SQLite)
  ├── GET  /api/supabase/health                     → Supabase 도달성 점검
  ├── GET  /api/briefs/today                        → content_briefs 당일 브리핑 조회 (Phase A)
+ ├── GET  /api/briefs/latest-date                  → 데이터 있는 최신 market_date (§10.5)
  ├── GET  /api/reports/today                       → item_contents 풀리포트 (via brief.target_id) (§10 Phase A)
  ├── GET  /api/audio/pending                       → content_audio script_ready 조회 (Phase 1)
  ├── GET  /api/audio/today                         → completed Voice 메타 + play URL (Phase 7)
@@ -807,3 +808,29 @@ curl -sS 'http://localhost:5173/api/reports/today?date=09-04'
 * **UI:** 패널 접힘 + lazy + wide 리더 모달 + TOC (Phase D 유지)
 * **본문 포맷:** markdown
 * **스키마 (A 확정):** `status` 없음; `is_active`; `summary` 별도 컬럼; `report_type=digest-report`
+* **Latest:** 데이터 있는 최신 `market_date` (`GET /api/briefs/latest-date`) — Seoul yesterday 고정 아님 (§10.5)
+
+### 10.5 Data-backed Latest market_date *(완료)*
+
+* **문제:** Latest = Seoul yesterday 고정 → 월요일에 일요일이 잡혀 빈 화면 (미장/주말 무장)
+* **해결:** `content_briefs`에서 final brief가 있는 **max(market_date)** 를 Latest로 사용
+* **추가:**
+  * `getLatestContentBriefMarketDate()` + `GET /api/briefs/latest-date?lang=`
+  * MarketPanel — 마운트/lang 시 latest-date fetch → 기본일·Latest 버튼
+  * `resolveToolMarketDate` — omit date 시 DB latest (실패 시 calendar yesterday fallback)
+  * prefetch compare — later = data-backed latest, earlier = that − 1 day
+  * soul RULE 7 — latest ≠ 어제 고정 명시
+* **유지:** 사용자가 「어제」라고 하면 calendar yesterday (비어 있을 수 있음)
+
+로컬 확인 (2026-09-07 Mon):
+
+```bash
+curl -sS 'http://localhost:5173/api/briefs/latest-date?lang=ko' | python3 -m json.tool
+# marketDate: 2026-09-05, seoulYesterday: 2026-09-06, calendarToday: 2026-09-07
+```
+
+확인:
+
+1. Market 탭 기본/Latest → `2026-09-05` (데이터 있는 날), 빈 일요일 아님
+2. Today → `2026-09-07` empty + Open latest · 2026-09-05
+3. 챗 omit date / 「latest」→ 같은 data-backed 날

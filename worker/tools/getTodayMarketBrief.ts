@@ -28,17 +28,17 @@ function metaString(metadata: unknown, key: string): string | null {
 }
 
 export function createGetTodayMarketBriefTool(agent: ChatAgent, env: Env) {
-  const { today, yesterday, latest } = seoulDateHints();
+  const { today, yesterday, latestHint } = seoulDateHints();
 
   return tool({
     description:
-      `Fetch Market Memory brief text (content_briefs) for grounding. Use for interpret/compare/checklist questions about market briefs — not as a full reprint. Language = Settings content_lang. Dates: Asia/Seoul today=${today}, expected latest (omit date)=${latest}, yesterday=${yesterday}. Batch ~22:30 UTC so latest is usually yesterday. After the tool returns: answer the user's question briefly; do NOT paste the full content; point to Market tab Latest for the full text.`,
+      `Fetch Market Memory brief text (content_briefs) for grounding. Use for interpret/compare/checklist questions about market briefs — not as a full reprint. Language = Settings content_lang. Dates: Asia/Seoul today=${today}, calendar yesterday=${yesterday}. Omit date → newest market_date that has a final brief (often ${latestHint} on weekdays; earlier after weekends/holidays). After the tool returns: answer the user's question briefly; do NOT paste the full content; point to Market tab Latest for the full text.`,
     inputSchema: z.object({
       date: z
         .string()
         .optional()
         .describe(
-          `Optional market_date YYYY-MM-DD. Omit for expected latest (${latest}, Seoul yesterday). For calendar today use ${today}. For 어제 use ${yesterday}. Month/day without year → year ${today.slice(0, 4)}.`,
+          `Optional market_date YYYY-MM-DD. Omit for data-backed latest (newest day with a brief). For calendar today use ${today}. For 어제 use ${yesterday}. Month/day without year → year ${today.slice(0, 4)}.`,
         ),
     }),
     execute: async ({ date }) => {
@@ -51,7 +51,8 @@ export function createGetTodayMarketBriefTool(agent: ChatAgent, env: Env) {
         };
       }
 
-      const resolved = resolveToolMarketDate(date);
+      const { content_lang: lang } = getSettings(agent);
+      const resolved = await resolveToolMarketDate(env, date, { lang });
       if (resolved.marketDate && !isMarketDateYmd(resolved.marketDate)) {
         return {
           ok: false as const,
@@ -59,8 +60,6 @@ export function createGetTodayMarketBriefTool(agent: ChatAgent, env: Env) {
           message: "date must be YYYY-MM-DD",
         };
       }
-
-      const { content_lang: lang } = getSettings(agent);
 
       try {
         let result = await getTodayContentBrief(env, {
@@ -94,6 +93,7 @@ export function createGetTodayMarketBriefTool(agent: ChatAgent, env: Env) {
             contentType: result.contentType,
             requestedDate: resolved.requestedDate,
             usedExpectedLatest: resolved.usedExpectedLatest,
+            usedDataBackedLatest: resolved.usedDataBackedLatest,
             message: `No final brief found for market_date=${result.marketDate} lang=${result.lang}. Do not invent content. Suggest Market tab date nav or another day.`,
           };
         }
@@ -114,6 +114,7 @@ export function createGetTodayMarketBriefTool(agent: ChatAgent, env: Env) {
           requestedDate: resolved.requestedDate,
           correctedFrom,
           usedExpectedLatest: resolved.usedExpectedLatest,
+          usedDataBackedLatest: resolved.usedDataBackedLatest,
           presentation:
             `Answer the user's question briefly using title/pulse/takeaway/content as evidence. Do NOT paste the full content into chat. One short line: full text is in Market tab (date ${result.marketDate}). Keep quoted snippets in lang=${result.lang}.`,
         };

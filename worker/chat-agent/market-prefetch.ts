@@ -33,7 +33,8 @@ async function loadBrief(
   env: Env,
   date: string | undefined,
 ) {
-  const resolved = resolveToolMarketDate(date);
+  const { content_lang: lang } = getSettings(agent);
+  const resolved = await resolveToolMarketDate(env, date, { lang });
   if (resolved.marketDate && !isMarketDateYmd(resolved.marketDate)) {
     return {
       ok: false as const,
@@ -42,7 +43,6 @@ async function loadBrief(
     };
   }
 
-  const { content_lang: lang } = getSettings(agent);
   let result = await getTodayContentBrief(env, {
     marketDate: resolved.marketDate,
     lang,
@@ -72,6 +72,7 @@ async function loadBrief(
       lang: result.lang,
       requestedDate: resolved.requestedDate,
       usedExpectedLatest: resolved.usedExpectedLatest,
+      usedDataBackedLatest: resolved.usedDataBackedLatest,
     };
   }
 
@@ -89,6 +90,7 @@ async function loadBrief(
     requestedDate: resolved.requestedDate,
     correctedFrom,
     usedExpectedLatest: resolved.usedExpectedLatest,
+    usedDataBackedLatest: resolved.usedDataBackedLatest,
   };
 }
 
@@ -97,7 +99,8 @@ async function loadVoice(
   env: Env,
   date: string | undefined,
 ) {
-  const resolved = resolveToolMarketDate(date);
+  const { content_lang: lang } = getSettings(agent);
+  const resolved = await resolveToolMarketDate(env, date, { lang });
   if (resolved.marketDate && !isMarketDateYmd(resolved.marketDate)) {
     return {
       ok: false as const,
@@ -106,7 +109,6 @@ async function loadVoice(
     };
   }
 
-  const { content_lang: lang } = getSettings(agent);
   let result = await getTodayContentAudio(env, {
     marketDate: resolved.marketDate,
     lang,
@@ -136,6 +138,7 @@ async function loadVoice(
       lang: result.lang,
       requestedDate: resolved.requestedDate,
       usedExpectedLatest: resolved.usedExpectedLatest,
+      usedDataBackedLatest: resolved.usedDataBackedLatest,
     };
   }
 
@@ -151,6 +154,7 @@ async function loadVoice(
     requestedDate: resolved.requestedDate,
     correctedFrom,
     usedExpectedLatest: resolved.usedExpectedLatest,
+    usedDataBackedLatest: resolved.usedDataBackedLatest,
   };
 }
 
@@ -159,7 +163,8 @@ async function loadReport(
   env: Env,
   date: string | undefined,
 ) {
-  const resolved = resolveToolMarketDate(date);
+  const { content_lang: lang } = getSettings(agent);
+  const resolved = await resolveToolMarketDate(env, date, { lang });
   if (resolved.marketDate && !isMarketDateYmd(resolved.marketDate)) {
     return {
       ok: false as const,
@@ -168,7 +173,6 @@ async function loadReport(
     };
   }
 
-  const { content_lang: lang } = getSettings(agent);
   let result = await getTodayItemContent(env, {
     marketDate: resolved.marketDate,
     lang,
@@ -200,6 +204,7 @@ async function loadReport(
       targetId: result.targetId,
       requestedDate: resolved.requestedDate,
       usedExpectedLatest: resolved.usedExpectedLatest,
+      usedDataBackedLatest: resolved.usedDataBackedLatest,
     };
   }
 
@@ -218,6 +223,7 @@ async function loadReport(
     requestedDate: resolved.requestedDate,
     correctedFrom,
     usedExpectedLatest: resolved.usedExpectedLatest,
+    usedDataBackedLatest: resolved.usedDataBackedLatest,
   };
 }
 
@@ -227,10 +233,9 @@ function resolveAskDate(
 ): string | undefined {
   if (intent.kind === "compare") return undefined;
   if (intent.dateHint === "today") return hints.today;
-  if (intent.dateHint === "yesterday" || intent.dateHint === "latest") {
-    return hints.yesterday;
-  }
-  // omit → tool default (expected latest = yesterday)
+  // Calendar yesterday only when user said 어제 — not "latest"
+  if (intent.dateHint === "yesterday") return hints.yesterday;
+  // latest or omit → undefined → resolveToolMarketDate uses data-backed latest
   return undefined;
 }
 
@@ -279,8 +284,15 @@ export async function buildMarketPrefetchBlock(
     }
 
     if (intent.kind === "compare") {
-      const dayA = shiftMarketDateYmd(hints.today, -2); // 그제
-      const dayB = hints.yesterday; // 어제 / expected latest
+      const { content_lang: lang } = getSettings(agent);
+      const latestResolved = await resolveToolMarketDate(env, undefined, {
+        lang,
+      });
+      const dayB =
+        latestResolved.marketDate && isMarketDateYmd(latestResolved.marketDate)
+          ? latestResolved.marketDate
+          : hints.yesterday;
+      const dayA = shiftMarketDateYmd(dayB, -1);
       const [a, b] = await Promise.all([
         loadBrief(agent, env, dayA),
         loadBrief(agent, env, dayB),
@@ -289,9 +301,9 @@ export async function buildMarketPrefetchBlock(
         {
           intent: "compare",
           seoulHints: hints,
-          briefs: { dayBeforeYesterday: a, yesterday: b },
+          briefs: { earlier: a, later: b },
           instruction:
-            "Compare tone/themes using pulse/takeaway/title (and excerpts if needed). Answer the comparison only — short natural language. Do NOT paste full content. Do NOT emit <tool_call> or XML tool markup — facts are already here. One line: full text in Market tab by date.",
+            "Compare tone/themes using pulse/takeaway/title (and excerpts if needed). Answer the comparison only — short natural language. Do NOT paste full content. Do NOT emit <tool_call> or XML tool markup — facts are already here. One line: full text in Market tab by date. later ≈ data-backed latest (not blindly calendar yesterday).",
         },
         null,
         2,

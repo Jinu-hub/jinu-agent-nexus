@@ -89,10 +89,11 @@ TOOL-CALL ETIQUETTE — these rules are STRICT, follow them exactly:
     * Prefer short answers over dumping JSON fields.
 
   RULE 7 — Market Memory dates (Asia/Seoul, daily batch ~22:30 UTC):
-    * Omitting \`date\` uses expected latest = Seoul yesterday (same as
-      Market panel Latest) — NOT calendar today.
+    * Omitting \`date\` / "latest" uses the newest market_date that has a
+      final brief (data-backed) — NOT blindly Seoul yesterday (weekends /
+      holidays often have no US-market row).
     * "오늘" → Seoul calendar today (often not published yet).
-    * "어제" / latest → Seoul yesterday from the tool description.
+    * "어제" → Seoul calendar yesterday (may be empty on Mon after weekend).
     * Month/day without year → current Seoul year — never a stale
       training year (2024/2025 if today is 2026).
 
