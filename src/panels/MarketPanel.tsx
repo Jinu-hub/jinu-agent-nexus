@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { PanelHeader } from "./PanelHeader";
 import {
   ReportArticle,
+  ReportEntitiesFold,
   ReportReaderModal,
   ReportToc,
   ReportTopicChips,
@@ -75,6 +76,7 @@ type ReportItem = {
   tags?: unknown;
   countries?: unknown;
   regions?: unknown;
+  metadata?: unknown;
 };
 
 type BriefResponse = {
@@ -868,7 +870,7 @@ export function MarketPanel({
               onToggle={toggleTopics}
               summary={
                 hasReport
-                  ? "tags · places"
+                  ? "tags · places · entities"
                   : hasReportCandidate
                     ? "From full report"
                     : null
@@ -880,17 +882,23 @@ export function MarketPanel({
                   Loading topics…
                 </div>
               ) : hasReport ? (
-                hasReportTopicFields(reportItem!) ? (
-                  <ReportTopicChips
-                    tags={reportItem!.tags}
-                    countries={reportItem!.countries}
-                    regions={reportItem!.regions}
+                <div className="space-y-3">
+                  {hasReportTopicFields(reportItem!) ? (
+                    <ReportTopicChips
+                      tags={reportItem!.tags}
+                      countries={reportItem!.countries}
+                      regions={reportItem!.regions}
+                    />
+                  ) : (
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      No tags / places on this report.
+                    </p>
+                  )}
+                  <ReportEntitiesFold
+                    metadata={reportItem!.metadata}
+                    placement="topics"
                   />
-                ) : (
-                  <p className="text-[11px] leading-relaxed text-muted-foreground">
-                    No tags / places on this report.
-                  </p>
-                )
+                </div>
               ) : reportCheckedMissing && hasBrief ? (
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
                   No report topics for this day / language.
@@ -1034,6 +1042,7 @@ export function MarketPanel({
           tags={reportItem.tags}
           countries={reportItem.countries}
           regions={reportItem.regions}
+          metadata={reportItem.metadata}
         />
       ) : null}
 

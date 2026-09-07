@@ -810,25 +810,6 @@ curl -sS 'http://localhost:5173/api/reports/today?date=09-04'
 * **스키마 (A 확정):** `status` 없음; `is_active`; `summary` 별도 컬럼; `report_type=digest-report`
 * **Latest:** 데이터 있는 최신 `market_date` (`GET /api/briefs/latest-date`) — Seoul yesterday 고정 아님 (§10.5)
 
-### 10.6 Report topic chips (T1) *(완료 · 시험)*
-
-* **목적:** Report `tags` / `countries` / `regions`를 얇은 칩으로 표시 (entities·개인화 저장은 나중)
-* **UI:** 사이드바 순서 **Brief → Voice → Topics → Report** (Brief만 기본 펼침; 나머지 접힘) + wide 리더 모달 헤더
-* **헤더 help:** 본문 설명 문구 제거 → KO 배지 왼쪽 `?` (hover/click 팝오버)
-* **데이터:** Topics 펼침 시 기존 `reports/today` fetch 재사용 (별도 DB 저장 없음)
-* **끄기 (코드 플래그, `ReportReader.tsx` 상단):**
-  * `SHOW_REPORT_TOPIC_CHIPS = false` → Topics 섹션·모달 칩 모두 숨김
-  * `SHOW_TOPICS_SECTION = false` → 사이드바 Topics만 숨김 (모달 칩은 유지)
-* **표시:** tags 최대 8 (+N), countries/regions는 border 칩으로 구분
-* **의도적으로 안 함:** MyMemory preference 저장 / 클릭 액션 / entities
-
-확인:
-
-1. Market → Brief → Voice → Topics → Report 순서 · Brief만 기본 펼침
-2. 헤더 `?` → 언어/Latest 설명 팝오버
-3. Open wide reader → 모달 헤더에도 칩
-4. Topics만 끄려면 `SHOW_TOPICS_SECTION` false
-
 ### 10.5 Data-backed Latest market_date *(완료)*
 
 * **문제:** Latest = Seoul yesterday 고정 → 월요일에 일요일이 잡혀 빈 화면 (미장/주말 무장)
@@ -853,3 +834,36 @@ curl -sS 'http://localhost:5173/api/briefs/latest-date?lang=ko' | python3 -m jso
 1. Market 탭 기본/Latest → `2026-09-05` (데이터 있는 날), 빈 일요일 아님
 2. Today → `2026-09-07` empty + Open latest · 2026-09-05
 3. 챗 omit date / 「latest」→ 같은 data-backed 날
+
+### 10.6 Report topic chips (T1) *(완료 · 시험)*
+
+* **목적:** Report `tags` / `countries` / `regions`를 얇은 칩으로 표시 (entities·개인화 저장은 나중)
+* **UI:** 사이드바 순서 **Brief → Voice → Topics → Report** (Brief만 기본 펼침; 나머지 접힘) + wide 리더 모달 헤더
+* **헤더 help:** 본문 설명 문구 제거 → KO 배지 왼쪽 `?` (hover/click 팝오버)
+* **데이터:** Topics 펼침 시 기존 `reports/today` fetch 재사용 (별도 DB 저장 없음)
+* **끄기 (코드 플래그, `ReportReader.tsx` 상단):**
+  * `SHOW_REPORT_TOPIC_CHIPS = false` → Topics 섹션·모달 칩 모두 숨김
+  * `SHOW_TOPICS_SECTION = false` → 사이드바 Topics만 숨김 (모달 칩은 유지)
+* **표시:** tags 최대 8 (+N), countries/regions는 border 칩으로 구분
+* **의도적으로 안 함:** MyMemory preference 저장 / 클릭 액션 / entities (→ §10.7)
+
+확인: Brief→Voice→Topics→Report · Brief만 기본 펼침 · `?` 도움말 · Topics/모달 칩
+
+### 10.7 Report entities fold (T2) *(완료 · 시험)*
+
+* **목적:** `metadata.entities` 비어 있지 않은 그룹을 접힘 블록으로 표시 (읽기 전용)
+* **UI:** Topics 섹션(칩 아래) + wide 리더 모달 헤더 — **기본 접힘**
+* **그룹 순서:** companies → institutions → technologies → industries → products → indicators → persons (+ 기타 비어 있지 않은 키)
+* **표시:** 그룹당 최대 12 (+N); countries는 surface `countries`와 중복될 수 있어 entities에 있을 때만
+* **UI polish:** Tags/Places 라벨 분리 · Named entities 접힘(미리보기 문구) · 그룹별 개수 + border 칩
+* **끄기 (`ReportReader.tsx`):**
+  * `SHOW_REPORT_ENTITIES = false` → Topics·모달 모두 숨김
+  * `SHOW_REPORT_ENTITIES_IN_TOPICS = false` → 모달만 유지
+* **의도적으로 안 함:** 클릭→채팅 / MyMemory 저장 / chat prefetch 키워드 (T3+)
+
+확인:
+
+1. Topics 펼침 → Entities 접힘 행 → 펼치면 Companies/Tech 등
+2. Open wide reader → 헤더에도 Entities 접힘
+3. Topics에서만 끄려면 `SHOW_REPORT_ENTITIES_IN_TOPICS` false
+

@@ -1,19 +1,20 @@
 // ─────────────────────────────────────────────────────────────────────────
 // ReportReader — Market full-report wide reader (modal + ## TOC)
 // Used by MarketPanel: Open wide reader / Brief Report badge / Maximize.
-// T1 topic chips: tags / countries / regions — toggles below.
+// T1 topic chips + T2 entities fold — toggles below.
 // ─────────────────────────────────────────────────────────────────────────
 
 import {
   useEffect,
   useId,
   useRef,
+  useState,
   type ReactNode,
   type RefObject,
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { X } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ── T1 topic chips (easy off-switches) ───────────────────────────────────
@@ -22,12 +23,48 @@ export const SHOW_REPORT_TOPIC_CHIPS = true;
 /** Sidebar Topics section (outside Report). Ignored when master is false. */
 export const SHOW_TOPICS_SECTION = true;
 
+// ── T2 entities fold (easy off-switches) ─────────────────────────────────
+/** Master: hide entities fold in Topics + modal when false. */
+export const SHOW_REPORT_ENTITIES = true;
+/** Sidebar Topics only. Ignored when master is false. */
+export const SHOW_REPORT_ENTITIES_IN_TOPICS = true;
+
 const TOPIC_TAG_LIMIT = 8;
+const ENTITY_ITEM_LIMIT = 12;
+
+/** Preferred display order; empty groups are skipped. */
+const ENTITY_GROUP_ORDER = [
+  "companies",
+  "institutions",
+  "technologies",
+  "industries",
+  "products",
+  "indicators",
+  "persons",
+] as const;
+
+const ENTITY_GROUP_LABELS: Record<string, string> = {
+  companies: "Companies",
+  institutions: "Institutions",
+  technologies: "Technologies",
+  industries: "Industries",
+  products: "Products",
+  indicators: "Indicators",
+  persons: "Persons",
+  countries: "Countries",
+};
 
 export type ReportTopicFields = {
   tags?: unknown;
   countries?: unknown;
   regions?: unknown;
+};
+
+export type ReportEntityGroup = {
+  key: string;
+  label: string;
+  items: string[];
+  extra: number;
 };
 
 function asStringList(value: unknown): string[] {
@@ -46,40 +83,70 @@ export function ReportTopicChips({
   if (!SHOW_REPORT_TOPIC_CHIPS) return null;
   if (!hasReportTopicFields({ tags, countries, regions })) return null;
 
-  const tagList = asStringList(tags).slice(0, TOPIC_TAG_LIMIT);
-  const tagExtra = Math.max(0, asStringList(tags).length - tagList.length);
+  const allTags = asStringList(tags);
+  const tagList = allTags.slice(0, TOPIC_TAG_LIMIT);
+  const tagExtra = Math.max(0, allTags.length - tagList.length);
   const placeList = [
     ...asStringList(countries).map((c) => ({ key: `c:${c}`, label: c })),
     ...asStringList(regions).map((r) => ({ key: `r:${r}`, label: r })),
   ];
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-1", className)}>
-      {tagList.map((tag) => (
-        <span
-          key={`tag:${tag}`}
-          className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
-        >
-          {tag}
-        </span>
-      ))}
-      {tagExtra > 0 ? (
-        <span className="font-mono text-[10px] text-muted-foreground/70">
-          +{tagExtra}
-        </span>
+    <div className={cn("space-y-2", className)}>
+      {tagList.length > 0 ? (
+        <div>
+          <TopicFieldLabel>
+            Tags
+            <span className="ml-1 font-mono font-normal normal-case tracking-normal text-muted-foreground/60">
+              {allTags.length}
+            </span>
+          </TopicFieldLabel>
+          <div className="flex flex-wrap gap-1">
+            {tagList.map((tag) => (
+              <span
+                key={`tag:${tag}`}
+                className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-foreground/85"
+              >
+                {tag}
+              </span>
+            ))}
+            {tagExtra > 0 ? (
+              <span className="self-center font-mono text-[10px] text-muted-foreground/70">
+                +{tagExtra} more
+              </span>
+            ) : null}
+          </div>
+        </div>
       ) : null}
-      {tagList.length > 0 && placeList.length > 0 ? (
-        <span className="px-0.5 text-[10px] text-muted-foreground/50">·</span>
+      {placeList.length > 0 ? (
+        <div>
+          <TopicFieldLabel>
+            Places
+            <span className="ml-1 font-mono font-normal normal-case tracking-normal text-muted-foreground/60">
+              {placeList.length}
+            </span>
+          </TopicFieldLabel>
+          <div className="flex flex-wrap gap-1">
+            {placeList.map((place) => (
+              <span
+                key={place.key}
+                className="rounded-md border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground"
+              >
+                {place.label}
+              </span>
+            ))}
+          </div>
+        </div>
       ) : null}
-      {placeList.map((place) => (
-        <span
-          key={place.key}
-          className="rounded-md border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
-        >
-          {place.label}
-        </span>
-      ))}
     </div>
+  );
+}
+
+function TopicFieldLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+      {children}
+    </p>
   );
 }
 
@@ -92,6 +159,143 @@ export function hasReportTopicFields({
     asStringList(tags).length > 0 ||
     asStringList(countries).length > 0 ||
     asStringList(regions).length > 0
+  );
+}
+
+/** Read `metadata.entities` — only non-empty string lists. */
+export function parseReportEntityGroups(
+  metadata: unknown,
+): ReportEntityGroup[] {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return [];
+  }
+  const entities = (metadata as { entities?: unknown }).entities;
+  if (!entities || typeof entities !== "object" || Array.isArray(entities)) {
+    return [];
+  }
+  const bag = entities as Record<string, unknown>;
+  const keys = [
+    ...ENTITY_GROUP_ORDER.filter((k) => k in bag),
+    ...Object.keys(bag)
+      .filter((k) => !(ENTITY_GROUP_ORDER as readonly string[]).includes(k))
+      .sort(),
+  ];
+  const groups: ReportEntityGroup[] = [];
+  for (const key of keys) {
+    const all = asStringList(bag[key]);
+    if (all.length === 0) continue;
+    const items = all.slice(0, ENTITY_ITEM_LIMIT);
+    groups.push({
+      key,
+      label: ENTITY_GROUP_LABELS[key] ?? key,
+      items,
+      extra: Math.max(0, all.length - items.length),
+    });
+  }
+  return groups;
+}
+
+export function hasReportEntityGroups(metadata: unknown): boolean {
+  return parseReportEntityGroups(metadata).length > 0;
+}
+
+/**
+ * Collapsed-by-default entities fold (T2). Read-only — no click actions yet.
+ * `placement`: topics = sidebar Topics; modal = wide reader.
+ */
+export function ReportEntitiesFold({
+  metadata,
+  placement = "modal",
+  className,
+}: {
+  metadata?: unknown;
+  placement?: "topics" | "modal";
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  if (!SHOW_REPORT_ENTITIES) return null;
+  if (placement === "topics" && !SHOW_REPORT_ENTITIES_IN_TOPICS) return null;
+
+  const groups = parseReportEntityGroups(metadata);
+  if (groups.length === 0) return null;
+
+  const total = groups.reduce((n, g) => n + g.items.length + g.extra, 0);
+  const preview = groups
+    .slice(0, 3)
+    .map((g) => g.label)
+    .join(" · ");
+
+  return (
+    <div className={cn("rounded-md border border-border bg-muted/20", className)}>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "flex w-full items-start gap-1.5 px-2 py-1.5 text-left",
+          "hover:bg-accent/40",
+        )}
+      >
+        <ChevronDown
+          className={cn(
+            "mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            <span className="text-[11px] font-medium text-foreground">
+              Named entities
+            </span>
+            <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+              {total}
+            </span>
+          </span>
+          {!open ? (
+            <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
+              {preview}
+              {groups.length > 3 ? " · …" : ""}
+              {" · "}
+              tap to expand
+            </span>
+          ) : null}
+        </span>
+      </button>
+      {open ? (
+        <div className="space-y-2.5 border-t border-border px-2 py-2">
+          {groups.map((group) => {
+            const count = group.items.length + group.extra;
+            return (
+              <div key={group.key}>
+                <div className="mb-1 flex items-center gap-1.5">
+                  <span className="text-[10px] font-medium text-foreground">
+                    {group.label}
+                  </span>
+                  <span className="font-mono text-[10px] text-muted-foreground/70">
+                    {count}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {group.items.map((item) => (
+                    <span
+                      key={`${group.key}:${item}`}
+                      className="rounded-md border border-border/80 bg-background px-1.5 py-0.5 text-[10px] leading-snug text-foreground/85"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                  {group.extra > 0 ? (
+                    <span className="self-center font-mono text-[10px] text-muted-foreground/70">
+                      +{group.extra} more
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -244,6 +448,7 @@ export function ReportReaderModal({
   tags,
   countries,
   regions,
+  metadata,
 }: {
   open: boolean;
   onClose: () => void;
@@ -255,6 +460,7 @@ export function ReportReaderModal({
   tags?: unknown;
   countries?: unknown;
   regions?: unknown;
+  metadata?: unknown;
 }) {
   const titleId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -316,6 +522,7 @@ export function ReportReaderModal({
               countries={countries}
               regions={regions}
             />
+            <ReportEntitiesFold metadata={metadata} placement="modal" />
           </div>
           <button
             type="button"
