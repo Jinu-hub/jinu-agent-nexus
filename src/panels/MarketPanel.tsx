@@ -46,6 +46,7 @@ import {
 } from "./ReportReader";
 import { MyInterestsFold, SHOW_MY_INTERESTS } from "./MyInterestsFold";
 import {
+  collectReportPreferenceKeys,
   fetchPreferences,
   isPreferenceSaved,
   mapTopicToPreference,
@@ -310,6 +311,7 @@ export function MarketPanel({
   const [helpOpen, setHelpOpen] = useState(false);
   const [preferences, setPreferences] = useState<PreferenceRow[]>([]);
   const [preferencesLoading, setPreferencesLoading] = useState(true);
+  const [interestsOnly, setInterestsOnly] = useState(false);
   const reportScrollRef = useRef<HTMLDivElement>(null);
   const helpWrapRef = useRef<HTMLDivElement>(null);
 
@@ -526,6 +528,10 @@ export function MarketPanel({
     reportCached && report?.found ? (report.item ?? null) : null;
   const hasReportCandidate = Boolean(briefItem?.target_id);
   const hasReport = Boolean(reportItem?.content);
+  const reportKeys =
+    hasReport && reportItem
+      ? collectReportPreferenceKeys(reportItem)
+      : null;
   const reportCheckedMissing =
     reportCached && report !== null && !report.found;
 
@@ -558,6 +564,7 @@ export function MarketPanel({
     setVoiceOpen(false);
     setTopicsOpen(false);
     setReportOpen(false);
+    setInterestsOnly(false);
     if (hasBrief) setBriefOpen(true);
   }, [date, lang, hasBrief]);
 
@@ -977,6 +984,9 @@ export function MarketPanel({
                       preferences={preferences}
                       loading={preferencesLoading}
                       onRemove={removeInterestRow}
+                      reportKeys={reportKeys}
+                      interestsOnly={interestsOnly}
+                      onInterestsOnlyChange={setInterestsOnly}
                     />
                   ) : null}
                   <div className="flex items-center gap-2 py-2 text-[11px] text-muted-foreground">
@@ -991,6 +1001,9 @@ export function MarketPanel({
                       preferences={preferences}
                       loading={preferencesLoading}
                       onRemove={removeInterestRow}
+                      reportKeys={reportKeys}
+                      interestsOnly={interestsOnly}
+                      onInterestsOnlyChange={setInterestsOnly}
                     />
                   ) : null}
                   {hasReportTopicFields(reportItem!) ? (
@@ -1002,6 +1015,7 @@ export function MarketPanel({
                       onAsk={onAskInChat}
                       preferences={preferences}
                       onToggleInterest={toggleInterest}
+                      interestsOnly={interestsOnly}
                     />
                   ) : (
                     <p className="text-[11px] leading-relaxed text-muted-foreground">
@@ -1015,6 +1029,7 @@ export function MarketPanel({
                     onAsk={onAskInChat}
                     preferences={preferences}
                     onToggleInterest={toggleInterest}
+                    interestsOnly={interestsOnly}
                   />
                   {(onAskInChat && SHOW_TOPIC_CHIP_ASK) ||
                   SHOW_TOPIC_CHIP_STAR ? (
@@ -1040,6 +1055,9 @@ export function MarketPanel({
                       preferences={preferences}
                       loading={preferencesLoading}
                       onRemove={removeInterestRow}
+                      reportKeys={reportKeys}
+                      interestsOnly={interestsOnly}
+                      onInterestsOnlyChange={setInterestsOnly}
                     />
                   ) : null}
                   {reportCheckedMissing && hasBrief ? (
@@ -1192,6 +1210,7 @@ export function MarketPanel({
           onAsk={onAskInChat}
           preferences={preferences}
           onToggleInterest={toggleInterest}
+          interestsOnly={interestsOnly}
         />
       ) : null}
 

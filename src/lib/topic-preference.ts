@@ -69,6 +69,80 @@ export function isPreferenceSaved(
   return prefs.some((p) => preferenceKey(p.kind, p.target) === key);
 }
 
+function asStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+    .map((v) => v.trim());
+}
+
+function addMapped(
+  keys: Set<string>,
+  source: TopicPreferenceSource,
+): void {
+  const mapped = mapTopicToPreference(source);
+  if (mapped) keys.add(preferenceKey(mapped.kind, mapped.target));
+}
+
+/**
+ * P2 — preference keys present in a report's tags / places / entities.
+ * Used for "in today’s report" badges and interests-only filter.
+ */
+export function collectReportPreferenceKeys(report: {
+  tags?: unknown;
+  countries?: unknown;
+  regions?: unknown;
+  metadata?: unknown;
+}): Set<string> {
+  const keys = new Set<string>();
+  for (const tag of asStringList(report.tags)) {
+    addMapped(keys, { source: "tag", label: tag });
+  }
+  for (const place of [
+    ...asStringList(report.countries),
+    ...asStringList(report.regions),
+  ]) {
+    addMapped(keys, { source: "place", label: place });
+  }
+
+  const meta = report.metadata;
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return keys;
+  const entities = (meta as { entities?: unknown }).entities;
+  if (!entities || typeof entities !== "object" || Array.isArray(entities)) {
+    return keys;
+  }
+  for (const [group, value] of Object.entries(
+    entities as Record<string, unknown>,
+  )) {
+    for (const label of asStringList(value)) {
+      addMapped(keys, { source: "entity", group, label });
+    }
+  }
+  return keys;
+}
+
+export function interestInReport(
+  row: PreferenceRow,
+  reportKeys: Set<string> | null | undefined,
+): boolean {
+  if (!reportKeys || reportKeys.size === 0) return false;
+  return reportKeys.has(preferenceKey(row.kind, row.target));
+}
+
+/** Sort: in-report first, then level desc, then target. */
+export function sortPreferencesForReport(
+  prefs: PreferenceRow[],
+  reportKeys: Set<string> | null | undefined,
+): PreferenceRow[] {
+  return [...prefs].sort((a, b) => {
+    const aIn = interestInReport(a, reportKeys) ? 0 : 1;
+    const bIn = interestInReport(b, reportKeys) ? 0 : 1;
+    if (aIn !== bIn) return aIn - bIn;
+    if (b.level !== a.level) return b.level - a.level;
+    return a.target.localeCompare(b.target);
+  });
+}
+
 export async function fetchPreferences(): Promise<PreferenceRow[]> {
   const res = await fetch("/memory/preferences");
   if (!res.ok) {

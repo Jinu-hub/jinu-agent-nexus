@@ -918,3 +918,22 @@ curl -sS 'http://localhost:5173/api/briefs/latest-date?lang=ko' | python3 -m jso
 2. My interests × 또는 ★ 재클릭 → 삭제
 3. 저장된 칩에 amber ring + filled star
 
+### 10.11 Panel reflection — in-report interests (P2) *(완료 · 시험)*
+
+* **매칭** (`collectReportPreferenceKeys` / `interestInReport` / `sortPreferencesForReport`):
+  * 오늘 리포트 tags · places · entities → preference key set
+  * My interests: 리포트에 있는 항목 먼저 정렬 + amber `in report` 뱃지
+  * 헤더 `N in report` 카운트
+* **필터:** `Show interests in this report only` (`SHOW_INTERESTS_ONLY_FILTER`)
+  * My interests 목록 · Topics 칩 · Named entities 동시 필터
+  * 날짜/언어 변경 시 필터 해제
+* **끄기:** `SHOW_INTERESTS_ONLY_FILTER`
+* **의도적으로 안 함:** 챗 prefetch 관심 주입 (P3) / Brief weights / hide·less
+
+확인:
+
+1. ★ 저장 후 Topics 펼침 → My interests에 `in report` + 헤더 카운트
+2. 필터 ON → 리포트에 없는 interest / 칩 숨김
+3. wide reader도 동일 필터 반영
+
+

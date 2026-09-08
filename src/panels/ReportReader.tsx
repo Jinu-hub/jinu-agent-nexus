@@ -101,6 +101,7 @@ export function ReportTopicChips({
   onAsk,
   preferences,
   onToggleInterest,
+  interestsOnly,
 }: ReportTopicFields & {
   className?: string;
   /** Panel market_date for Ask prompts (YYYY-MM-DD). */
@@ -108,20 +109,54 @@ export function ReportTopicChips({
   onAsk?: (prompt: string) => void;
   preferences?: PreferenceRow[];
   onToggleInterest?: (source: TopicPreferenceSource) => void;
+  /** P2 — only show chips that are already starred. */
+  interestsOnly?: boolean;
 }) {
   if (!SHOW_REPORT_TOPIC_CHIPS) return null;
   if (!hasReportTopicFields({ tags, countries, regions })) return null;
 
   const allTags = asStringList(tags);
-  const tagList = allTags.slice(0, TOPIC_TAG_LIMIT);
-  const tagExtra = Math.max(0, allTags.length - tagList.length);
-  const placeList = [
+  const prefs = preferences ?? [];
+  const askEnabled = Boolean(onAsk) && SHOW_TOPIC_CHIP_ASK;
+  const starEnabled = Boolean(onToggleInterest) && SHOW_TOPIC_CHIP_STAR;
+
+  let tagList = allTags.slice(0, TOPIC_TAG_LIMIT);
+  let tagExtra = Math.max(0, allTags.length - tagList.length);
+  let placeList = [
     ...asStringList(countries).map((c) => ({ key: `c:${c}`, label: c })),
     ...asStringList(regions).map((r) => ({ key: `r:${r}`, label: r })),
   ];
-  const askEnabled = Boolean(onAsk) && SHOW_TOPIC_CHIP_ASK;
-  const starEnabled = Boolean(onToggleInterest) && SHOW_TOPIC_CHIP_STAR;
-  const prefs = preferences ?? [];
+
+  if (interestsOnly) {
+    tagList = allTags.filter((tag) => {
+      const mapped = mapTopicToPreference({ source: "tag", label: tag });
+      return (
+        mapped != null &&
+        isPreferenceSaved(prefs, mapped.kind, mapped.target)
+      );
+    });
+    tagExtra = 0;
+    placeList = placeList.filter((place) => {
+      const mapped = mapTopicToPreference({
+        source: "place",
+        label: place.label,
+      });
+      return (
+        mapped != null &&
+        isPreferenceSaved(prefs, mapped.kind, mapped.target)
+      );
+    });
+    if (tagList.length === 0 && placeList.length === 0) {
+      return (
+        <p className="text-[10px] leading-relaxed text-muted-foreground">
+          No starred tags / places in this report.
+        </p>
+      );
+    }
+  } else {
+    tagList = allTags.slice(0, TOPIC_TAG_LIMIT);
+    tagExtra = Math.max(0, allTags.length - tagList.length);
+  }
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -130,7 +165,7 @@ export function ReportTopicChips({
           <TopicFieldLabel>
             Tags
             <span className="ml-1 font-mono font-normal normal-case tracking-normal text-muted-foreground/60">
-              {allTags.length}
+              {interestsOnly ? tagList.length : allTags.length}
             </span>
           </TopicFieldLabel>
           <div className="flex flex-wrap gap-1">
@@ -319,6 +354,7 @@ export function ReportEntitiesFold({
   onAsk,
   preferences,
   onToggleInterest,
+  interestsOnly,
 }: {
   metadata?: unknown;
   placement?: "topics" | "modal";
@@ -327,12 +363,42 @@ export function ReportEntitiesFold({
   onAsk?: (prompt: string) => void;
   preferences?: PreferenceRow[];
   onToggleInterest?: (source: TopicPreferenceSource) => void;
+  interestsOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   if (!SHOW_REPORT_ENTITIES) return null;
   if (placement === "topics" && !SHOW_REPORT_ENTITIES_IN_TOPICS) return null;
 
-  const groups = parseReportEntityGroups(metadata);
+  const prefs = preferences ?? [];
+  const askEnabled = Boolean(onAsk) && SHOW_TOPIC_CHIP_ASK;
+  const starEnabled = Boolean(onToggleInterest) && SHOW_TOPIC_CHIP_STAR;
+
+  let groups = parseReportEntityGroups(metadata);
+  if (interestsOnly) {
+    groups = groups
+      .map((group) => {
+        const items = group.items.filter((item) => {
+          const mapped = mapTopicToPreference({
+            source: "entity",
+            group: group.key,
+            label: item,
+          });
+          return (
+            mapped != null &&
+            isPreferenceSaved(prefs, mapped.kind, mapped.target)
+          );
+        });
+        return { ...group, items, extra: 0 };
+      })
+      .filter((g) => g.items.length > 0);
+    if (groups.length === 0) {
+      return (
+        <p className="text-[10px] leading-relaxed text-muted-foreground">
+          No starred entities in this report.
+        </p>
+      );
+    }
+  }
   if (groups.length === 0) return null;
 
   const total = groups.reduce((n, g) => n + g.items.length + g.extra, 0);
@@ -340,25 +406,27 @@ export function ReportEntitiesFold({
     .slice(0, 3)
     .map((g) => g.label)
     .join(" · ");
-  const askEnabled = Boolean(onAsk) && SHOW_TOPIC_CHIP_ASK;
-  const starEnabled = Boolean(onToggleInterest) && SHOW_TOPIC_CHIP_STAR;
-  const prefs = preferences ?? [];
+  // Auto-expand when filtering so matches are visible.
+  const foldOpen = interestsOnly ? true : open;
 
   return (
     <div className={cn("rounded-md border border-border bg-muted/20", className)}>
       <button
         type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        aria-expanded={foldOpen}
+        onClick={() => {
+          if (!interestsOnly) setOpen((v) => !v);
+        }}
         className={cn(
           "flex w-full items-start gap-1.5 px-2 py-1.5 text-left",
           "hover:bg-accent/40",
+          interestsOnly && "cursor-default",
         )}
       >
         <ChevronDown
           className={cn(
             "mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
-            open && "rotate-180",
+            foldOpen && "rotate-180",
           )}
         />
         <span className="min-w-0 flex-1">
@@ -370,7 +438,7 @@ export function ReportEntitiesFold({
               {total}
             </span>
           </span>
-          {!open ? (
+          {!foldOpen ? (
             <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
               {preview}
               {groups.length > 3 ? " · …" : ""}
@@ -380,7 +448,7 @@ export function ReportEntitiesFold({
           ) : null}
         </span>
       </button>
-      {open ? (
+      {foldOpen ? (
         <div className="space-y-2.5 border-t border-border px-2 py-2">
           {groups.map((group) => {
             const count = group.items.length + group.extra;
@@ -583,6 +651,7 @@ export function ReportReaderModal({
   onAsk,
   preferences,
   onToggleInterest,
+  interestsOnly,
 }: {
   open: boolean;
   onClose: () => void;
@@ -599,6 +668,7 @@ export function ReportReaderModal({
   onAsk?: (prompt: string) => void;
   preferences?: PreferenceRow[];
   onToggleInterest?: (source: TopicPreferenceSource) => void;
+  interestsOnly?: boolean;
 }) {
   const titleId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -663,6 +733,7 @@ export function ReportReaderModal({
               onAsk={onAsk}
               preferences={preferences}
               onToggleInterest={onToggleInterest}
+              interestsOnly={interestsOnly}
             />
             <ReportEntitiesFold
               metadata={metadata}
@@ -671,6 +742,7 @@ export function ReportReaderModal({
               onAsk={onAsk}
               preferences={preferences}
               onToggleInterest={onToggleInterest}
+              interestsOnly={interestsOnly}
             />
           </div>
           <button
