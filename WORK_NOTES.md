@@ -936,4 +936,23 @@ curl -sS 'http://localhost:5173/api/briefs/latest-date?lang=ko' | python3 -m jso
 2. 필터 ON → 리포트에 없는 interest / 칩 숨김
 3. wide reader도 동일 필터 반영
 
+### 10.12 Chat prefetch — user interests (P3) *(완료 · 시험)*
+
+* **목적:** Topics에서 ★ 저장한 MyMemory preferences를 Market Memory 챗 prefetch에 넣어, 답변이 관심 키워드를 우선 언급하도록 함 (없는 사실은 날조 금지)
+* **헬퍼:** `worker/chat-agent/user-interests.ts`
+  * `loadUserInterests` — MyMemory DO `listPreferences` (인스턴스 `default`, 최대 12)
+  * `resolveInterestHits` — keywords exact + title/summary/excerpt soft match (짧은 토큰은 경계 매칭)
+* **연결:**
+  * `market-prefetch.ts` — `userInterests` + `interestHits`; hits 있으면 instruction에 **첫 bullet 필수**
+  * soul RULE 5 — interestHits 선두 언급
+* **P3 보강:** 태그 나열만 하지 말고 핵심 첫 줄에 hit 반영 (instruction 강화 + snippet 매칭)
+* **의도적으로 안 함:** 벡터 검색 / 동적 Ask 칩 / Brief weights·정렬 / hide·less
+
+확인:
+
+1. ★ (예: ai) 후 「Latest 풀리포트 핵심만」→ **첫 bullet/문장**에 AI 관련 포인트
+2. Prefetch에 `interestHits` 포함
+3. 리포트에 없는 관심사는 억지로 끼워 넣지 않음
+
+
 

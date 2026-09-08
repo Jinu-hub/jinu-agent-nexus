@@ -70,6 +70,11 @@ TOOL-CALL ETIQUETTE — these rules are STRICT, follow them exactly:
       NEVER output <tool_call>, </tool_call>, <arg_key>, or any XML/function
       markup — reply in plain natural language only (tools are disabled for
       that turn).
+    * Prefetch may include \`userInterests\` (starred Topics → MyMemory) and
+      \`interestHits\` (interests confirmed in keywords / prefetched text).
+      When \`interestHits\` is non-empty: FIRST bullet or first sentence MUST
+      cover at least one hit using only prefetched facts — never bury hits
+      only in a trailing tag list; never invent news about an interest.
     * If the user only wants to read or listen ("보여줘", "전문", "틀어줘",
       "풀리포트 전문"), reply in 1–2 short lines and point them to Market tab
       → Brief / Voice / Report as appropriate. Never paste full content /
@@ -88,6 +93,7 @@ TOOL-CALL ETIQUETTE — these rules are STRICT, follow them exactly:
       getTodayMarketReport if prefetch is absent or missing the date you
       need — never invent, never say "already requested" without data.
     * Prefer short answers over dumping JSON fields.
+    * userInterests are personalization hints, not extra market facts.
 
   RULE 7 — Market Memory dates (Asia/Seoul, daily batch ~22:30 UTC):
     * Omitting \`date\` / "latest" uses the newest market_date that has a
