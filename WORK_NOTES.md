@@ -954,5 +954,20 @@ curl -sS 'http://localhost:5173/api/briefs/latest-date?lang=ko' | python3 -m jso
 2. Prefetch에 `interestHits` 포함
 3. 리포트에 없는 관심사는 억지로 끼워 넣지 않음
 
+### 10.13 Brief “For you” taste (P4) *(완료 · 시험)*
+
+* **목적:** Brief 원문은 공통 하이라이트 유지, 관심사와 겹치는 문장만 위에 **For you** 블록으로 맛보기 표시 (벡터 개인화 전 단계)
+* **헬퍼:** `src/lib/brief-for-you.ts` — preferences ↔ pulse/takeaway/content 줄 단위 문자열 매칭 (짧은 토큰 경계)
+* **UI:** `src/panels/BriefForYou.tsx` — Brief 섹션, Pulse 위 · 칩 + 최대 3줄 발췌
+* **끄기:** `SHOW_BRIEF_FOR_YOU`
+* **의도적으로 안 함:** Brief 원문 재생성 / weights UI·hide·less / 벡터 검색 / 본문 재정렬
+
+확인:
+
+1. Topics ★ (Brief 본문에 나오는 키워드) → Brief 상단 **For you**에 칩·발췌
+2. Brief에 없는 관심사만 있으면 For you 숨김
+3. 공통 Pulse/본문은 그대로 아래에 유지
+
+
 
 

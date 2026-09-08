@@ -45,6 +45,7 @@ import {
   jumpToSection,
 } from "./ReportReader";
 import { MyInterestsFold, SHOW_MY_INTERESTS } from "./MyInterestsFold";
+import { BriefForYou, SHOW_BRIEF_FOR_YOU } from "./BriefForYou";
 import {
   collectReportPreferenceKeys,
   fetchPreferences,
@@ -324,7 +325,9 @@ export function MarketPanel({
   }, []);
 
   const loadPreferences = useCallback(async () => {
-    if (!SHOW_MY_INTERESTS && !SHOW_TOPIC_CHIP_STAR) return;
+    if (!SHOW_MY_INTERESTS && !SHOW_TOPIC_CHIP_STAR && !SHOW_BRIEF_FOR_YOU) {
+      return;
+    }
     setPreferencesLoading(true);
     try {
       setPreferences(await fetchPreferences());
@@ -876,6 +879,12 @@ export function MarketPanel({
                   {briefItem!.brief_type} · {briefItem!.lang_code} ·{" "}
                   {briefItem!.status}
                 </p>
+                <BriefForYou
+                  preferences={preferences}
+                  pulse={pulse}
+                  takeaway={takeaway}
+                  content={briefItem!.content}
+                />
                 {(pulse || takeaway) && (
                   <div className="space-y-1 rounded-md bg-muted/40 px-2 py-1.5 text-[10px] leading-relaxed text-muted-foreground">
                     {pulse && (
