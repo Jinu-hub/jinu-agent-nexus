@@ -827,6 +827,14 @@ export function MarketPanel({
         </div>
       ) : date ? (
         <div className="space-y-3">
+          {hasBrief ? (
+            <BriefForYou
+              preferences={preferences}
+              pulse={pulse}
+              takeaway={takeaway}
+              content={briefItem!.content}
+            />
+          ) : null}
           <MarketSection
             icon={Newspaper}
             title="Brief"
@@ -872,39 +880,14 @@ export function MarketPanel({
           >
             {hasBrief ? (
               <div className="space-y-2">
-                <p className="text-[11px] font-medium leading-snug">
-                  {briefItem!.title ?? "Untitled brief"}
-                </p>
-                <p className="font-mono text-[10px] text-muted-foreground">
-                  {briefItem!.brief_type} · {briefItem!.lang_code} ·{" "}
-                  {briefItem!.status}
-                </p>
-                <BriefForYou
-                  preferences={preferences}
-                  pulse={pulse}
-                  takeaway={takeaway}
-                  content={briefItem!.content}
-                />
-                {(pulse || takeaway) && (
-                  <div className="space-y-1 rounded-md bg-muted/40 px-2 py-1.5 text-[10px] leading-relaxed text-muted-foreground">
-                    {pulse && (
-                      <p>
-                        <span className="font-medium text-foreground">
-                          Pulse:{" "}
-                        </span>
-                        {pulse}
-                      </p>
-                    )}
-                    {takeaway && (
-                      <p>
-                        <span className="font-medium text-foreground">
-                          Takeaway:{" "}
-                        </span>
-                        {takeaway}
-                      </p>
-                    )}
-                  </div>
-                )}
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <p className="text-[11px] font-medium leading-snug">
+                    {briefItem!.title ?? "Untitled brief"}
+                  </p>
+                  <p className="font-mono text-[10px] text-muted-foreground">
+                    {briefItem!.brief_type} · {briefItem!.lang_code}
+                  </p>
+                </div>
                 <div className="max-h-64 overflow-y-auto whitespace-pre-wrap text-[11px] leading-relaxed text-foreground">
                   {briefItem!.content}
                 </div>

@@ -78,8 +78,8 @@ const INITIAL_STATE: State = {
 // new tab. The value strings are arbitrary — they just have to match
 // between trigger and content.
 const PANELS = [
-  { value: "memory", label: "Memory", icon: Brain },
   { value: "market", label: "Market", icon: Newspaper },
+  { value: "memory", label: "Memory", icon: Brain },
   { value: "skills", label: "Skills", icon: BookOpen },
   { value: "files", label: "Files", icon: FolderTree },
   { value: "tools", label: "Tools", icon: Wrench },
@@ -245,7 +245,7 @@ export default function App() {
 
       {/* RIGHT — tabbed panels */}
       <aside className="hidden w-105 shrink-0 border-l border-border bg-card md:flex md:flex-col animate-fade-up [animation-delay:200ms]">
-        <Tabs defaultValue="memory" className="flex h-full flex-col">
+        <Tabs defaultValue="market" className="flex h-full flex-col">
           <TabsList className="shrink-0 px-2 pt-2">
             {PANELS.map((p) => (
               <TabsTrigger key={p.value} value={p.value}>

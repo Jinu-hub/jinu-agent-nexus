@@ -958,7 +958,7 @@ curl -sS 'http://localhost:5173/api/briefs/latest-date?lang=ko' | python3 -m jso
 
 * **목적:** Brief 원문은 공통 하이라이트 유지, 관심사와 겹치는 문장만 위에 **For you** 블록으로 맛보기 표시 (벡터 개인화 전 단계)
 * **헬퍼:** `src/lib/brief-for-you.ts` — preferences ↔ pulse/takeaway/content 줄 단위 문자열 매칭 (짧은 토큰 경계)
-* **UI:** `src/panels/BriefForYou.tsx` — Brief 섹션, Pulse 위 · 칩 + 최대 3줄 발췌
+* **UI:** `src/panels/BriefForYou.tsx` — Brief 섹션 **위**에 접힌 행 → 클릭 시 모달(칩+매칭 문장). Pulse/Takeaway metadata 박스는 표시하지 않음
 * **끄기:** `SHOW_BRIEF_FOR_YOU`
 * **의도적으로 안 함:** Brief 원문 재생성 / weights UI·hide·less / 벡터 검색 / 본문 재정렬
 
@@ -967,6 +967,18 @@ curl -sS 'http://localhost:5173/api/briefs/latest-date?lang=ko' | python3 -m jso
 1. Topics ★ (Brief 본문에 나오는 키워드) → Brief 상단 **For you**에 칩·발췌
 2. Brief에 없는 관심사만 있으면 For you 숨김
 3. 공통 Pulse/본문은 그대로 아래에 유지
+
+### 10.14 TODO — 벡터 기반 관심사 검색 (미착수)
+
+> 방향: **당일 확정 풀 리포트**를 관심사로 다시 읽기. Brief는 공통 하이라이트 유지. (웹 검색으로 새 리포트 생성은 별 트랙)
+
+* [ ] **인덱싱:** `item_contents` 본문을 청크로 임베딩 → Vectorize (기존 PDF RAG와 인덱스/메타 분리 여부 결정; dim·`EMBEDDING_MODEL` 일치)
+* [ ] **쿼리:** MyMemory preferences `target`(± kind)로 top-k 문단 검색; `Energy`↔`에너지` 등 문자열 exact의 한계를 여기서 흡수
+* [ ] **필터:** `market_date` + `lang`(+ `content_lang`)로 당일·언어만; 타일 리포트 혼입 금지
+* [ ] **소비처:** For you 모달 / 챗 prefetch(`interestHits`·발췌)가 **리포트 문단**을 쓰도록 교체 — Brief 문장 `includes` 맛보기(`brief-for-you`)는 임시
+* [ ] **품질:** 점수 threshold·중복 청크 제거·짧은 토큰(`ai`) 오탐 점검; 리포트에 없는 관심사는 “없음” (날조·웹 보강은 범위 밖)
+* [ ] **운영:** 일배치/ingest 시점, 재임베딩, 비용·레이턴시; 챗 턴당 쿼리 횟수 상한
+
 
 
 
