@@ -16,7 +16,7 @@ export const SHOW_MY_INTERESTS = true;
 export const SHOW_INTERESTS_ONLY_FILTER = true;
 
 const KIND_LABEL: Record<string, string> = {
-  theme: "Theme",
+  theme: "Tag",
   company: "Company",
   industry: "Industry",
   asset: "Asset",

@@ -32,16 +32,15 @@ import { cn } from "@/lib/utils";
 import { PanelHeader } from "./PanelHeader";
 import {
   ReportArticle,
-  ReportEntitiesFold,
+  ReportKeywordChips,
   ReportReaderModal,
   ReportToc,
-  ReportTopicChips,
   SHOW_REPORT_TOPIC_CHIPS,
   SHOW_TOPIC_CHIP_ASK,
   SHOW_TOPIC_CHIP_STAR,
   SHOW_TOPICS_SECTION,
   extractReportSections,
-  hasReportTopicFields,
+  hasTopKeywords,
   jumpToSection,
 } from "./ReportReader";
 import { MyInterestsFold, SHOW_MY_INTERESTS } from "./MyInterestsFold";
@@ -963,7 +962,7 @@ export function MarketPanel({
               onToggle={toggleTopics}
               summary={
                 hasReport
-                  ? "tags · places · entities"
+                  ? "tags + rotated keywords"
                   : hasReportCandidate
                     ? "From full report"
                     : null
@@ -998,11 +997,12 @@ export function MarketPanel({
                       onInterestsOnlyChange={setInterestsOnly}
                     />
                   ) : null}
-                  {hasReportTopicFields(reportItem!) ? (
-                    <ReportTopicChips
+                  {hasTopKeywords(reportItem!) ? (
+                    <ReportKeywordChips
                       tags={reportItem!.tags}
                       countries={reportItem!.countries}
                       regions={reportItem!.regions}
+                      metadata={reportItem!.metadata}
                       marketDate={date}
                       onAsk={onAskInChat}
                       preferences={preferences}
@@ -1011,23 +1011,14 @@ export function MarketPanel({
                     />
                   ) : (
                     <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      No tags / places on this report.
+                      No keywords on this report.
                     </p>
                   )}
-                  <ReportEntitiesFold
-                    metadata={reportItem!.metadata}
-                    placement="topics"
-                    marketDate={date}
-                    onAsk={onAskInChat}
-                    preferences={preferences}
-                    onToggleInterest={toggleInterest}
-                    interestsOnly={interestsOnly}
-                  />
                   {(onAskInChat && SHOW_TOPIC_CHIP_ASK) ||
                   SHOW_TOPIC_CHIP_STAR ? (
                     <p className="text-[10px] leading-relaxed text-muted-foreground/80">
                       {onAskInChat && SHOW_TOPIC_CHIP_ASK
-                        ? "Tap a label to ask in chat"
+                        ? "Tap a keyword to ask in chat"
                         : null}
                       {onAskInChat &&
                       SHOW_TOPIC_CHIP_ASK &&
@@ -1054,15 +1045,15 @@ export function MarketPanel({
                   ) : null}
                   {reportCheckedMissing && hasBrief ? (
                     <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      No report topics for this day / language.
+                      No report keywords for this day / language.
                     </p>
                   ) : hasReportCandidate ? (
                     <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      Expand to load topics from the full report.
+                      Expand to load keywords from the full report.
                     </p>
                   ) : (
                     <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      Topics appear when a full report is linked to the brief.
+                      Keywords appear when a full report is linked to the brief.
                     </p>
                   )}
                 </div>

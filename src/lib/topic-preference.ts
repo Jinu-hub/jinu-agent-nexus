@@ -129,12 +129,22 @@ export function interestInReport(
   return reportKeys.has(preferenceKey(row.kind, row.target));
 }
 
-/** Sort: in-report first, then level desc, then target. */
+const PREFERENCE_KIND_ORDER: Record<PreferenceKind, number> = {
+  theme: 0,
+  company: 1,
+  industry: 2,
+  asset: 3,
+};
+
+/** Sort: kind (Tag/theme → Company → Industry → Asset), then in-report, level, target. */
 export function sortPreferencesForReport(
   prefs: PreferenceRow[],
   reportKeys: Set<string> | null | undefined,
 ): PreferenceRow[] {
   return [...prefs].sort((a, b) => {
+    const aKind = PREFERENCE_KIND_ORDER[a.kind] ?? 99;
+    const bKind = PREFERENCE_KIND_ORDER[b.kind] ?? 99;
+    if (aKind !== bKind) return aKind - bKind;
     const aIn = interestInReport(a, reportKeys) ? 0 : 1;
     const bIn = interestInReport(b, reportKeys) ? 0 : 1;
     if (aIn !== bIn) return aIn - bIn;

@@ -979,7 +979,20 @@ curl -sS 'http://localhost:5173/api/briefs/latest-date?lang=ko' | python3 -m jso
 * [ ] **품질:** 점수 threshold·중복 청크 제거·짧은 토큰(`ai`) 오탐 점검; 리포트에 없는 관심사는 “없음” (날조·웹 보강은 범위 밖)
 * [ ] **운영:** 일배치/ingest 시점, 재임베딩, 비용·레이턴시; 챗 턴당 쿼리 횟수 상한
 
+### 10.15 Topics UI simplify *(완료 · 시험)*
 
+* **목적:** Tags / Places / Named entities 분리가 난잡 → **표시만** 단순화 (원본 JSON·MyMemory 저장 그대로)
+* **UI:** My interests 유지 · **Tags는 기존처럼** 표시 · 나머지(entities + geo)는 **Keywords 최대 10** (`pickTopKeywords` / `ReportKeywordChips`)
+* **Keywords 선정:** 섹션 라운드로빈 — companies 선두 1 → institutions 선두 1 → … (배열 앞 = 고점수 가정); Places(`countries`+`regions`)와 `entities.countries`는 **머지·dedupe 후 geo 1큐**로 참여; **Tags에 이미 있는 라벨은 skip**하고 같은 섹션 다음 순위 채용 (`GOOGLE`/`google`, `OIL-PRICES`/`oil prices`)
+* **표시:** 값(라벨)은 **원문 케이스** 통일(Tags UPPER 강제 해제 · OpenAI 등 유지); 접두사(TAG/COMPANY/…)만 uppercase; Keywords 여닫이; **정렬** My interests=kind(Tag→Company→Industry→Asset), Keywords=섹션; My interests `theme`→**Tag**; Ask/★는 원본 라벨 매핑
+* **파일:** `ReportReader.tsx`, `MarketPanel.tsx`
+* **오프:** 구 Entities fold 코드 유지, `SHOW_REPORT_ENTITIES*` 기본 off
+* **의도적으로 안 함:** 스키마 변경 / 서버 랭킹·벡터 추천 / chat keywords 변경
 
+확인:
+
+1. Topics — Tags 행 + Keywords 여닫이 N/10 (섹션 접두사, Entities fold 없음)
+2. Keywords가 여러 그룹에서 고르게 섞임 · Tags와 중복 라벨 없음
+3. My interests·★·Ask 동작 유지 · wide reader 동일
 
 
