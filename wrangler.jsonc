@@ -168,10 +168,11 @@
     "AUDIO_CRON_BATCH_LIMIT": "10",
   },
 
-  // Voice generation Cron — UTC 00:00 daily (= KST 09:00). Change here and
-  // redeploy; must stay in sync with VOICE_AUDIO_CRON in voice-audio-cron.ts.
+  // Voice generation Cron — UTC 00:00 + 01:00 catch-up (= KST 09:00 / 10:00).
+  // Change here and redeploy; must stay in sync with VOICE_AUDIO_CRONS in
+  // voice-audio-cron.ts. Empty pending → no TTS / R2.
   "triggers": {
-    "crons": ["0 0 * * *"],
+    "crons": ["0 0 * * *", "0 1 * * *"],
   },
 
   // Secrets go in `.dev.vars` for local dev and via

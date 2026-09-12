@@ -37,6 +37,7 @@
 | Default chat model | `@cf/zai-org/glm-4.7-flash` (Workers AI, free tier) |
 | Default embed model | `@cf/baai/bge-base-en-v1.5` (768-dim, must match Vectorize) |
 | AI Gateway name | `agent-boilerplate` (unused until non-`@cf/` models) |
+| Voice Cron | UTC `0 0 * * *` + catch-up `0 1 * * *` (`voice-audio-cron.ts`) |
 | Live poll room DO | `LiveMarketRoomAgent` (binding + class), room `market-pulse` |
 | Secrets | `API_TOKEN`, `LIVE_ROOM_TOKEN` (optional), `SUPABASE_*` (optional) in `.dev.vars` / `wrangler secret put` |
 
@@ -186,7 +187,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Market panel (sidebar) | `MarketPanel.tsx` + `ReportReader.tsx` + `report-topics.tsx` + `MyInterestsFold.tsx` + `BriefForYou.tsx` + `src/lib/market-date.ts`; Topics chips/Keywords in `report-topics.tsx` (re-exported by ReportReader); off-switches unchanged; wired in `App.tsx` |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) + `hidden_panels` (tab strip); UI `src/panels/SettingsPanel.tsx`; App filters `PANELS` |
 | Market Memory intent | `market-turn-hooks.ts` + `market-intent.ts` + `market-prefetch.ts` + `soul-market.ts` + `market-memory-load.ts` — prefetch into system (`toolChoice: none`); interests via `user-interests.ts`; beforeStep fallback for weather / no prefetch |
-| Voice audio pipeline | `content-audio.ts` barrel + `content-audio-domain.ts` / `content-audio-routes.ts` + `voice-audio-cron.ts` → `/api/audio/*`; today play + tool `getTodayMarketVoice.ts` |
+| Voice audio pipeline | `content-audio.ts` barrel + `content-audio-domain.ts` / `content-audio-routes.ts` + `voice-audio-cron.ts` (UTC `0 0` + catch-up `0 1`) → `/api/audio/*`; today play + tool `getTodayMarketVoice.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
 | UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` — empty state shares Market Memory suggestions |

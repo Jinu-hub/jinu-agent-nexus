@@ -249,7 +249,10 @@ Called after: cold start, every chat turn, and most `@callable` mutations.
 | `LOADER` | worker_loaders | Runtime extensions |
 
 **Vars** (`wrangler.jsonc`): `ACCOUNT_ID`, `AI_GATEWAY_NAME`, `CHAT_MODEL`,
-`EMBEDDING_MODEL`.
+`EMBEDDING_MODEL`, TTS / `AUDIO_CRON_*`.
+
+**Triggers:** Voice audio Cron `0 0 * * *` + catch-up `0 1 * * *` (UTC;
+previous-day `market_date` drain — empty pending is a no-op).
 
 **Secret** (`.dev.vars` / production):
 - `API_TOKEN` — Browser Live View + AI Gateway auth

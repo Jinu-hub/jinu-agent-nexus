@@ -31,7 +31,10 @@ import { handleSupabaseRequest } from "./supabase";
 import { handleBriefsRequest } from "./content-briefs";
 import { handleReportsRequest } from "./item-contents";
 import { handleAudioRequest } from "./content-audio";
-import { runVoiceAudioCron, VOICE_AUDIO_CRON } from "./voice-audio-cron";
+import {
+  isVoiceAudioCron,
+  runVoiceAudioCron,
+} from "./voice-audio-cron";
 import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
 
 export { ChatAgent, MyMemory, LiveMarketRoomAgent };
@@ -133,7 +136,7 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    if (event.cron !== VOICE_AUDIO_CRON) return;
+    if (!isVoiceAudioCron(event.cron)) return;
     ctx.waitUntil(
       runVoiceAudioCron(env, event.cron).then((result) => {
         console.log("voice-audio-cron", JSON.stringify(result));

@@ -2,9 +2,12 @@
 // Voice Audio Cron — drain script_ready queue (Phase 6)
 // ─────────────────────────────────────────────────────────────────────────
 //
-// Schedule: wrangler `triggers.crons` — default `0 0 * * *` (UTC 00:00 = KST 09:00).
+// Schedule: wrangler `triggers.crons` — must stay in sync with VOICE_AUDIO_CRONS.
+//   00:00 UTC (= KST 09:00) — primary drain
+//   01:00 UTC (= KST 10:00) — catch-up for late script_ready (often en ~00:01+)
 // Each tick: list pending (with lang filter) → generateVoiceAudio per row until
 // batch limit or queue empty. Zero pending → no TTS, no R2 writes.
+// Both ticks use previous UTC day as targetMarketDate (same window).
 // ─────────────────────────────────────────────────────────────────────────
 
 import {
@@ -17,8 +20,19 @@ import {
   resolveVoiceLangFilter,
 } from "./voice-lang-filter";
 
-/** Must match wrangler.jsonc `triggers.crons[0]`. */
+/** Primary tick — must match wrangler.jsonc `triggers.crons`. */
 export const VOICE_AUDIO_CRON = "0 0 * * *";
+/** Catch-up tick — late EN/etc. scripts that miss 00:00. */
+export const VOICE_AUDIO_CRON_CATCHUP = "0 1 * * *";
+
+export const VOICE_AUDIO_CRONS = [
+  VOICE_AUDIO_CRON,
+  VOICE_AUDIO_CRON_CATCHUP,
+] as const;
+
+export function isVoiceAudioCron(cron: string): boolean {
+  return (VOICE_AUDIO_CRONS as readonly string[]).includes(cron);
+}
 
 const DEFAULT_BATCH_LIMIT = 10;
 

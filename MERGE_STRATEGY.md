@@ -99,7 +99,7 @@
 - [ ] NOTES KV (prod/preview)
 - [ ] R2 `AUDIO_BUCKET` (`market-memory-audio`) + 기존 `BUCKET`
 - [ ] DO migrations (MyMemory / Live / ChatAgent tags)
-- [ ] Voice cron schedule (`wrangler.jsonc` `triggers.crons`)
+- [ ] Voice cron schedule (`wrangler.jsonc` `triggers.crons` — `0 0` + `0 1` UTC)
 - [ ] `npm run seed:skills:*` if skills changed
 
 ---

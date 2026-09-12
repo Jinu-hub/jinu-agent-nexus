@@ -151,3 +151,38 @@ curl -s -X PATCH http://localhost:5173/settings \
 
 ---
 
+## 13. Voice Cron catch-up (UTC 01:00)
+
+* **목적:** EN 등 upstream `script_ready`가 종종 UTC `00:00` 직후(~`00:01`+)에 들어와 **00:00 tick을 놓치면** 다음날 cron은 다른 `market_date`만 봐 영구 pending이 됨. **01:00에 동일 drain을 한 번 더** 돌려 late row를 회수. pending 0이면 TTS/R2 없이 즉시 종료.
+* **§6:** 라우트 변경 없음.
+* **머지:** C Voice cron 스케줄 — [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md) C 체크리스트 문구 갱신.
+
+### 수정 및 추가 파일
+
+* `wrangler.jsonc` — `triggers.crons`: `["0 0 * * *", "0 1 * * *"]`
+* `worker/voice-audio-cron.ts` — `VOICE_AUDIO_CRON_CATCHUP` / `VOICE_AUDIO_CRONS` / `isVoiceAudioCron`
+* `worker/index.ts` — `scheduled`가 두 cron 모두 수용
+* `CLAUDE.md` / `MERGE_STRATEGY.md` / `ARCHITECTURE.md` — 스케줄 표기
+
+### 확인
+
+```bash
+# 수동 drain (전날 market_date + lang filter — 로컬에서 cron과 동일)
+curl -s -X POST http://localhost:5173/api/audio/cron/run
+
+# scheduled 시뮬레이션 (dev 재시작 후; catch-up 표현식)
+curl -s "http://localhost:5173/cdn-cgi/handler/scheduled?cron=0+1+*+*+*"
+```
+
+* 01:00 tick도 `targetMarketDate = previous UTC day` (00:00과 동일 창).
+* 이미 `completed`인 ko는 pending 목록에 없음 → 재생성 없음.
+* **프로덕션:** `wrangler.jsonc` 변경 후 **redeploy** 해야 Cloudflare triggers에 01:00이 등록됨.
+
+### 의도적으로 안 함
+
+* 과거 쌓인 `script_ready` 일괄 backfill (날짜 필터 유지)
+* cron 시각을 01:00만으로 이동 (00:00 primary 유지)
+* Queues / retry-on-failed
+
+---
+
