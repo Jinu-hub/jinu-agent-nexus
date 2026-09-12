@@ -249,6 +249,12 @@ export const MARKET_VECTOR_FILTER_PROPERTIES = [
   "item_id",
 ] as const;
 
+/**
+ * When true, Vectorize query filter includes `lang` (Settings / request lang).
+ * Off for now so ko/en chunks for the same item can both match; flip back on later.
+ */
+export const MARKET_VECTOR_QUERY_FILTER_BY_LANG = false;
+
 const DEFAULT_TOP_K_PER_QUERY = 2;
 const DEFAULT_HIT_LIMIT = 3;
 const MAX_QUERIES = 8;
@@ -342,7 +348,8 @@ async function resolveQueryItem(
 }
 
 /**
- * Similarity search scoped to one report (item_id + market_date + lang).
+ * Similarity search scoped to one report (item_id + market_date;
+ * lang filter optional via MARKET_VECTOR_QUERY_FILTER_BY_LANG).
  */
 export async function queryMarketVectors(
   env: Env,
@@ -357,7 +364,7 @@ export async function queryMarketVectors(
   const filter: VectorizeVectorMetadataFilter = {
     item_id: scope.itemId,
     market_date: scope.marketDate,
-    lang: scope.lang,
+    ...(MARKET_VECTOR_QUERY_FILTER_BY_LANG ? { lang: scope.lang } : {}),
   };
 
   const topK = Math.min(

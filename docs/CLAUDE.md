@@ -96,7 +96,7 @@ flowchart LR
 - `GET /api/briefs/latest-date` — newest `market_date` with a final brief (data-backed Latest)
 - `GET /api/reports/today` — `item_contents` full report via `content_briefs.target_id` (+ `item_content_i18n` overlay by `lang`)
 - `POST /api/market-vector/ingest` — chunk+embed report → `MARKET_VECTOR_DB`
-- `POST /api/market-vector/query` — interest similarity search (+ date/lang/item filters)
+- `POST /api/market-vector/query` — interest similarity search (+ date/item filters; `lang` filter via `MARKET_VECTOR_QUERY_FILTER_BY_LANG`, currently off)
 - `POST /api/market-vector/clear` — delete Vectorize chunks for one report (no re-ingest)
 - `POST /api/upload` — PDF upload (not RPC; large FormData)
 - `/screenshots/*` — R2 screenshot proxy

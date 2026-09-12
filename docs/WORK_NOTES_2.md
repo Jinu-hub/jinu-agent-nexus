@@ -205,7 +205,7 @@ curl -s "http://localhost:5173/cdn-cgi/handler/scheduled?cron=0+1+*+*+*"
 | dim / 모델 | 둘 다 768 + 기존 `EMBEDDING_MODEL` (`@cf/baai/bge-base-en-v1.5`) |
 | metadata (Market) | **필수** `item_id`, `market_date`, `lang`; 선택(나중) `report_type` / `chunk_index` |
 | 벡터 id | `mr_{item_id}_{lang}_{chunk_index}` — lang별 공존 (legacy `mr_{item_id}_{i}`는 delete 시 sweep) |
-| 필터 | 검색 시 `market_date`+`lang` 및/또는 `item_id` — 날짜·종류 혼입 방지 |
+| 필터 | 검색 시 `item_id`+`market_date` (기본); `lang`는 `MARKET_VECTOR_QUERY_FILTER_BY_LANG`로 재활성 가능 |
 | 청크 원문 | Phase 1에서 확정 (metadata 발췌 vs hit 후 `item_contents` 재조회) |
 | 외부 API | Worker 검색 API로 문단+score+메타 반환 가능 (숫자 배열 export는 비목표) |
 | 통합 검색 | **나중** — 두 인덱스 fan-out + score merge (프롬프트로 인덱스명 지시 아님) |
@@ -312,10 +312,11 @@ curl -s -X POST http://localhost:5173/api/market-vector/clear \
 
 ### 14.2 Phase 2 — 관심사 쿼리 *(완료)*
 
-* **목적:** 관심사 유사도 검색. **ingest와 같이** brief/date → `item_contents.id`를 먼저 구한 뒤, 필터에 **`item_id`+`market_date`+`lang`을 항상** 넣음 (`itemId: null` 없음).
-* **§6:** `POST /api/market-vector/query` 반영.
+* **목적:** 관심사 유사도 검색. **ingest와 같이** brief/date → `item_contents.id`를 먼저 구한 뒤, 필터에 **`item_id`+`market_date`** 를 넣음 (`itemId: null` 없음).
+* **§6 / ROUTING:** `POST /api/market-vector/query` 반영.
 * **전제:** metadata index (`market_date`, `lang`, `item_id`) + 인덱스 생성 후 재ingest.
 * **기본값:** `top_k_per_query=2`, `hit_limit=3` (짧은 다이제스트 ~4–5청크 기준; 관심사 여러 개여도 거의 전부 반환 방지).
+* **lang 필터 (임시 off):** `MARKET_VECTOR_QUERY_FILTER_BY_LANG = false` — Vectorize filter에서 `lang` 제외 (같은 item의 ko/en 청크 모두 매칭 가능). resolve·응답 `lang`·metadata·인덱스는 유지. 다시 켜려면 상수 `true`.
 
 **수정 및 추가 파일**
 
