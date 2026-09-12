@@ -1,9 +1,15 @@
-import { LoaderCircle, Settings2 } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, LoaderCircle, Settings2 } from "lucide-react";
 import type {
   ChatSettings,
   ContentLang,
+  ToggleablePanel,
 } from "../../worker/chat-agent/settings";
-import { CONTENT_LANGS } from "../../worker/chat-agent/settings";
+import {
+  CONTENT_LANGS,
+  TOGGLEABLE_PANELS,
+  TOGGLEABLE_PANEL_LABELS,
+} from "../../worker/chat-agent/settings";
 import { cn } from "@/lib/utils";
 import { PanelHeader } from "./PanelHeader";
 
@@ -82,6 +88,7 @@ export function SettingsPanel({
   onToggleAlarm,
   onToggleCleanup,
   onContentLangChange,
+  onTogglePanelVisibility,
 }: {
   settings: ChatSettings | null;
   loading: boolean;
@@ -90,7 +97,20 @@ export function SettingsPanel({
   onToggleAlarm: (enabled: boolean) => Promise<void>;
   onToggleCleanup: (enabled: boolean) => Promise<void>;
   onContentLangChange: (lang: ContentLang) => Promise<void>;
+  onTogglePanelVisibility: (
+    panel: ToggleablePanel,
+    visible: boolean,
+  ) => Promise<void>;
 }) {
+  const [panelsOpen, setPanelsOpen] = useState(false);
+  const hidden = new Set(settings?.hidden_panels ?? []);
+  const hiddenCount = settings?.hidden_panels.length ?? 0;
+  const visibleCount = TOGGLEABLE_PANELS.length - hiddenCount;
+  const panelsSummary =
+    hiddenCount === 0
+      ? `${TOGGLEABLE_PANELS.length} tabs shown`
+      : `${visibleCount} shown · ${hiddenCount} hidden`;
+
   return (
     <section>
       <PanelHeader
@@ -140,6 +160,63 @@ export function SettingsPanel({
                 );
               })}
             </div>
+          </div>
+
+          <div className="paper-inset px-3 py-2.5">
+            <button
+              type="button"
+              onClick={() => setPanelsOpen((v) => !v)}
+              aria-expanded={panelsOpen}
+              className={cn(
+                "flex w-full items-center gap-1.5 text-left",
+                panelsOpen && "mb-2",
+              )}
+            >
+              <p className="text-xs font-medium">Panel tabs</p>
+              {!panelsOpen && (
+                <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">
+                  {panelsSummary}
+                </span>
+              )}
+              {panelsOpen && <span className="min-w-0 flex-1" />}
+              <ChevronDown
+                className={cn(
+                  "size-3.5 shrink-0 text-muted-foreground transition-transform",
+                  panelsOpen && "rotate-180",
+                )}
+              />
+            </button>
+            {panelsOpen && (
+              <>
+                <p className="mb-2.5 text-[11px] leading-relaxed text-muted-foreground">
+                  Show or hide side-panel tabs. Settings stays available so you
+                  can turn tabs back on.
+                </p>
+                <div className="space-y-1.5">
+                  {TOGGLEABLE_PANELS.map((panel) => {
+                    const visible = !hidden.has(panel);
+                    return (
+                      <div
+                        key={panel}
+                        className="flex items-center justify-between gap-3 rounded-md bg-muted/40 px-2.5 py-1.5"
+                      >
+                        <span className="text-xs font-medium">
+                          {TOGGLEABLE_PANEL_LABELS[panel]}
+                        </span>
+                        <SettingSwitch
+                          checked={visible}
+                          disabled={updating}
+                          label={`Show ${TOGGLEABLE_PANEL_LABELS[panel]} tab`}
+                          onChange={(nextVisible) =>
+                            void onTogglePanelVisibility(panel, nextVisible)
+                          }
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
 
           <SettingRow

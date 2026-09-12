@@ -113,3 +113,41 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 
 ---
 
+## 12. Settings — panel tab visibility (`hidden_panels`)
+
+* **목적:** Settings에서 사이드 패널 탭(Market~MCP)을 개별 표시/숨김. DO SQLite에 저장해 새로고침 후에도 유지. Settings 탭은 항상 노출.
+* **§6:** HTTP 경로 변경 없음 (`PATCH /settings` body에 `hidden_panels`만 추가).
+* **머지:** A Settings domain 확장; B `App.tsx`에 tab strip filter — [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md) B 행 갱신.
+
+### 수정 및 추가 파일
+
+* `worker/chat-agent/settings.ts` — `TOGGLEABLE_PANELS` / `hidden_panels` 컬럼(JSON) + migrate; patch/validate
+* `src/panels/SettingsPanel.tsx` — Alarm 위 **Panel tabs** 토글 UI (기본 접힘, 여닫이)
+* `src/App.tsx` — `PANELS`를 `hidden_panels`로 filter; 활성 탭이 숨겨지면 market/settings로 이동
+* `CLAUDE.md` / `ARCHITECTURE.md` / `MERGE_STRATEGY.md` — Settings·App 표기 갱신
+
+### 확인
+
+```bash
+# 숨김 저장
+curl -s -X PATCH http://localhost:5173/settings \
+  -H 'content-type: application/json' \
+  -d '{"hidden_panels":["browser","schedules","extensions","mcp"]}'
+
+# 복원
+curl -s -X PATCH http://localhost:5173/settings \
+  -H 'content-type: application/json' \
+  -d '{"hidden_panels":[]}'
+```
+
+* UI: Settings → Panel tabs 토글 시 상단 탭 strip 즉시 반영. Settings는 끄기 불가.
+* `npx tsc -b` OK
+
+### 의도적으로 안 함
+
+* Settings 탭 자체 hide
+* TabsContent 언마운트(트리거는 숨기고 content 등록은 유지)
+* panel-registry 분리 (Wave 2)
+
+---
+

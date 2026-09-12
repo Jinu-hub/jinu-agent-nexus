@@ -267,7 +267,7 @@ Called after: cold start, every chat turn, and most `@callable` mutations.
 | Path | Role |
 |------|------|
 | `src/main.tsx` | React entry |
-| `src/App.tsx` | Layout, `useAgent`, panel tabs, theme |
+| `src/App.tsx` | Layout, `useAgent`, panel tabs (`hidden_panels` filter), theme |
 | `src/chat/Chat.tsx` | Messages, input, client tools |
 | `src/chat/Message.tsx` | Message rendering, tool UI, approvals |
 | `src/chat/Markdown.tsx` | Markdown in replies |

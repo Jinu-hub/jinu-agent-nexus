@@ -82,7 +82,7 @@
 | `worker/chat-agent/ChatAgent.ts` | `marketBeforeTurn` / `marketBeforeStep` 위임; settings cleanup (이미 있으면 유지) |
 | `configure-session.ts` | `MARKET_SOUL_RULES` compose (`soul-market.ts`) |
 | `tools-registry.ts` | `...getMarketMemoryTools(agent, env)` merge |
-| `src/App.tsx` | Market + Settings 패널 탭 / Ask bridge |
+| `src/App.tsx` | Market + Settings 패널 탭 / Ask bridge / `hidden_panels` → tab strip filter |
 | `src/main.tsx` | `/live` → `LiveMarketRoom` 분기 |
 | `src/chat/Chat.tsx` | 서버 툴은 `onToolCall`에서 가로채지 않기 |
 | `src/chat/Message.tsx` | Voice `playPath` `<audio>` |
@@ -142,3 +142,4 @@
 | 날짜 | 내용 |
 |------|------|
 | 2026-09-12 | 문서 신설. Wave 1 반영 A/B/C 초안 |
+| 2026-09-12 | Settings `hidden_panels` — B `App.tsx` tab filter 표기 ([`WORK_NOTES_2` §12](./WORK_NOTES_2.md)) |

@@ -42,7 +42,9 @@ import type {
   ChatSettings,
   ChatSettingsPatch,
   ContentLang,
+  ToggleablePanel,
 } from "../worker/chat-agent/settings";
+import { isToggleablePanel } from "../worker/chat-agent/settings";
 import { Chat } from "@/chat/Chat";
 import {
   Tabs,
@@ -103,6 +105,7 @@ export default function App() {
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [settingsUpdating, setSettingsUpdating] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("market");
 
   // ─── Theme toggle (lives in localStorage so it survives refresh) ───────
   // The matching inline script in index.html sets the `dark` class on
@@ -228,6 +231,34 @@ export default function App() {
 
   const state = agent.state ?? INITIAL_STATE;
 
+  const hiddenPanels = new Set(settings?.hidden_panels ?? []);
+  const visiblePanels = PANELS.filter(
+    (p) => p.value === "settings" || !hiddenPanels.has(p.value),
+  );
+
+  useEffect(() => {
+    const hidden = new Set(settings?.hidden_panels ?? []);
+    const stillVisible =
+      activeTab === "settings" ||
+      !isToggleablePanel(activeTab) ||
+      !hidden.has(activeTab);
+    if (stillVisible) return;
+    setActiveTab(hidden.has("market") ? "settings" : "market");
+  }, [activeTab, settings?.hidden_panels]);
+
+  const togglePanelVisibility = useCallback(
+    async (panel: ToggleablePanel, visible: boolean) => {
+      const current = settings?.hidden_panels ?? [];
+      const nextHidden = visible
+        ? current.filter((id) => id !== panel)
+        : current.includes(panel)
+          ? current
+          : [...current, panel];
+      await updateSettings({ hidden_panels: nextHidden });
+    },
+    [settings?.hidden_panels, updateSettings],
+  );
+
   // ─── Render ────────────────────────────────────────────────────────────
   return (
     <div className="relative isolate flex h-full overflow-hidden">
@@ -245,9 +276,13 @@ export default function App() {
 
       {/* RIGHT — tabbed panels */}
       <aside className="hidden w-105 shrink-0 border-l border-border bg-card md:flex md:flex-col animate-fade-up [animation-delay:200ms]">
-        <Tabs defaultValue="market" className="flex h-full flex-col">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="flex h-full flex-col"
+        >
           <TabsList className="shrink-0 px-2 pt-2">
-            {PANELS.map((p) => (
+            {visiblePanels.map((p) => (
               <TabsTrigger key={p.value} value={p.value}>
                 <p.icon className="size-3.5" />
                 {p.label}
@@ -360,6 +395,7 @@ export default function App() {
               onContentLangChange={(lang: ContentLang) =>
                 updateSettings({ content_lang: lang })
               }
+              onTogglePanelVisibility={togglePanelVisibility}
             />
           </TabsContent>
         </Tabs>
