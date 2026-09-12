@@ -1,5 +1,5 @@
 ---
-description: Keep WORK_NOTES and related project docs in sync when shipping features
+description: Keep WORK_NOTES_2 and related project docs in sync when shipping features
 alwaysApply: true
 ---
 
@@ -7,12 +7,20 @@ alwaysApply: true
 
 When you add, change, or remove a **user**, **route**, **binding**, **secret**, **tool**, **panel**, or **Phase**, update docs in the **same change set** (before considering the task done). Do not leave docs for “later” unless the user explicitly says so.
 
+## Work notes split
+
+| File | Role |
+|------|------|
+| `WORK_NOTES.md` | **Archive** — §1 ~ §10.16. Do **not** append new feature/Phase sections. |
+| `WORK_NOTES_2.md` | **Active** — §11 onward. All new non-trivial work notes go here. |
+
 ## Mandatory
 
-- **`WORK_NOTES.md` is always required** for non-trivial work:
-  - New section or Phase subsection (purpose, files, curl/verify steps, what was *not* done)
-  - Update §6 routing tree when HTTP paths change
+- **`WORK_NOTES_2.md` is always required** for non-trivial work:
+  - New section (`## 11.` …) or Phase subsection (purpose, **수정 및 추가 파일**, curl/verify steps, what was *not* done)
+  - Follow the “기록 규칙” block at the top of `WORK_NOTES_2.md`
   - Record local verification results when you (or the user) confirmed OK
+- **Routing tree:** when HTTP paths change, update **`WORK_NOTES.md` §6 only** (single source). In the matching `WORK_NOTES_2.md` section, note “§6 반영” in one line — do not duplicate the full tree into `_2`.
 
 Skip only for pure typo/style edits with no behavior or API surface change.
 
@@ -28,14 +36,15 @@ Skip only for pure typo/style edits with no behavior or API surface change.
 
 ## Style
 
-- Match existing `WORK_NOTES.md` voice (Korean bullets, Phase tables, curl blocks).
+- Match existing `WORK_NOTES.md` / `WORK_NOTES_2.md` voice (Korean bullets, Phase tables, curl blocks).
 - Keep `CLAUDE.md` / `ARCHITECTURE.md` concise — maps and pointers, not essays.
 - Do not invent features in docs that are not in code.
 - Prefer editing existing sections over adding parallel “shadow” docs.
+- Do not copy archived §1–§10 content into `WORK_NOTES_2.md`; link to `WORK_NOTES.md` when needed.
 
 ## Checklist before “done”
 
 1. Code works (or user verified).
-2. `WORK_NOTES.md` updated.
+2. `WORK_NOTES_2.md` updated (and `WORK_NOTES.md` §6 if routes changed).
 3. Touched surfaces reflected in `ARCHITECTURE.md` / `CLAUDE.md` when the table above says so.
 4. Mention docs in the commit message `Docs:` section when committing.

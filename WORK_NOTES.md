@@ -1,22 +1,30 @@
 # jinu-agent-nexus 개발 작업노트
 
 > 프로젝트의 주요 기능 개발 내역, 소스코드 변경 사항, 아키텍처 및 라우팅 현황을 기록하는 문서입니다.
+>
+> **아카이브 (§1 ~ §10.16).** 이후 작업 기록은 [`WORK_NOTES_2.md`](./WORK_NOTES_2.md) (§11~)에만 추가한다.  
+> **예외:** HTTP 라우팅 트리(**§6**)는 계속 이 파일에서만 갱신한다 (단일 소스).
 
 ---
 
 ## 1. My Market Notes (Workers KV 기반 경량 키-값 저장소)
 
 * **목적:** 관심 키워드, 숨김 항목, 간단한 메모를 빠르게 읽고 쓸 수 있는 엣지 KV 저장소 API 제공
+* **커밋:** `cf2daab`
 * **수정 및 추가 파일:**
   * `worker/notes.ts` *(신규)*: `POST /notes/:key`, `GET /notes/:key`, `GET /notes` API 핸들러 구현
   * `worker/index.ts`: `/notes` 및 `/notes/*` 라우팅 등록
   * `wrangler.jsonc`: `NOTES` KV 네임스페이스 바인딩 등록 및 `run_worker_first`에 `/notes`, `/notes/*` 추가
+  * `package.json`: `setup:kv` 스크립트 추가
+  * `scripts/setup.mjs`: NOTES KV(prod/preview) 프로비저닝 스텝 추가
+  * `ARCHITECTURE.md` / `CLAUDE.md`: Notes 기능·라우트·바인딩 문서화
 
 ---
 
 ## 2. My Market Memory (DO SQLite 기반 개인화 저장소)
 
 * **목적:** 사용자의 관심 분야(산업/기업/자산/테마), 실시간 인터랙션 피드백(별표/덜보기/숨기기/리포트클릭), 방문자 Geo(IP/도시/국가) 및 가중치(Weights) 계산을 DO 인스턴스 전용 SQLite에 격리 저장
+* **커밋:** `7bb4711`
 * **수정 및 추가 파일:**
   * `worker/my-memory.ts` *(신규)*:
     * `preferences` (현재 관심사 테이블)
@@ -26,12 +34,14 @@
   * `worker/memory-routes.ts` *(신규)*: `/memory/preferences`, `/memory/events`, `/memory/weights`, `/memory/profile` REST API 구현
   * `worker/index.ts`: `MyMemory` DO 클래스 re-export 및 라우팅 추가
   * `wrangler.jsonc`: `MyMemory` DO 바인딩 및 SQLite 마이그레이션 (`tag: v2`) 추가
+  * `ARCHITECTURE.md` / `CLAUDE.md`: MyMemory 기능·라우트·바인딩 문서화
 
 ---
 
 ## 3. DO 인스턴스 식별자 중앙 집중화 (Identity Refactoring)
 
 * **목적:** 하드코딩된 `"default"` 인스턴스명을 공유 상수로 통일하고, 추후 멀티 유저(`userId`) 전환이 용이하도록 리팩터링
+* **커밋:** `ba83dd2`
 * **수정 및 추가 파일:**
   * `src/lib/agent-identity.ts` *(신규)*: `DEFAULT_INSTANCE_NAME`, `getInstanceName(userId?)` 헬퍼 모듈 생성
   * `src/App.tsx`: `useAgent` 호출 시 `DEFAULT_INSTANCE_NAME` 사용
@@ -42,7 +52,8 @@
 
 ## 4. ChatAgent SQLite 런타임 설정 및 자동 청소 알람 (Settings & Cleanup Alarm)
 
-* **목적:** AI 채팅방 DO 내부 SQLite에 런타임 설정(`settings`, `setting_events`)을 저장하고, Agents SDK의 `scheduleEvery()` 알람을 통해 5분 이상 경과된 오래된 메시지를 주기적으로 자동 정리하는 기능 구현
+* **목적:** AI 채팅방 DO 내부 SQLite에 런타임 설정(`settings`, `setting_events`)을 저장하고, Agents SDK의 `scheduleEvery()` 알람을 통해 오래된 메시지를 주기적으로 자동 정리하는 기능 구현
+* **커밋:** `50d3277` (백엔드) · `9182e41` (Settings 패널 UI)
 * **수정 및 추가 파일:**
   * `worker/chat-agent/settings.ts` *(신규)*: `settings` 및 변경 이력 `setting_events` 테이블 스키마, CRUD 및 유효성 검사 로직
   * `worker/chat-agent/ChatAgent.ts`:
@@ -50,18 +61,21 @@
     * `runMessageCleanup()` (보관 기간 초과 메시지 삭제 및 브로드캐스트)
     * `ensureMessageCleanupSchedule()`, `syncMessageCleanupSchedule()` (Agents SDK의 `scheduleEvery` 알람 등록 및 해제)
   * `worker/settings-routes.ts` *(신규)*: `/settings`, `/settings/events` 엔드포인트 구현
+  * `worker/index.ts`: settings HTTP 라우트 연결
   * `src/panels/SettingsPanel.tsx` *(신규)*:
     * 알람 스케줄링 ON/OFF 토글
     * 메시지 정리 ON/OFF 토글
     * 보관 기간/알람 주기 및 갱신 시간 표시 UI
-  * `src/App.tsx`: 10번째 우측 탭으로 **Settings 패널** 등록 및 상태 연동
+  * `src/App.tsx`: Settings 탭 등록 + `getSettings` / `updateSettings` 상태 연동
   * `wrangler.jsonc`: `run_worker_first`에 `/settings`, `/settings/*` 추가
+* **이후 확장 (이 절 범위 밖):** Settings에 Market Memory `content_lang` (ko|en) 추가 — §9 / `a080284` 등에서 기록
 
 ---
 
 ## 5. Market Pulse 실시간 투표방 (Agents SDK 기반 Live Market Room)
 
 * **목적:** Agents SDK의 `Agent<Env, PollState>`를 활용하여 상태 동기화(`setState`), RPC(`@callable`), SQLite 투표 로그(`this.sql`), 자동 마감 알람(`schedule()`), 토큰 인증(`onConnect`)을 단일 클래스로 구현
+* **커밋:** `4f377b2`
 * **수정 및 추가 파일:**
   * `src/lib/live-room.ts` *(신규)*: 라이브 룸 클래스명(`LiveMarketRoomAgent`), 방 이름(`market-pulse`), 경로(`/live`), 마감 시간(10분), 에러 코드 등 공유 상수
   * `worker/live-market-room.ts` *(신규)*:
@@ -75,40 +89,63 @@
   * `src/main.tsx`: URL 경로(`/live`)에 따라 메인 챗 앱과 LiveMarketRoom을 분기 렌더링
   * `worker/index.ts`: `LiveMarketRoomAgent` DO 클래스 re-export
   * `wrangler.jsonc`: `LiveMarketRoomAgent` DO 바인딩 및 SQLite 마이그레이션 (`tag: v3`) 등록
-  * `worker-env.d.ts` & `.dev.vars.example`: `LIVE_ROOM_TOKEN` 시크릿 인터페이스 및 가이드 정의
+  * `worker-env.d.ts` / `.dev.vars.example`: `LIVE_ROOM_TOKEN` 시크릿 인터페이스 및 가이드 정의
+  * `ARCHITECTURE.md` / `CLAUDE.md`: Live room 기능·라우트·바인딩 문서화
 
 ---
 
 ## 6. 전체 아키텍처 및 라우팅 현황
 
-### 백엔드 (Cloudflare Workers & DO)
+> **문서 파일:** 이 절은 코드 추가가 아니라 라우팅 맵이다. 최초 기록은 `af181b2` (`WORK_NOTES.md` 신규). 아래는 **§7 완료 시점 스냅샷**과 **현재(§8~§10 반영) 트리**를 구분해 둔다.
+
+### 6.1 §7 완료 시점 스냅샷 (Notes / Memory / Settings / Live / Supabase health)
+
+```text
+worker/index.ts (HTTP Gateway)
+ ├── /notes, /notes/:key                           → Workers KV (My Market Notes)
+ ├── /memory/*                                     → MyMemory DO (개인화 SQLite)
+ ├── /settings, /settings/events                   → ChatAgent DO (설정 SQLite)
+ ├── GET  /api/supabase/health                     → Supabase 도달성 점검 (§7)
+ ├── POST /api/upload                              → ChatAgent DO (PDF RAG 업로드)
+ ├── GET  /screenshots/*                           → R2 Bucket (브라우저 스크린샷)
+ ├── /agents/ChatAgent/default                     → ChatAgent (WebSocket + Think Chat)
+ └── /agents/live-market-room-agent/market-pulse   → LiveMarketRoomAgent (실시간 투표/알람)
+
+src/
+ ├── /      → Chat 메인 쉘 + 패널 (… + Settings)
+ └── /live  → Market Pulse 실시간 투표방
+```
+
+### 6.2 현재 전체 라우팅 (§8 Voice · §9 Briefs · §10 Reports 이후)
+
 ```text
 worker/index.ts (HTTP Gateway)
  ├── /notes, /notes/:key                           → Workers KV (My Market Notes)
  ├── /memory/*                                     → MyMemory DO (개인화 SQLite)
  ├── /settings, /settings/events                   → ChatAgent DO (설정 SQLite)
  ├── GET  /api/supabase/health                     → Supabase 도달성 점검
- ├── GET  /api/briefs/today                        → content_briefs 당일 브리핑 조회 (Phase A)
+ ├── GET  /api/briefs/today                        → content_briefs 당일 브리핑 조회 (§9)
  ├── GET  /api/briefs/latest-date                  → 데이터 있는 최신 market_date (§10.5)
- ├── GET  /api/reports/today                       → item_contents 풀리포트 (via brief.target_id) (§10 Phase A)
- ├── GET  /api/audio/pending                       → content_audio script_ready 조회 (Phase 1)
- ├── GET  /api/audio/today                         → completed Voice 메타 + play URL (Phase 7)
- ├── POST /api/audio/claim                         → script_ready → generating claim (Phase 2)
- ├── GET  /api/audio/storage/health                → AUDIO_BUCKET put → get 점검 (Phase 3)
- ├── POST /api/audio/tts                           → 1 row TTS 테스트, audio/mpeg (Phase 4)
- ├── POST /api/audio/generate                      → TTS → R2 → completed (Phase 5)
- ├── GET  /api/audio/file/:id                      → R2 MP3 스트리밍 (Phase 5)
- ├── POST /api/audio/cron/run                      → Cron drain 1회 수동 실행 (Phase 6)
+ ├── GET  /api/reports/today                       → item_contents 풀리포트 (via brief.target_id) (§10)
+ ├── GET  /api/audio/pending                       → content_audio script_ready 조회 (§8 Phase 1)
+ ├── GET  /api/audio/today                         → completed Voice 메타 + play URL (§8 Phase 7)
+ ├── POST /api/audio/claim                         → script_ready → generating claim (§8 Phase 2)
+ ├── GET  /api/audio/storage/health                → AUDIO_BUCKET put → get 점검 (§8 Phase 3)
+ ├── POST /api/audio/tts                           → 1 row TTS 테스트, audio/mpeg (§8 Phase 4)
+ ├── POST /api/audio/generate                      → TTS → R2 → completed (§8 Phase 5)
+ ├── GET  /api/audio/file/:id                      → R2 MP3 스트리밍 (§8 Phase 5)
+ ├── POST /api/audio/cron/run                      → Cron drain 1회 수동 실행 (§8 Phase 6)
  ├── POST /api/upload                              → ChatAgent DO (PDF RAG 업로드)
  ├── GET  /screenshots/*                           → R2 Bucket (브라우저 스크린샷)
  ├── /agents/ChatAgent/default                     → ChatAgent (WebSocket + Think Chat)
  └── /agents/live-market-room-agent/market-pulse   → LiveMarketRoomAgent (실시간 투표/알람)
 ```
 
-### 프론트엔드 (React & Vite)
+### 프론트엔드 (React & Vite) — 현재
+
 ```text
 src/ (React Frontend)
- ├── /      → Chat 메인 쉘 + 10개 패널 (Memory, Skills, Files, Tools, Sources, Browser, Schedules, Extensions, MCP, Settings)
+ ├── /      → Chat 메인 쉘 + 패널 (Memory, Skills, Files, Tools, Sources, Browser, Schedules, Extensions, MCP, Settings, Market …)
  └── /live  → Market Pulse 실시간 투표방 (단독 전체 화면)
 ```
 
@@ -117,19 +154,22 @@ src/ (React Frontend)
 ## 7. Supabase 연동 사전 작업 (Market Memory 접속 준비)
 
 * **목적:** Worker에서 Supabase(Market Memory)에 접근할 수 있는 기반만 마련. 제품 테이블 조회는 §8 (`content_audio`) / §9 (`content_briefs`)부터.
+* **커밋:** `5a74b84`
 * **수정 및 추가 파일:**
-  * `package.json`: `@supabase/supabase-js` 의존성 추가
+  * `package.json` / `package-lock.json`: `@supabase/supabase-js` 의존성 추가
   * `worker/supabase.ts` *(신규)*:
     * `createSupabaseClient(env)` / `isSupabaseConfigured(env)` 팩토리
+    * 시크릿 따옴표 strip · anon → service_role 폴백
     * `GET /api/supabase/health` — 시크릿 설정 여부 + REST 도달성 점검 (스키마 무관)
   * `worker/index.ts`: health 라우트 연결
   * `worker-env.d.ts` / `.dev.vars.example`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` 선언
   * `CLAUDE.md` / `ARCHITECTURE.md`: 라우트·시크릿 문서화
+  * `WORK_NOTES.md`: 본 절(§7) 기록
 
 ### 로컬에서 연결 확인하는 방법
 
-1. `.dev.vars.example`을 참고해 `.dev.vars`에 Supabase Project URL / anon key 입력
-2. `npm run dev` 후:
+1. `.dev.vars.example`을 참고해 `.dev.vars`에 Supabase Project URL / **service_role** (또는 anon) 키 입력 — **따옴표 없이**
+2. `npm run dev` 재시작 후:
 
 ```bash
 curl http://localhost:5173/api/supabase/health
@@ -137,7 +177,7 @@ curl http://localhost:5173/api/supabase/health
 
 - 시크릿 미설정 → `503` `{ configured: false }`
 - 연결 성공 → `200` `{ ok: true, projectHost: "….supabase.co" }`
-
+- Worker 전용 읽기/쓰기는 `SUPABASE_SERVICE_ROLE_KEY`만으로도 충분 (anon은 선택)
 ---
 
 ## 8. Voice Audio 생성 (content_audio → TTS → R2)
@@ -670,6 +710,28 @@ curl -sS 'http://localhost:5173/api/briefs/today?date=2026-09-03' | python3 -c "
 * **변경:** `MarketPanel` `MarketSection` — `collapsible={hasVoice|hasBrief}`, 접힌 헤더에 title 요약
 * **이 Phase에서 하지 않은 것:** 접힘 상태 localStorage 유지
 
+### 9.14 단계별 파일 일람 (9.1 ~ 9.13)
+
+> 각 Phase 본문에 이미 적힌 파일을 한곳에 모은 인덱스.  
+> `ARCHITECTURE.md` / `CLAUDE.md` / `WORK_NOTES.md`는 거의 매 단계 갱신 → 아래 **docs**.  
+> **9.11**은 번호만 건너뜀(미기록). **9.4~9.7**은 커밋이 한두 개로 묶여 경계가 다소 흐림.  
+> Voice 재생 본체(`getTodayMarketVoice`, 인라인 플레이어)는 **§8.7~8.8**에서 들어왔고 9.x에서 계속 수정.
+
+| Phase | 신규 (A) | 수정 (M) |
+|-------|----------|----------|
+| **9.1** Today brief API | `worker/market-date.ts`, `worker/content-briefs.ts` | `worker/index.ts`, `worker/supabase.ts`, docs |
+| **9.2** Chat brief tool | `worker/tools/getTodayMarketBrief.ts`, `.cursor/rules/update-docs.mdc` | `worker/chat-agent/tools-registry.ts`, `worker/content-briefs.ts`, docs |
+| **9.3** onToolCall 수정 | — | `src/chat/Chat.tsx`, docs |
+| **9.4** `content_lang` | `worker/chat-agent/market-intent.ts`, `worker/tools/market-date-resolve.ts` *(같은 커밋군)* | `worker/chat-agent/settings.ts`, `src/panels/SettingsPanel.tsx`, `src/App.tsx`, `getTodayMarketBrief.ts`, `getTodayMarketVoice.ts`, `ChatAgent.ts`, `configure-session.ts`, `tools-registry.ts`, `worker/market-date.ts`, docs |
+| **9.5** 번역 금지 | — | `configure-session.ts` (soul RULE), brief/voice tool `presentation` |
+| **9.6** Voice 재요청/무응답 | `market-intent.ts` (9.4와 동시) | `ChatAgent.ts` (`beforeStep`), `configure-session.ts`, tool descriptions |
+| **9.7** 년도 보정 | `worker/tools/market-date-resolve.ts` | brief/voice tools, `configure-session.ts` RULE 7 |
+| **9.8** Market 패널 | `src/panels/MarketPanel.tsx` | `src/App.tsx`, docs · **9.8b** 배치 UX는 `MarketPanel.tsx` |
+| **9.9** 챗=해석 / 패널=원문 | — | `configure-session.ts`, `market-date-resolve.ts`, brief/voice tools, `market-intent.ts`, `src/chat/Chat.tsx`, docs |
+| **9.10** 먹통 / prefetch | `worker/chat-agent/market-prefetch.ts` | `ChatAgent.ts`, `market-intent.ts`, `configure-session.ts`, brief/voice tools, `market-date-resolve.ts`, `src/chat/Chat.tsx`, docs |
+| **9.12** 추천 질문 UI | `src/lib/market-suggestions.ts` | `Chat.tsx`, `MarketPanel.tsx`, `App.tsx`, `ChatAgent.ts` (`toolChoice: "none" as const`), docs |
+| **9.13** Voice/Brief 여닫이 | — | `src/panels/MarketPanel.tsx`, `WORK_NOTES.md` |
+
 ---
 
 ## 10. Full Report 조회 (item_contents → Worker read path)
@@ -995,4 +1057,33 @@ curl -sS 'http://localhost:5173/api/briefs/latest-date?lang=ko' | python3 -m jso
 2. Keywords가 여러 그룹에서 고르게 섞임 · Tags와 중복 라벨 없음
 3. My interests·★·Ask 동작 유지 · wide reader 동일
 
+### 10.16 단계별 파일 일람 (10.1 ~ 10.15)
+
+> §9.14와 같은 인덱스. 각 Phase 본문·관련 커밋(`git show --stat`) 기준.  
+> `ARCHITECTURE.md` / `CLAUDE.md` / `WORK_NOTES.md`는 거의 매 단계 갱신 → 아래 **docs**.  
+> **10.14**는 TODO만 (코드 없음). **10.3b·10.3c**는 별도 커밋이 흐릿해 C 계열로 묶음.
+
+| Phase | 신규 (A) | 수정 (M) |
+|-------|----------|----------|
+| **10.1** A — Today report API | `worker/item-contents.ts` | `worker/index.ts`, `worker/supabase.ts`, docs |
+| **10.2** B — Market Report 섹션 | — | `src/panels/MarketPanel.tsx`, docs |
+| **10.3** C — Chat 해석 / Report 탭 | `worker/tools/getTodayMarketReport.ts` | `worker/chat-agent/tools-registry.ts`, `market-intent.ts`, `market-prefetch.ts`, `configure-session.ts`, `src/lib/market-suggestions.ts`, `worker/item-contents.ts` (소), docs |
+| **10.3b** reportVsBrief XML/의도 | — | `market-intent.ts`, `market-prefetch.ts`, `configure-session.ts` (C와 동일 줄기) |
+| **10.3c** 형식 비교 무의미 | — | `market-prefetch.ts`, `src/lib/market-suggestions.ts`, docs |
+| **10.4** D — wide reader + TOC | `src/panels/ReportReader.tsx` | `src/panels/MarketPanel.tsx`, docs |
+| **10.5** Data-backed Latest | — | `worker/content-briefs.ts` (`getLatest…` + `GET /api/briefs/latest-date`), `worker/index.ts`, `worker/tools/market-date-resolve.ts`, brief/voice/report tools, `MarketPanel.tsx`, `market-prefetch.ts`, `configure-session.ts`, docs |
+| **10.6** T1 Topics chips | — | `ReportReader.tsx`, `MarketPanel.tsx`, docs |
+| **10.7** T2 Entities fold | — | `ReportReader.tsx`, `MarketPanel.tsx`, docs |
+| **10.8** T3 keywords in chat | `worker/report-keywords.ts` | `getTodayMarketReport.ts`, `market-prefetch.ts`, `market-intent.ts`, `configure-session.ts`, `market-suggestions.ts`, docs |
+| **10.9** T4 chip → Ask | — | `market-suggestions.ts` (`topicChipAskPrompt`), `ReportReader.tsx`, `MarketPanel.tsx`, docs |
+| **10.10** P0+P1 MyMemory ★ | `src/lib/topic-preference.ts`, `src/panels/MyInterestsFold.tsx` | `ReportReader.tsx`, `MarketPanel.tsx`, docs |
+| **10.11** P2 in-report | — | `topic-preference.ts`, `MyInterestsFold.tsx`, `ReportReader.tsx`, `MarketPanel.tsx`, docs |
+| **10.12** P3 chat prefetch | `worker/chat-agent/user-interests.ts` | `market-prefetch.ts`, `configure-session.ts`, docs |
+| **10.13** P4 For you | `src/lib/brief-for-you.ts`, `src/panels/BriefForYou.tsx` | `MarketPanel.tsx`, docs · 모달 polish: `BriefForYou.tsx`, `brief-for-you.ts`, `App.tsx`, `MarketPanel.tsx` |
+| **10.14** TODO 벡터 검색 | — | *(코드 없음)* |
+| **10.15** Topics UI simplify | — | `ReportReader.tsx` (`pickTopKeywords` / `ReportKeywordChips`), `MarketPanel.tsx`, `topic-preference.ts`, `MyInterestsFold.tsx`, docs |
+
+---
+
+> **이어쓰기:** [`WORK_NOTES_2.md`](./WORK_NOTES_2.md) (§11~)
 
