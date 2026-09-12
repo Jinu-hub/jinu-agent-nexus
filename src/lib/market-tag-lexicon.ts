@@ -255,21 +255,56 @@ export function resolveTagSlug(
 export function topicDisplayLabel(
   raw: string,
   lexicon: TagLexicon | null | undefined,
+  labelMap?: Record<string, string> | null,
 ): string {
   const t = raw.trim();
   if (!t) return t;
+  if (labelMap) {
+    const direct = labelMap[t] ?? labelMap[t.toLowerCase()];
+    if (direct) return direct;
+    const slug = resolveTagSlug(t, lexicon);
+    if (slug) {
+      const via = labelMap[slug] ?? labelMap[slug.toLowerCase()];
+      if (via) return via;
+    }
+  }
   const slug = resolveTagSlug(t, lexicon);
   if (!slug || !lexicon) return t;
   return lexicon.bySlug.get(slug.toLowerCase())?.display ?? t;
 }
 
+/** Interest chip: preference.display → labelMap → lexicon → target.
+ * When content lang is `en`, skip a Hangul-only frozen preference display
+ * so EN report tags are not stuck on a KO star label.
+ */
+export function interestDisplayLabel(
+  target: string,
+  opts?: {
+    preferenceDisplay?: string | null;
+    lexicon?: TagLexicon | null;
+    labelMap?: Record<string, string> | null;
+    /** Market content language (Settings). */
+    contentLang?: string | null;
+  },
+): string {
+  const pref = opts?.preferenceDisplay?.trim();
+  const lang = (opts?.contentLang ?? "").trim().toLowerCase();
+  if (pref) {
+    const prefHangul = /[가-힣]/.test(pref);
+    if (!(lang === "en" && prefHangul)) return pref;
+  }
+  return topicDisplayLabel(target, opts?.lexicon, opts?.labelMap);
+}
+
 /**
- * Embedding query variants from report lexicon (no hardcoded synonym map).
- * Matches by slug or alias / display, then expands slug + display + aliases.
+ * Embedding query variants from report lexicon + topic_labels.
+ * Matches by slug, alias, display, or reverse topic_labels display→key,
+ * then expands slug + display + aliases.
  */
 export function expandQueriesFromLexicon(
   raw: string,
   lexicon: TagLexicon | null | undefined,
+  labelMap?: Record<string, string> | null,
 ): string[] {
   const t = raw.trim();
   if (!t) return [];
@@ -288,7 +323,29 @@ export function expandQueriesFromLexicon(
   if (t.includes("-")) push(t.replace(/-/g, " "));
   if (/\s/.test(t)) push(t.replace(/\s+/g, "-"));
 
-  const slug = resolveTagSlug(t, lexicon);
+  // Forward: key → display
+  const fromMap =
+    labelMap?.[t] ?? labelMap?.[t.toLowerCase()] ?? null;
+  if (fromMap) push(fromMap);
+
+  // Reverse: display → canonical keys (so 「10년물 금리」 still expands slug)
+  for (const k of keysForTopicLabelDisplay(t, labelMap)) {
+    push(k);
+    if (k.includes("-")) push(k.replace(/-/g, " "));
+    if (/\s/.test(k)) push(k.replace(/\s+/g, "-"));
+  }
+
+  const slug =
+    resolveTagSlug(t, lexicon) ??
+    keysForTopicLabelDisplay(t, labelMap)
+      .map((k) => resolveTagSlug(k, lexicon) ?? k)
+      .find(Boolean) ??
+    null;
+
+  if (slug && labelMap) {
+    const via = labelMap[slug] ?? labelMap[slug.toLowerCase()];
+    if (via) push(via);
+  }
   const lexeme =
     slug && lexicon ? lexicon.bySlug.get(slug.toLowerCase()) : null;
   if (lexeme) {
@@ -303,5 +360,28 @@ export function expandQueriesFromLexicon(
     }
   }
 
+  return out;
+}
+
+/** topic_labels display → underlying keys (exact / loose). */
+export function keysForTopicLabelDisplay(
+  display: string,
+  labelMap?: Record<string, string> | null,
+): string[] {
+  if (!labelMap) return [];
+  const want = display.trim().toLowerCase();
+  const looseWant = looseKey(display);
+  if (!want) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const [k, v] of Object.entries(labelMap)) {
+    const dv = v.trim();
+    if (!dv) continue;
+    if (dv.toLowerCase() !== want && looseKey(dv) !== looseWant) continue;
+    const id = k.toLowerCase();
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(k);
+  }
   return out;
 }

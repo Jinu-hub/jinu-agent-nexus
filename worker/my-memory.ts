@@ -28,6 +28,15 @@ export type PreferenceRow = {
   kind: PreferenceKind;
   target: string;
   level: number;
+  /** Preferred UI label (frozen on first star). Storage key stays `target`. */
+  display: string | null;
+  updated_at: string;
+};
+
+export type TopicLabelRow = {
+  key: string;
+  lang: string;
+  display: string;
   updated_at: string;
 };
 
@@ -113,7 +122,51 @@ export class MyMemory extends DurableObject<Env> {
         CREATE INDEX IF NOT EXISTS idx_preference_events_created
         ON preference_events (created_at DESC)
       `);
+      this.migrateTopicLabelsTable();
+      // Prefer display label for My interests (first star). Ignore if column exists.
+      try {
+        this.ctx.storage.sql.exec(
+          `ALTER TABLE preferences ADD COLUMN display TEXT`,
+        );
+      } catch {
+        /* column already present */
+      }
     });
+  }
+
+  /** topic_labels: (key, lang) — KO/EN body spans must not overwrite each other. */
+  private migrateTopicLabelsTable(): void {
+    const hasLang = (() => {
+      try {
+        this.ctx.storage.sql.exec(`SELECT lang FROM topic_labels LIMIT 1`);
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+    if (hasLang) return;
+
+    this.ctx.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS topic_labels_lang (
+        key TEXT NOT NULL,
+        lang TEXT NOT NULL,
+        display TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (key, lang)
+      )
+    `);
+    try {
+      this.ctx.storage.sql.exec(`
+        INSERT OR IGNORE INTO topic_labels_lang (key, lang, display, updated_at)
+        SELECT key, 'ko', display, updated_at FROM topic_labels
+      `);
+    } catch {
+      /* old table missing — fresh install */
+    }
+    this.ctx.storage.sql.exec(`DROP TABLE IF EXISTS topic_labels`);
+    this.ctx.storage.sql.exec(
+      `ALTER TABLE topic_labels_lang RENAME TO topic_labels`,
+    );
   }
 
   // ── Preferences (current state) ───────────────────────────────────────
@@ -122,6 +175,8 @@ export class MyMemory extends DurableObject<Env> {
     kind: PreferenceKind;
     target: string;
     level: number;
+    /** Set only when preference has no display yet (first star label). */
+    display?: string | null;
     geo?: VisitorGeo;
   }): PreferenceRow {
     const kind = input.kind;
@@ -131,32 +186,150 @@ export class MyMemory extends DurableObject<Env> {
     if (!target) throw new Error("target required");
     if (level < 1 || level > 5) throw new Error("level must be 1–5");
 
+    const displayIn =
+      typeof input.display === "string" && input.display.trim()
+        ? input.display.trim()
+        : null;
+
     const updated_at = nowIso();
     this.ctx.storage.sql.exec(
-      `INSERT INTO preferences (kind, target, level, updated_at)
-       VALUES (?, ?, ?, ?)
+      `INSERT INTO preferences (kind, target, level, display, updated_at)
+       VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(kind, target) DO UPDATE SET
          level = excluded.level,
+         display = COALESCE(preferences.display, excluded.display),
          updated_at = excluded.updated_at`,
       kind,
       target,
       level,
+      displayIn,
       updated_at,
     );
 
     this.recomputeWeights();
 
-    return { kind, target, level, updated_at };
+    return this.getPreference(kind, target)!;
+  }
+
+  getPreference(
+    kind: PreferenceKind,
+    target: string,
+  ): PreferenceRow | null {
+    return (
+      this.ctx.storage.sql
+        .exec<PreferenceRow>(
+          `SELECT kind, target, level, display, updated_at
+           FROM preferences
+           WHERE kind = ? AND target = ?`,
+          kind,
+          target.trim(),
+        )
+        .toArray()[0] ?? null
+    );
   }
 
   listPreferences(): PreferenceRow[] {
     return this.ctx.storage.sql
       .exec<PreferenceRow>(
-        `SELECT kind, target, level, updated_at
+        `SELECT kind, target, level, display, updated_at
          FROM preferences
          ORDER BY level DESC, updated_at DESC`,
       )
       .toArray();
+  }
+
+  // ── Topic display labels (key + lang → body span) ─────────────────────
+
+  private normalizeLabelLang(lang?: string | null): string {
+    const l = (lang ?? "ko").trim().toLowerCase();
+    return l || "ko";
+  }
+
+  upsertTopicLabel(
+    key: string,
+    display: string,
+    lang?: string | null,
+  ): TopicLabelRow {
+    const k = key.trim();
+    const d = display.trim();
+    const lg = this.normalizeLabelLang(lang);
+    if (!k) throw new Error("key required");
+    if (!d) throw new Error("display required");
+    const updated_at = nowIso();
+    this.ctx.storage.sql.exec(
+      `INSERT INTO topic_labels (key, lang, display, updated_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(key, lang) DO UPDATE SET
+         display = excluded.display,
+         updated_at = excluded.updated_at`,
+      k,
+      lg,
+      d,
+      updated_at,
+    );
+    return { key: k, lang: lg, display: d, updated_at };
+  }
+
+  upsertTopicLabels(
+    entries: Array<{ key: string; display: string; lang?: string | null }>,
+    lang?: string | null,
+  ): TopicLabelRow[] {
+    const out: TopicLabelRow[] = [];
+    for (const e of entries) {
+      out.push(this.upsertTopicLabel(e.key, e.display, e.lang ?? lang));
+    }
+    return out;
+  }
+
+  listTopicLabels(lang?: string | null): TopicLabelRow[] {
+    const lg = lang != null && String(lang).trim() ? this.normalizeLabelLang(lang) : null;
+    if (lg) {
+      return this.ctx.storage.sql
+        .exec<TopicLabelRow>(
+          `SELECT key, lang, display, updated_at
+           FROM topic_labels
+           WHERE lang = ?
+           ORDER BY updated_at DESC`,
+          lg,
+        )
+        .toArray();
+    }
+    return this.ctx.storage.sql
+      .exec<TopicLabelRow>(
+        `SELECT key, lang, display, updated_at
+         FROM topic_labels
+         ORDER BY updated_at DESC`,
+      )
+      .toArray();
+  }
+
+  getTopicLabel(key: string, lang?: string | null): TopicLabelRow | null {
+    const k = key.trim();
+    if (!k) return null;
+    const lg = this.normalizeLabelLang(lang);
+    return (
+      this.ctx.storage.sql
+        .exec<TopicLabelRow>(
+          `SELECT key, lang, display, updated_at
+           FROM topic_labels WHERE key = ? AND lang = ?`,
+          k,
+          lg,
+        )
+        .toArray()[0] ?? null
+    );
+  }
+
+  getTopicLabelsByKeys(
+    keys: string[],
+    lang?: string | null,
+  ): Record<string, string> {
+    const out: Record<string, string> = {};
+    const lg = this.normalizeLabelLang(lang);
+    for (const raw of keys) {
+      const row = this.getTopicLabel(raw, lg);
+      if (row) out[row.key] = row.display;
+    }
+    return out;
   }
 
   deletePreference(kind: PreferenceKind, target: string): { deleted: boolean } {

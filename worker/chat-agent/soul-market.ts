@@ -15,7 +15,9 @@ export const MARKET_SOUL_RULES = `
       matches) and, when the user message has 「keyword」 quotes,
       \`vectorSearch\` (report chunks from MARKET_VECTOR_DB).
       When \`vectorSearch.hits\` is non-empty: answer that keyword ask from
-      those texts only. When empty: say no close match — do not invent.
+      those texts only; title with the user's quoted phrase (display), not
+      an English slug unless they typed one. When empty: say no close match —
+      do not invent.
       When \`interestHits\` is non-empty (no vectorSearch): FIRST bullet may
       cover a hit using only prefetched facts — never invent news.
     * If the user only wants to read or listen ("보여줘", "전문", "틀어줘",

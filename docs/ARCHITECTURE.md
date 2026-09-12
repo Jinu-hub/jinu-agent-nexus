@@ -151,6 +151,7 @@ in `Message.tsx` → then server `execute` runs.
 | Content briefs | `GET /api/briefs/today`, `GET /api/briefs/latest-date` | `worker/content-briefs.ts`, `market-date.ts` | Supabase `content_briefs` |
 | Full reports | `GET /api/reports/today` | `worker/item-contents.ts` | Supabase `item_contents` via `content_briefs.target_id`; localize via `item_content_i18n` when `lang` ≠ primary |
 | Market vectors | `POST /api/market-vector/ingest` · `/query` · `/clear` | `worker/market-vector.ts` + routes; chat `market-vector-search.ts` | Chunk+embed / 「keyword」 chat search / clear → `MARKET_VECTOR_DB` (§14) |
+| Topic labels | `POST /api/market-labels/resolve` · `/memory/topic-labels` | `worker/market-labels.ts` + MyMemory | Body-grounded Tags/Keywords display (B안); post-ingest |
 | Market panel | Market tab | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `src/lib/market-suggestions.ts` | briefs + audio + reports (lazy) + wide reader modal + TOC |
 | Browser | Browser | `navigate.ts`, `screenshot.ts`, Puppeteer | Remote browser session + R2 screenshots |
 | Schedules | Schedules | `setReminder.ts`, DO alarms | DO schedule store |
@@ -202,6 +203,7 @@ worker/index.ts          HTTP entry — routes only, thin
     ├── POST /api/market-vector/ingest → item_contents → MARKET_VECTOR_DB
     ├── POST /api/market-vector/query → interest search (+ filters)
     ├── POST /api/market-vector/clear → delete report Vectorize chunks
+    ├── POST /api/market-labels/resolve → body-grounded topic labels
     ├── /api/audio/* → content_audio Voice pipeline (+ GET /api/audio/today)
     ├── /agents/live-market-room-agent/market-pulse → poll room WS + RPC
     └── /agents/ChatAgent/default  → WebSocket + RPC

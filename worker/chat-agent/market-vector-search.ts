@@ -13,6 +13,7 @@ import {
   tagLexiconFromEntries,
   type TagLexeme,
 } from "../../src/lib/market-tag-lexicon";
+import { DEFAULT_INSTANCE_NAME } from "../../src/lib/agent-identity";
 
 /** Default floor — weak matches below this are treated as no hit. */
 export const CHAT_VECTOR_MIN_SCORE = 0.68;
@@ -21,10 +22,12 @@ export const CHAT_VECTOR_MIN_SCORE = 0.68;
 export function expandChatVectorQueries(
   raw: string,
   tagLexicon?: TagLexeme[] | null,
+  labelMap?: Record<string, string> | null,
 ): string[] {
   return expandQueriesFromLexicon(
     raw,
     tagLexiconFromEntries(tagLexicon ?? undefined),
+    labelMap,
   );
 }
 
@@ -113,10 +116,23 @@ export async function runChatVectorSearch(
     };
   }
 
+  const labelMap = await (async () => {
+    try {
+      const id = env.MyMemory.idFromName(DEFAULT_INSTANCE_NAME);
+      const stub = env.MyMemory.get(id);
+      return await stub.getTopicLabelsByKeys(
+        userQueries,
+        opts.lang ?? undefined,
+      );
+    } catch {
+      return {} as Record<string, string>;
+    }
+  })();
+
   const expanded: string[] = [];
   const seen = new Set<string>();
   for (const q of userQueries) {
-    for (const v of expandChatVectorQueries(q, opts.tagLexicon)) {
+    for (const v of expandChatVectorQueries(q, opts.tagLexicon, labelMap)) {
       const key = v.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
@@ -179,6 +195,8 @@ export function vectorSearchInstructionClause(
     " CRITICAL: The user asked about specific keyword(s). " +
     "Answer ONLY from vectorSearch.hits text (report chunks). " +
     "Lead with those points; keep it short. " +
+    "In the heading, use the user's quoted phrase (natural display label) — " +
+    "do NOT prefer raw English slugs like 10y-treasury-yield unless the user wrote that. " +
     "Do NOT invent. Do NOT pad with unrelated highlights/추가 항목. " +
     "One short line: full report in Market tab."
   );

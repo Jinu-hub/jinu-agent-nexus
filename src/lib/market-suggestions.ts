@@ -65,6 +65,10 @@ export const MARKET_SUGGESTIONS: MarketSuggestion[] = [
 /** T4 — Topics / entity chip → chat ask (panel date when known). */
 export type TopicChipAskKind = "tag" | "place" | "entity";
 
+/**
+ * Chip → chat prompt. `label` is the **user-visible** phrase in 「」
+ * (prefer topic_labels / KO display). Vector expand reverse-maps to slug.
+ */
 export function topicChipAskPrompt(
   kind: TopicChipAskKind,
   label: string,

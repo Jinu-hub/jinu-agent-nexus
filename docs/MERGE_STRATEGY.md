@@ -54,6 +54,7 @@
 | Supabase | `worker/supabase.ts` |
 | Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts` (+ `item_content_i18n` localize), `worker/report-keywords.ts`, `worker/market-date.ts` |
 | Market vectors | `worker/market-vector.ts`, `worker/market-vector-routes.ts` |
+| Market topic labels | `worker/market-labels.ts`, `worker/market-labels-routes.ts` |
 | Voice | `worker/content-audio.ts` (barrel), `content-audio-domain.ts`, `content-audio-routes.ts`, `audio-r2.ts`, `tts.ts`, `voice-lang-filter.ts`, `voice-audio-cron.ts` |
 | Shared load | `worker/market-memory-load.ts`, `worker/tools/market-date-resolve.ts` |
 | Market tools | `worker/tools/getTodayMarketBrief.ts`, `getTodayMarketVoice.ts`, `getTodayMarketReport.ts` |
@@ -153,4 +154,5 @@
 | 2026-09-12 | Market vector query + metadata indexes ([`WORK_NOTES_2` §14.2](./WORK_NOTES_2.md)) |
 | 2026-09-12 | Chat 「keyword」 vector search ([`WORK_NOTES_2` §14.3](./WORK_NOTES_2.md)) |
 | 2026-09-12 | Tag lexicon from report metadata ([`WORK_NOTES_2` §14.4](./WORK_NOTES_2.md)) |
-| 2026-09-12 | Docs → `docs/` + [`ROUTING.md`](./ROUTING.md) 단일 소스 ([`WORK_NOTES_2` §15](./WORK_NOTES_2.md)) |
+| 2026-09-12 | Docs → `docs/` + [`ROUTING.md`](./ROUTING.md) 단일 소스 ([`WORK_NOTES_2` §17](./WORK_NOTES_2.md)) |
+| 2026-09-12 | Topic body labels B안 — A + B index ([`WORK_NOTES_2` §18](./WORK_NOTES_2.md)) |

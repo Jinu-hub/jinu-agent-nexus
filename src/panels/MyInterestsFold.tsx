@@ -10,7 +10,7 @@ import {
   sortPreferencesForReport,
   type PreferenceRow,
 } from "@/lib/topic-preference";
-import { topicDisplayLabel, type TagLexicon } from "@/lib/market-tag-lexicon";
+import { interestDisplayLabel, type TagLexicon } from "@/lib/market-tag-lexicon";
 
 export const SHOW_MY_INTERESTS = true;
 /** P2 — “Interests in this report” filter toggle under Topics. */
@@ -31,6 +31,8 @@ export function MyInterestsFold({
   interestsOnly,
   onInterestsOnlyChange,
   tagLexicon,
+  labelMap,
+  contentLang,
   className,
 }: {
   preferences: PreferenceRow[];
@@ -40,8 +42,10 @@ export function MyInterestsFold({
   reportKeys?: Set<string> | null;
   interestsOnly?: boolean;
   onInterestsOnlyChange?: (next: boolean) => void;
-  /** From current report metadata — display only; storage stays slug. */
   tagLexicon?: TagLexicon | null;
+  labelMap?: Record<string, string> | null;
+  /** Settings content language — avoid KO frozen labels when EN. */
+  contentLang?: string | null;
   className?: string;
 }) {
   const [open, setOpen] = useState(true);
@@ -137,7 +141,12 @@ export function MyInterestsFold({
                       className="truncate text-foreground/85"
                       title={row.target}
                     >
-                      {topicDisplayLabel(row.target, tagLexicon)}
+                      {interestDisplayLabel(row.target, {
+                        preferenceDisplay: row.display,
+                        lexicon: tagLexicon,
+                        labelMap,
+                        contentLang,
+                      })}
                     </span>
                     {inReport ? (
                       <span className="shrink-0 pr-0.5 font-mono text-[9px] text-amber-700 dark:text-amber-300">

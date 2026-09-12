@@ -59,6 +59,7 @@ import {
   mapTopicToPreference,
   removeInterest,
   saveInterest,
+  fetchTopicLabels,
   type PreferenceRow,
   type TopicPreferenceSource,
 } from "@/lib/topic-preference";
@@ -291,6 +292,10 @@ export function MarketPanel({
   const [helpOpen, setHelpOpen] = useState(false);
   const [preferences, setPreferences] = useState<PreferenceRow[]>([]);
   const [preferencesLoading, setPreferencesLoading] = useState(true);
+  const [topicLabelMap, setTopicLabelMap] = useState<Record<
+    string,
+    string
+  > | null>(null);
   const [interestsOnly, setInterestsOnly] = useState(false);
   const reportScrollRef = useRef<HTMLDivElement>(null);
   const helpWrapRef = useRef<HTMLDivElement>(null);
@@ -341,7 +346,11 @@ export function MarketPanel({
           ),
         );
       } else {
-        const row = await saveInterest(mapped.kind, mapped.target);
+        const row = await saveInterest(
+          mapped.kind,
+          mapped.target,
+          source.display ?? null,
+        );
         setPreferences((prev) => {
           const without = prev.filter(
             (p) =>
@@ -401,10 +410,15 @@ export function MarketPanel({
         }
         setReport(json);
         setReportCacheKey(key);
+        // Best-effort body-grounded labels (filled by ingest/resolve).
+        void fetchTopicLabels(undefined, marketLang)
+          .then((map) => setTopicLabelMap(map))
+          .catch(() => setTopicLabelMap(null));
         return json;
       } catch (err) {
         setReport(null);
         setReportCacheKey(null);
+        setTopicLabelMap(null);
         setError(
           err instanceof Error ? err.message : "Failed to load full report",
         );
@@ -963,6 +977,8 @@ export function MarketPanel({
                       interestsOnly={interestsOnly}
                       onInterestsOnlyChange={setInterestsOnly}
                       tagLexicon={tagLexicon}
+                      labelMap={topicLabelMap}
+                      contentLang={lang}
                     />
                   ) : null}
                   <div className="flex items-center gap-2 py-2 text-[11px] text-muted-foreground">
@@ -981,6 +997,8 @@ export function MarketPanel({
                       interestsOnly={interestsOnly}
                       onInterestsOnlyChange={setInterestsOnly}
                       tagLexicon={tagLexicon}
+                      labelMap={topicLabelMap}
+                      contentLang={lang}
                     />
                   ) : null}
                   {hasTopKeywords(reportItem!) ? (
@@ -994,6 +1012,7 @@ export function MarketPanel({
                       preferences={preferences}
                       onToggleInterest={toggleInterest}
                       interestsOnly={interestsOnly}
+                      labelMap={topicLabelMap}
                     />
                   ) : (
                     <p className="text-[11px] leading-relaxed text-muted-foreground">
@@ -1028,6 +1047,8 @@ export function MarketPanel({
                       interestsOnly={interestsOnly}
                       onInterestsOnlyChange={setInterestsOnly}
                       tagLexicon={tagLexicon}
+                      labelMap={topicLabelMap}
+                      contentLang={lang}
                     />
                   ) : null}
                   {reportCheckedMissing && hasBrief ? (

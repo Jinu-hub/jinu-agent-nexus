@@ -473,3 +473,59 @@ curl -sS 'http://localhost:5173/api/reports/today?date=2026-09-11&lang=en' \
 
 ---
 
+## 18. Topic body labels (B안) — Tags/Keywords 본문 grounded 표시
+
+* **목적:** Tags/Keywords·벡터 expand용 **표시어**를 본문에서 의미적으로 고른다 (영↔한 포함). DB/Ask/`target` 키는 유지. A안(표기만)은 매핑률 낮아 채택하지 않음.
+* **ROUTING 반영:** `POST /api/market-labels/resolve` · `GET/POST /memory/topic-labels`
+* **배치:** (예정) market-vector ingest cron **후속**. 지금은 ingest 끝에서 동일 코어 호출 + 수동 resolve API.
+* **파이프라인:** `topic_labels` 캐시(긴 라벨은 polish로 단축·재저장) → exact/loose → **body hint**(슬러그별 짧은 본문 후보) → LLM grounded span → upsert
+* **규칙:** Tags 탈락 없음 (실패 시 key). Keywords 본문 스팬 없으면 탈락. My interests는 star 시 `display` 고정(EN 보기에서 한글 freeze는 표시만 스킵). 칩은 짧은 명사구. Ask 「」는 **표시어**; 저장/`target`은 slug. `topic_labels`는 **`(key, lang)`** — KO/EN 분리.
+
+**수정 및 추가 파일**
+
+* `worker/market-labels.ts` *(신규)* — resolve 코어
+* `worker/market-labels-routes.ts` *(신규)* — `POST /api/market-labels/resolve` (`force` / `skip_llm`)
+* `worker/my-memory.ts` — `topic_labels` 테이블 · `preferences.display`
+* `worker/memory-routes.ts` — `/memory/topic-labels` · preferences `display`
+* `worker/market-vector.ts` — ingest 후 label resolve 훅
+* `worker/index.ts` — 라우트 체인
+* `worker/chat-agent/market-vector-search.ts` — expand에 topic_labels
+* `src/lib/market-tag-lexicon.ts` · `topic-preference.ts` · `report-topics.tsx` · `MyInterestsFold.tsx` · `MarketPanel.tsx`
+* docs (`ROUTING` / `WORK_NOTES_2` / `CLAUDE`)
+
+**확인**
+
+```bash
+# ingest 후 labels 요약이 응답에 포함
+curl -s -X POST http://localhost:5173/api/market-vector/ingest \
+  -H 'content-type: application/json' \
+  -d '{"date":"2026-09-11","lang":"ko"}'
+
+# 수동 resolve (캐시 무시 재픽: force)
+curl -s -X POST http://localhost:5173/api/market-labels/resolve \
+  -H 'content-type: application/json' \
+  -d '{"date":"2026-09-11","lang":"ko","force":true}'
+
+curl -s 'http://localhost:5173/memory/topic-labels' | head
+```
+
+* `npx tsc -b` OK
+
+**버그 (2026-09-12):** GLM-4.7-flash 기본 thinking이 `maxOutputTokens`를 CoT에 소진 → `generateText().text` 빈 문자열 → `resolvedBy` 전부 fallback.  
+**수정:** `providerOptions["workers-ai"]`에 `reasoning_effort: null` + `chat_template_kwargs.enable_thinking: false`.
+
+**품질 (2026-09-12):** 헤드라인 통째 픽 → 칩 부적합.  
+**보완:** 프롬프트(짧은 명사구) + `polishLabel`(쉼표/%/토큰 절단, 본문 grounding 유지) + `LABEL_BODY_HINTS`(본문에 있을 때만) + 캐시 soft-refresh + `force`. 기대 예: `10y-treasury-yield`→「미 10년물 금리」, `energy-supply-shortfall`→「원유 공급」, `bonds`→「국채」, `policy-tightening`→「긴축」.  
+**챗 표시:** 칩 Ask는 slug 대신 display를 「」에 넣고, 답 제목도 사용자 인용구 사용. expand는 `keysForTopicLabelDisplay`로 slug 유지.  
+**lang (2026-09-12):** `topic_labels` PK `(key, lang)`. EN 패널이 KO 캐시를 쓰지 않음. `GET /memory/topic-labels?lang=en`. My interests는 contentLang=en이면 한글 preference.display 스킵.
+
+**의도적으로 안 함**
+
+* ingest cron 신규 스케줄 (훅만)
+* 패널 오픈 시 동기 LLM
+* 본문에 없는 번역어 허용 (`정책 긴축`은 본문에 없으면 불가 → `긴축`)
+* Keywords 10개 강제
+* chat 전역 thinking off (`createModel`은 그대로; label pick만 끔)
+
+---
+

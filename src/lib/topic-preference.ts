@@ -21,13 +21,15 @@ export type PreferenceRow = {
   kind: PreferenceKind;
   target: string;
   level: number;
+  /** Preferred UI label from first star; null → show target / lexicon. */
+  display?: string | null;
   updated_at: string;
 };
 
 export type TopicPreferenceSource =
-  | { source: "tag"; label: string }
-  | { source: "place"; label: string }
-  | { source: "entity"; group: string; label: string };
+  | { source: "tag"; label: string; display?: string }
+  | { source: "place"; label: string; display?: string }
+  | { source: "entity"; group: string; label: string; display?: string };
 
 /** Explicit star save level (1–5). */
 export const INTEREST_STAR_LEVEL = 5;
@@ -173,11 +175,14 @@ export async function fetchPreferences(): Promise<PreferenceRow[]> {
 export async function saveInterest(
   kind: PreferenceKind,
   target: string,
+  display?: string | null,
 ): Promise<PreferenceRow> {
   const body = {
     kind,
     target: target.trim(),
     level: INTEREST_STAR_LEVEL,
+    display:
+      typeof display === "string" && display.trim() ? display.trim() : undefined,
   };
   const res = await fetch("/memory/preferences", {
     method: "POST",
@@ -198,11 +203,45 @@ export async function saveInterest(
       action: "star",
       kind,
       target: body.target,
-      meta: { source: "topics_chip" },
+      meta: { source: "topics_chip", display: body.display ?? null },
     }),
   });
 
   return row;
+}
+
+export async function fetchTopicLabels(
+  keys?: string[],
+  lang?: string | null,
+): Promise<Record<string, string>> {
+  const qs = new URLSearchParams();
+  if (keys && keys.length > 0) qs.set("keys", keys.join(","));
+  if (lang?.trim()) qs.set("lang", lang.trim().toLowerCase());
+  const q = qs.toString();
+  const url = q ? `/memory/topic-labels?${q}` : "/memory/topic-labels";
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`topic-labels HTTP ${res.status}`);
+  }
+  const json = (await res.json()) as
+    | Record<string, string>
+    | Array<{ key: string; display: string; lang?: string }>
+    | { error?: string };
+  if (Array.isArray(json)) {
+    const out: Record<string, string> = {};
+    for (const row of json) {
+      if (row.key && row.display) out[row.key] = row.display;
+    }
+    return out;
+  }
+  if (json && typeof json === "object" && !("error" in json)) {
+    return json as Record<string, string>;
+  }
+  throw new Error(
+    typeof json === "object" && json && "error" in json && json.error
+      ? String(json.error)
+      : "Invalid topic-labels response",
+  );
 }
 
 export async function removeInterest(

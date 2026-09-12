@@ -345,6 +345,7 @@ export function ReportKeywordChips({
   onToggleInterest,
   interestsOnly,
   limit = TOP_KEYWORD_LIMIT,
+  labelMap,
 }: ReportTopicFields & {
   metadata?: unknown;
   className?: string;
@@ -354,6 +355,8 @@ export function ReportKeywordChips({
   onToggleInterest?: (source: TopicPreferenceSource) => void;
   interestsOnly?: boolean;
   limit?: number;
+  /** Body-grounded labels from MyMemory / resolve. Keywords without a label drop when map is set. */
+  labelMap?: Record<string, string> | null;
 }) {
   const [keywordsOpen, setKeywordsOpen] = useState(false);
   if (!SHOW_REPORT_TOPIC_CHIPS) return null;
@@ -367,18 +370,36 @@ export function ReportKeywordChips({
   let tagList = allTags.slice(0, TOPIC_TAG_LIMIT);
   let tagExtra = Math.max(0, allTags.length - tagList.length);
   if (interestsOnly) {
-    tagList = allTags.filter((tag) =>
-      isKeywordSaved({ source: "tag", label: tag }, prefs),
-    );
+    tagList = allTags.filter((tag) => {
+      const mapped = mapTopicToPreference({ source: "tag", label: tag });
+      return (
+        mapped != null &&
+        isPreferenceSaved(prefs, mapped.kind, mapped.target)
+      );
+    });
     tagExtra = 0;
   }
 
-  const keywords = sortKeywordsForDisplay(
+  let keywords = sortKeywordsForDisplay(
     pickTopKeywords(
       { tags, countries, regions, metadata },
-      { limit, preferences: prefs, interestsOnly },
+      { limit: Math.max(limit * 3, limit), preferences: prefs, interestsOnly },
     ),
   );
+  // Prefer body-grounded labels; drop keywords with no resolved label once map has entries.
+  if (labelMap && Object.keys(labelMap).length > 0) {
+    const filtered: typeof keywords = [];
+    for (const kw of keywords) {
+      const mapped =
+        labelMap[kw.label] ?? labelMap[kw.label.toLowerCase()] ?? null;
+      if (!mapped) continue;
+      filtered.push(kw);
+      if (filtered.length >= limit) break;
+    }
+    keywords = filtered;
+  } else {
+    keywords = keywords.slice(0, limit);
+  }
 
   const hasAny = tagList.length > 0 || keywords.length > 0;
   if (!hasAny) {
@@ -411,20 +432,23 @@ export function ReportKeywordChips({
             </span>
           </TopicFieldLabel>
           <div className="flex flex-wrap gap-1">
-            {tagList.map((tag) => (
+            {tagList.map((tag) => {
+              const display = topicDisplayLabel(tag, tagLexicon, labelMap);
+              return (
               <TopicChip
                 key={`tag:${tag}`}
                 label={tag}
-                displayLabel={topicDisplayLabel(tag, tagLexicon)}
+                displayLabel={display}
                 askKind="tag"
-                source={{ source: "tag", label: tag }}
+                source={{ source: "tag", label: tag, display }}
                 marketDate={marketDate}
                 onAsk={askEnabled ? onAsk : undefined}
                 preferences={prefs}
                 onToggleInterest={starEnabled ? onToggleInterest : undefined}
                 className={tagChipClass}
               />
-            ))}
+            );
+            })}
             {tagExtra > 0 ? (
               <span className="self-center font-mono text-[10px] text-muted-foreground/70">
                 +{tagExtra} more
@@ -460,21 +484,24 @@ export function ReportKeywordChips({
           </button>
           {keywordsOpen ? (
             <div className="flex flex-wrap gap-1 border-t border-border px-2 py-2">
-              {keywords.map((kw) => (
+              {keywords.map((kw) => {
+                const display = topicDisplayLabel(kw.label, tagLexicon, labelMap);
+                return (
                 <TopicChip
                   key={kw.key}
                   label={kw.label}
-                  displayLabel={topicDisplayLabel(kw.label, tagLexicon)}
+                  displayLabel={display}
                   sectionLabel={keywordSectionLabel(kw.source)}
                   askKind={kw.askKind}
-                  source={kw.source}
+                  source={{ ...kw.source, display }}
                   marketDate={marketDate}
                   onAsk={askEnabled ? onAsk : undefined}
                   preferences={prefs}
                   onToggleInterest={starEnabled ? onToggleInterest : undefined}
                   className={keywordChipClass}
                 />
-              ))}
+              );
+              })}
             </div>
           ) : null}
         </div>
@@ -622,7 +649,7 @@ function TopicChip({
   className,
 }: {
   label: string;
-  /** Optional UI label (e.g. label_ko). Ask/save still use source.label. */
+  /** Optional UI label (topic_labels / label_ko). Ask prompt uses this; save stays source.label. */
   displayLabel?: string;
   /** Optional section prefix (Company / Place) — My interests style. */
   sectionLabel?: string;
@@ -662,7 +689,7 @@ function TopicChip({
           type="button"
           title={`Ask in chat: ${titleHint}`}
           onClick={() =>
-            onAsk(topicChipAskPrompt(askKind, askLabel, marketDate))
+            onAsk(topicChipAskPrompt(askKind, shown, marketDate))
           }
           className={cn(
             className,
@@ -695,7 +722,12 @@ function TopicChip({
               : `Save interest: ${askLabel}`
           }
           aria-pressed={saved}
-          onClick={() => onToggleInterest(source)}
+          onClick={() =>
+            onToggleInterest({
+              ...source,
+              display: source.display ?? shown,
+            })
+          }
           className={cn(
             "rounded-md p-0.5 transition-colors",
             "hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",

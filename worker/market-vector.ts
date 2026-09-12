@@ -17,6 +17,7 @@ import {
   type ItemContentRow,
 } from "./item-contents";
 import { isMarketDateYmd } from "./market-date";
+import { resolveMarketLabels } from "./market-labels";
 
 /** Sweep ceiling when replacing an item's chunks (orphan high indices). */
 export const MARKET_VECTOR_MAX_CHUNKS = 200;
@@ -48,6 +49,13 @@ export type IngestMarketReportResult = {
   chunks: number;
   deletedIds: number;
   title: string | null;
+  /** Present when post-ingest label resolve ran (or failed softly). */
+  labels?: {
+    ok: boolean;
+    count: number;
+    droppedKeywords: number;
+    error?: string;
+  };
 };
 
 export function marketChunkVectorId(
@@ -229,6 +237,28 @@ export async function ingestMarketReport(
     await env.MARKET_VECTOR_DB.upsert(vectors.slice(i, i + 100));
   }
 
+  // Post-ingest hook (cron will call the same path later): body-grounded labels.
+  let labels: IngestMarketReportResult["labels"];
+  try {
+    const resolved = await resolveMarketLabels(env, {
+      itemId: item.id,
+      lang,
+      marketDate,
+    });
+    labels = {
+      ok: true,
+      count: Object.keys(resolved.labels).length,
+      droppedKeywords: resolved.droppedKeywords.length,
+    };
+  } catch (error) {
+    labels = {
+      ok: false,
+      count: 0,
+      droppedKeywords: 0,
+      error: error instanceof Error ? error.message : "label resolve failed",
+    };
+  }
+
   return {
     ok: true,
     itemId: item.id,
@@ -237,6 +267,7 @@ export async function ingestMarketReport(
     chunks: texts.length,
     deletedIds,
     title: item.title,
+    labels,
   };
 }
 
@@ -253,7 +284,7 @@ export const MARKET_VECTOR_FILTER_PROPERTIES = [
  * When true, Vectorize query filter includes `lang` (Settings / request lang).
  * Off for now so ko/en chunks for the same item can both match; flip back on later.
  */
-export const MARKET_VECTOR_QUERY_FILTER_BY_LANG = false;
+export const MARKET_VECTOR_QUERY_FILTER_BY_LANG = true;
 
 const DEFAULT_TOP_K_PER_QUERY = 2;
 const DEFAULT_HIT_LIMIT = 3;
