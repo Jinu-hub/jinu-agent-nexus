@@ -327,7 +327,7 @@ curl -s -X POST http://localhost:5173/api/market-vector/query \
 * **§6:** 라우트 추가 없음 (기존 query API 재사용).
 * **동작:**
   * 유저 말에서 `「…」` / `"…"` 추출 + `YYYY-MM-DD`면 그 날짜
-  * prefetch에 `vectorSearch` (`minScore` 0.68; 하이픈→공백 normalize만, 동의어 맵 없음)
+  * prefetch에 `vectorSearch` (`minScore` 0.68; 리포트 `metadata.tags.core` lexicon으로 expand — 하드코딩 맵 없음)
   * hits 있으면 **그 문단만** 근거; 없으면 “가까운 내용 없음”
 * **미룸:** For you / ★관심사 prefetch 벡터 교체
 
@@ -340,15 +340,46 @@ curl -s -X POST http://localhost:5173/api/market-vector/query \
 
 **확인**
 
-1. ingest된 `2026-09-11`에서 Topics `energy` 클릭 → 챗 답이 하이라이트/원유 쪽 (OpenAI→국채 같은 억지 매칭 없음)
-2. prefetch에 `vectorSearch.hits` (또는 empty)
-3. `npx tsc -b` OK
+1. ingest된 `2026-09-11`에서 Topics 칩/`「키워드」` → `vectorSearch.hits` (또는 empty)
+2. `npx tsc -b` OK
 
 **의도적으로 안 함**
 
 * For you UI 벡터화
 * ★목록 자동 벡터 prefetch
 * 일배치 cron / 여러 itemId 검색
+
+### 14.4 Phase 3b — 태그 lexicon (메타 라벨) *(완료)*
+
+* **목적:** 하드코딩 동의어 맵 대신 **리포트 메타**의 slug + 표시라벨/aliases 사용. UI는 표시만, 저장·Ask `「slug」`는 영어 유지.
+* **스키마 (producer):** `item_contents.metadata.tags.core[]`
+  * `{ tag|slug, label_ko?, label?, display?, aliases?: string[] }`
+  * 선택: `metadata.tag_labels` / `tagLabels` — `{ [slug]: "한글" }`
+* **동작:**
+  * UI Topics/My interests — `label_ko`→`label`→`display`→slug 순으로 표시
+  * 벡터 expand — 같은 lexicon의 aliases + display (슬러그/별칭 reverse lookup 포함)
+  * 모델 프롬프트에는 lexicon dump 안 함 (서버 expand 전용)
+* **현재 데이터:** core에 `aliases`는 있음, `label_ko`는 아직 없음 → **표시는 slug 유지** until pipeline이 `label_ko` 채움. 벡터는 aliases로 표기 흔들림 완화.
+* **entities:** `metadata.entities.*` 문자열/`{name, aliases, label_ko}`도 **같은 lexicon**에 편입. 기존 태그 slug/alias와 이름·느슨한 키가 겹치면 merge(별도 엔트리 중복 방지).
+
+**수정 및 추가 파일**
+
+* `src/lib/market-tag-lexicon.ts` *(신규)* — tags.core + entities
+* `src/panels/report-topics.tsx` / `MyInterestsFold.tsx` / `MarketPanel.tsx`
+* `worker/chat-agent/market-prefetch.ts` / `market-vector-search.ts`
+* docs (CLAUDE / WORK_NOTES_2)
+
+**확인**
+
+1. `npx tsc -b` OK
+2. Topics Ask는 여전히 `「cpi」` / entity 원문 등 저장 키 유지
+3. `「Federal Reserve」` / `「shipping」`도 lexicon에 등록되어 expand 경로 타는지 (aliases 없으면 자기 자신 + normalize)
+4. `label_ko` 넣으면 UI에 한글 표시 (파이프라인 쪽 작업)
+
+**의도적으로 안 함**
+
+* Worker가 KO 번역을 생성/하드코딩
+* entities에 없는 동의어를 코드에서 발명
 
 ---
 

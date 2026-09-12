@@ -14,6 +14,10 @@ import {
   type TopicChipAskKind,
 } from "@/lib/market-suggestions";
 import {
+  buildTagLexicon,
+  topicDisplayLabel,
+} from "@/lib/market-tag-lexicon";
+import {
   isPreferenceSaved,
   mapTopicToPreference,
   type PreferenceRow,
@@ -357,6 +361,7 @@ export function ReportKeywordChips({
   const prefs = preferences ?? [];
   const askEnabled = Boolean(onAsk) && SHOW_TOPIC_CHIP_ASK;
   const starEnabled = Boolean(onToggleInterest) && SHOW_TOPIC_CHIP_STAR;
+  const tagLexicon = buildTagLexicon(metadata);
 
   const allTags = asStringList(tags);
   let tagList = allTags.slice(0, TOPIC_TAG_LIMIT);
@@ -410,6 +415,7 @@ export function ReportKeywordChips({
               <TopicChip
                 key={`tag:${tag}`}
                 label={tag}
+                displayLabel={topicDisplayLabel(tag, tagLexicon)}
                 askKind="tag"
                 source={{ source: "tag", label: tag }}
                 marketDate={marketDate}
@@ -458,6 +464,7 @@ export function ReportKeywordChips({
                 <TopicChip
                   key={kw.key}
                   label={kw.label}
+                  displayLabel={topicDisplayLabel(kw.label, tagLexicon)}
                   sectionLabel={keywordSectionLabel(kw.source)}
                   askKind={kw.askKind}
                   source={kw.source}
@@ -604,6 +611,7 @@ export function ReportTopicChips({
 
 function TopicChip({
   label,
+  displayLabel,
   sectionLabel,
   askKind,
   source,
@@ -614,6 +622,8 @@ function TopicChip({
   className,
 }: {
   label: string;
+  /** Optional UI label (e.g. label_ko). Ask/save still use source.label. */
+  displayLabel?: string;
   /** Optional section prefix (Company / Place) — My interests style. */
   sectionLabel?: string;
   askKind: TopicChipAskKind;
@@ -629,15 +639,20 @@ function TopicChip({
     mapped != null &&
     isPreferenceSaved(preferences, mapped.kind, mapped.target);
   const askLabel = source.label;
+  const shown = (displayLabel ?? label).trim() || label;
+  const titleHint =
+    shown !== askLabel ? `${shown} · ${askLabel}` : askLabel;
   const body = sectionLabel ? (
     <>
       <span className="font-mono text-[9px] uppercase text-muted-foreground">
         {sectionLabel}
       </span>
-      <span className="truncate text-foreground/85">{label}</span>
+      <span className="truncate text-foreground/85" title={askLabel}>
+        {shown}
+      </span>
     </>
   ) : (
-    label
+    <span title={askLabel}>{shown}</span>
   );
 
   return (
@@ -645,12 +660,13 @@ function TopicChip({
       {onAsk ? (
         <button
           type="button"
-          title={`Ask in chat: ${askLabel}`}
+          title={`Ask in chat: ${titleHint}`}
           onClick={() =>
             onAsk(topicChipAskPrompt(askKind, askLabel, marketDate))
           }
           className={cn(
             className,
+            "normal-case tracking-normal",
             "cursor-pointer transition-colors hover:border-foreground/30 hover:bg-accent hover:text-foreground",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             saved && "ring-1 ring-amber-500/40",
@@ -659,7 +675,14 @@ function TopicChip({
           {body}
         </button>
       ) : (
-        <span className={cn(className, saved && "ring-1 ring-amber-500/40")}>
+        <span
+          className={cn(
+            className,
+            "normal-case tracking-normal",
+            saved && "ring-1 ring-amber-500/40",
+          )}
+          title={askLabel}
+        >
           {body}
         </span>
       )}
@@ -667,7 +690,9 @@ function TopicChip({
         <button
           type="button"
           title={
-            saved ? `Remove interest: ${askLabel}` : `Save interest: ${askLabel}`
+            saved
+              ? `Remove interest: ${askLabel}`
+              : `Save interest: ${askLabel}`
           }
           aria-pressed={saved}
           onClick={() => onToggleInterest(source)}

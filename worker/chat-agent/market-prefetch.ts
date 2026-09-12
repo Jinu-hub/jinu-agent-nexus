@@ -37,6 +37,11 @@ import {
   vectorSearchInstructionClause,
   type ChatVectorSearchResult,
 } from "./market-vector-search";
+import {
+  buildTagLexicon,
+  serializeTagLexicon,
+  type TagLexeme,
+} from "../../src/lib/market-tag-lexicon";
 
 /** Attach compact userInterests (+ interestHits) to a prefetch payload. */
 function withUserInterests<T extends Record<string, unknown>>(
@@ -79,6 +84,7 @@ async function withVectorSearch<T extends Record<string, unknown>>(
     userText: string;
     marketDate?: string;
     lang?: string;
+    tagLexicon?: TagLexeme[] | null;
   },
 ): Promise<T & { vectorSearch?: ChatVectorSearchResult }> {
   const queries = extractQuotedQueries(opts.userText);
@@ -88,6 +94,7 @@ async function withVectorSearch<T extends Record<string, unknown>>(
     queries,
     marketDate: opts.marketDate,
     lang: opts.lang,
+    tagLexicon: opts.tagLexicon,
   });
   const instruction =
     typeof payload.instruction === "string"
@@ -264,12 +271,31 @@ async function loadReport(
     excerpt: reportChatExcerpt(item.content, item.summary),
     highlights: reportHighlightHeadings(item.content),
     keywords: reportChatKeywords(item),
+    /** Compact lexicon for vector expand / UI — not for model dump. */
+    tagLexicon: serializeTagLexicon(buildTagLexicon(item.metadata)),
     reportType: item.report_type,
     requestedDate: resolved.requestedDate,
     correctedFrom,
     usedExpectedLatest: resolved.usedExpectedLatest,
     usedDataBackedLatest: resolved.usedDataBackedLatest,
   };
+}
+
+function tagLexiconFromReport(report: unknown): TagLexeme[] | undefined {
+  if (!report || typeof report !== "object") return undefined;
+  const lex = (report as { tagLexicon?: unknown }).tagLexicon;
+  return Array.isArray(lex) ? (lex as TagLexeme[]) : undefined;
+}
+
+/** Drop tagLexicon before JSON-stringifying into the model prompt. */
+function reportWithoutLexicon<T extends Record<string, unknown>>(report: T): Omit<
+  T,
+  "tagLexicon"
+> {
+  const { tagLexicon: _drop, ...rest } = report as T & {
+    tagLexicon?: unknown;
+  };
+  return rest;
 }
 
 function resolveAskDate(
@@ -407,14 +433,21 @@ export async function buildMarketPrefetchBlock(
               intent: "reportVsBrief",
               seoulHints: hints,
               brief,
-              report,
+              report: reportWithoutLexicon(
+                report as Record<string, unknown>,
+              ),
               instruction:
                 "Same-day Brief vs Report — content only, not format. Product fact: Brief is usually distilled FROM Report highlights (pulse/takeaway ≈ highlight themes), so do NOT say 'Brief is short / Report is long' or 'Brief compresses, Report expands' — that is empty. Instead: (1) name 1–2 themes both share; (2) name what Report adds beyond Brief (e.g. 주요/추가 항목, extra companies/events, 마무리, 용어) using summary/excerpt/highlights vs brief pulse/takeaway/excerpt; (3) if they largely align, say so in one line. Short natural language. No full markdown dump. No <tool_call>/XML. One line: details in Market tab → Brief / Report.",
             },
             userInterests,
             { keywords: reportKw, snippets, includeHits: true },
           ),
-          { userText, marketDate, lang },
+          {
+            userText,
+            marketDate,
+            lang,
+            tagLexicon: tagLexiconFromReport(report),
+          },
         ),
         null,
         2,
@@ -453,13 +486,20 @@ export async function buildMarketPrefetchBlock(
               fullTextAsk: Boolean(intent.fullText),
               keywordsOnly,
               seoulHints: hints,
-              report,
+              report: reportWithoutLexicon(
+                report as Record<string, unknown>,
+              ),
               instruction: baseInstruction,
             },
             userInterests,
             { keywords: reportKw, snippets, includeHits: true },
           ),
-          { userText, marketDate, lang },
+          {
+            userText,
+            marketDate,
+            lang,
+            tagLexicon: tagLexiconFromReport(report),
+          },
         ),
         null,
         2,
@@ -476,6 +516,10 @@ export async function buildMarketPrefetchBlock(
       brief && "marketDate" in brief && typeof brief.marketDate === "string"
         ? brief.marketDate
         : askDate;
+    const quoted = extractQuotedQueries(userText);
+    // Brief asks with 「keyword」 still need report lexicon for alias expand.
+    const reportForLexicon =
+      quoted.length > 0 ? await loadReport(agent, env, askDate) : null;
     return JSON.stringify(
       await withVectorSearch(
         env,
@@ -491,7 +535,12 @@ export async function buildMarketPrefetchBlock(
           userInterests,
           { snippets, includeHits: true },
         ),
-        { userText, marketDate, lang },
+        {
+          userText,
+          marketDate,
+          lang,
+          tagLexicon: tagLexiconFromReport(reportForLexicon),
+        },
       ),
       null,
       2,

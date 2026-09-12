@@ -58,6 +58,7 @@
 | Shared load | `worker/market-memory-load.ts`, `worker/tools/market-date-resolve.ts` |
 | Market tools | `worker/tools/getTodayMarketBrief.ts`, `getTodayMarketVoice.ts`, `getTodayMarketReport.ts` |
 | Chat Market | `worker/chat-agent/market-intent.ts`, `market-prefetch.ts`, `market-vector-search.ts`, `market-turn-hooks.ts`, `soul-market.ts`, `user-interests.ts` |
+| Tag lexicon (FE) | `src/lib/market-tag-lexicon.ts` — `metadata.tags.core` + `entities` display/expand |
 
 ### Frontend Market
 
@@ -151,3 +152,4 @@
 | 2026-09-12 | Market vector ingest — A + B index ([`WORK_NOTES_2` §14.1](./WORK_NOTES_2.md)) |
 | 2026-09-12 | Market vector query + metadata indexes ([`WORK_NOTES_2` §14.2](./WORK_NOTES_2.md)) |
 | 2026-09-12 | Chat 「keyword」 vector search ([`WORK_NOTES_2` §14.3](./WORK_NOTES_2.md)) |
+| 2026-09-12 | Tag lexicon from report metadata ([`WORK_NOTES_2` §14.4](./WORK_NOTES_2.md)) |

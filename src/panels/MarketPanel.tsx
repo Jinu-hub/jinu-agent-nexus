@@ -9,7 +9,7 @@
 // not blindly Seoul yesterday — weekends/holidays often have no US-market row.
 // ─────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ChevronDown,
   ChevronLeft,
@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import type { ContentLang } from "../../worker/chat-agent/settings";
 import { MARKET_SUGGESTIONS } from "@/lib/market-suggestions";
+import { buildTagLexicon } from "@/lib/market-tag-lexicon";
 import {
   calendarYesterdayYmd,
   metaString,
@@ -513,6 +514,10 @@ export function MarketPanel({
     hasReport && reportItem
       ? collectReportPreferenceKeys(reportItem)
       : null;
+  const tagLexicon = useMemo(
+    () => (reportItem ? buildTagLexicon(reportItem.metadata) : null),
+    [reportItem],
+  );
   const reportCheckedMissing =
     reportCached && report !== null && !report.found;
 
@@ -957,6 +962,7 @@ export function MarketPanel({
                       reportKeys={reportKeys}
                       interestsOnly={interestsOnly}
                       onInterestsOnlyChange={setInterestsOnly}
+                      tagLexicon={tagLexicon}
                     />
                   ) : null}
                   <div className="flex items-center gap-2 py-2 text-[11px] text-muted-foreground">
@@ -974,6 +980,7 @@ export function MarketPanel({
                       reportKeys={reportKeys}
                       interestsOnly={interestsOnly}
                       onInterestsOnlyChange={setInterestsOnly}
+                      tagLexicon={tagLexicon}
                     />
                   ) : null}
                   {hasTopKeywords(reportItem!) ? (
@@ -1020,6 +1027,7 @@ export function MarketPanel({
                       reportKeys={reportKeys}
                       interestsOnly={interestsOnly}
                       onInterestsOnlyChange={setInterestsOnly}
+                      tagLexicon={tagLexicon}
                     />
                   ) : null}
                   {reportCheckedMissing && hasBrief ? (

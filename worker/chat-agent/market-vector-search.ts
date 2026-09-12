@@ -8,28 +8,24 @@ import {
   queryMarketVectors,
   type MarketVectorHit,
 } from "../market-vector";
+import {
+  expandQueriesFromLexicon,
+  tagLexiconFromEntries,
+  type TagLexeme,
+} from "../../src/lib/market-tag-lexicon";
 
 /** Default floor — weak matches below this are treated as no hit. */
 export const CHAT_VECTOR_MIN_SCORE = 0.68;
 
-/** Normalize one user/tag query into embedding variants (deduped). */
-export function expandChatVectorQueries(raw: string): string[] {
-  const t = raw.trim();
-  if (!t) return [];
-  const out: string[] = [];
-  const seen = new Set<string>();
-  const push = (s: string) => {
-    const v = s.trim();
-    if (!v) return;
-    const key = v.toLowerCase();
-    if (seen.has(key)) return;
-    seen.add(key);
-    out.push(v);
-  };
-  push(t);
-  // Light normalize only — no synonym dictionary (EN slug vs KO body is data/UX concern).
-  if (t.includes("-")) push(t.replace(/-/g, " "));
-  return out;
+/** Normalize one user/tag query (+ optional report lexicon) into variants. */
+export function expandChatVectorQueries(
+  raw: string,
+  tagLexicon?: TagLexeme[] | null,
+): string[] {
+  return expandQueriesFromLexicon(
+    raw,
+    tagLexiconFromEntries(tagLexicon ?? undefined),
+  );
 }
 
 export type ChatVectorHit = {
@@ -101,6 +97,8 @@ export async function runChatVectorSearch(
     queries: string[];
     marketDate?: string;
     lang?: string;
+    /** From item_contents.metadata.tags.core (+ label_ko when present). */
+    tagLexicon?: TagLexeme[] | null;
   },
 ): Promise<ChatVectorSearchResult> {
   const userQueries = opts.queries.map((q) => q.trim()).filter(Boolean);
@@ -118,7 +116,7 @@ export async function runChatVectorSearch(
   const expanded: string[] = [];
   const seen = new Set<string>();
   for (const q of userQueries) {
-    for (const v of expandChatVectorQueries(q)) {
+    for (const v of expandChatVectorQueries(q, opts.tagLexicon)) {
       const key = v.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
