@@ -53,6 +53,7 @@
 | Settings domain | `worker/chat-agent/settings.ts`, `worker/settings-routes.ts`, `src/panels/SettingsPanel.tsx` |
 | Supabase | `worker/supabase.ts` |
 | Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts`, `worker/report-keywords.ts`, `worker/market-date.ts` |
+| Market vectors | `worker/market-vector.ts`, `worker/market-vector-routes.ts` |
 | Voice | `worker/content-audio.ts` (barrel), `content-audio-domain.ts`, `content-audio-routes.ts`, `audio-r2.ts`, `tts.ts`, `voice-lang-filter.ts`, `voice-audio-cron.ts` |
 | Shared load | `worker/market-memory-load.ts`, `worker/tools/market-date-resolve.ts` |
 | Market tools | `worker/tools/getTodayMarketBrief.ts`, `getTodayMarketVoice.ts`, `getTodayMarketReport.ts` |
@@ -77,7 +78,7 @@
 
 | 파일 | 넣을 것 (요약) |
 |------|----------------|
-| `worker/index.ts` | `handleNotes` / `Memory` / `Settings` / `Supabase` / `Briefs` / `Reports` / `Audio` 체인; DO re-export (`ChatAgent`, `MyMemory`, `LiveMarketRoomAgent`); `scheduled` → voice cron |
+| `worker/index.ts` | `handleNotes` / `Memory` / `Settings` / `Supabase` / `Briefs` / `Reports` / `Audio` / `MarketVector` 체인; DO re-export (`ChatAgent`, `MyMemory`, `LiveMarketRoomAgent`); `scheduled` → voice cron |
 | `wrangler.jsonc` | NOTES KV, MyMemory + Live DO, AUDIO_BUCKET, `PDF_VECTOR_DB` + `MARKET_VECTOR_DB`, crons, `run_worker_first` paths, vars |
 | `worker/chat-agent/ChatAgent.ts` | `marketBeforeTurn` / `marketBeforeStep` 위임; settings cleanup (이미 있으면 유지) |
 | `configure-session.ts` | `MARKET_SOUL_RULES` compose (`soul-market.ts`) |
@@ -133,7 +134,7 @@
 
 - 바인딩/경로/툴 키 rename (예외: §14.0 Vectorize PDF rename + Market index — Sources 미사용 시점에 완료)
 - baseline `ChatAgent` 대수술
-- §14 벡터 **ingest / query / For you·prefetch 교체** (Phase 1+; 인프라·설계만 §14.0)
+- §14 벡터 **query / For you·prefetch 교체** (Phase 14.2+; ingest는 §14.1 완료)
 - soul RULE **문구** 변경 (파일 위치만 Wave 1에서 분리)
 - PDF+Market **통합 검색** (나중 fan-out)
 
@@ -147,3 +148,4 @@
 | 2026-09-12 | Settings `hidden_panels` — B `App.tsx` tab filter 표기 ([`WORK_NOTES_2` §12](./WORK_NOTES_2.md)) |
 | 2026-09-12 | Voice cron catch-up `0 1` — C 체크리스트 ([`WORK_NOTES_2` §13](./WORK_NOTES_2.md)) |
 | 2026-09-12 | Vectorize split/rename — C + B wrangler ([`WORK_NOTES_2` §14.0](./WORK_NOTES_2.md)) |
+| 2026-09-12 | Market vector ingest — A + B index ([`WORK_NOTES_2` §14.1](./WORK_NOTES_2.md)) |

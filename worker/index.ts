@@ -12,7 +12,8 @@
 //   7. Content briefs — today + latest-date (`/api/briefs/today`, `/api/briefs/latest-date`).
 //   8. Full reports — item_contents via brief.target_id (`/api/reports/today`).
 //   9. Voice audio — pending, claim, R2, TTS, generate, Cron (`/api/audio/*`).
-//  10. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
+//  10. Market vector ingest — report chunks → MARKET_VECTOR_DB (`/api/market-vector/*`).
+//  11. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
 //      which dispatches to the ChatAgent / LiveMarketRoomAgent DOs.
 //
 // The DO class MUST be re-exported from this file. Wrangler's runtime
@@ -31,6 +32,7 @@ import { handleSupabaseRequest } from "./supabase";
 import { handleBriefsRequest } from "./content-briefs";
 import { handleReportsRequest } from "./item-contents";
 import { handleAudioRequest } from "./content-audio";
+import { handleMarketVectorRequest } from "./market-vector-routes";
 import {
   isVoiceAudioCron,
   runVoiceAudioCron,
@@ -64,8 +66,10 @@ export default {
     // ── Supabase (Market Memory) ───────────────────────────────────────
     // Health probe (`/api/supabase/health`), content_briefs / item_contents
     // today reads (`/api/briefs/today`, `/api/reports/today`), plus Voice
-    // pending/claim/R2/TTS/generate (`/api/audio/*`).
-    // See worker/supabase.ts, content-briefs.ts, item-contents.ts, content-audio.ts.
+    // pending/claim/R2/TTS/generate (`/api/audio/*`), and Market Vectorize
+    // ingest (`/api/market-vector/*`).
+    // See worker/supabase.ts, content-briefs.ts, item-contents.ts,
+    // content-audio.ts, market-vector-routes.ts.
     const supabase = await handleSupabaseRequest(request, env);
     if (supabase) return supabase;
 
@@ -77,6 +81,9 @@ export default {
 
     const audio = await handleAudioRequest(request, env);
     if (audio) return audio;
+
+    const marketVector = await handleMarketVectorRequest(request, env);
+    if (marketVector) return marketVector;
 
     // ── PDF upload ─────────────────────────────────────────────────────
     // Why this is a top-level route (not a @callable on the agent):

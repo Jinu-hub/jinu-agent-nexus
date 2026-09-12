@@ -150,6 +150,7 @@ in `Message.tsx` → then server `execute` runs.
 | Supabase (prep) | `GET /api/supabase/health` | `worker/supabase.ts` | External Postgres (Market Memory) |
 | Content briefs | `GET /api/briefs/today`, `GET /api/briefs/latest-date` | `worker/content-briefs.ts`, `market-date.ts` | Supabase `content_briefs` |
 | Full reports | `GET /api/reports/today` | `worker/item-contents.ts` | Supabase `item_contents` via `content_briefs.target_id` |
+| Market vectors | `POST /api/market-vector/ingest` | `worker/market-vector.ts` + routes | Chunk+embed → `MARKET_VECTOR_DB` (§14.1) |
 | Market panel | Market tab | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `src/lib/market-suggestions.ts` | briefs + audio + reports (lazy) + wide reader modal + TOC |
 | Browser | Browser | `navigate.ts`, `screenshot.ts`, Puppeteer | Remote browser session + R2 screenshots |
 | Schedules | Schedules | `setReminder.ts`, DO alarms | DO schedule store |
@@ -196,6 +197,7 @@ worker/index.ts          HTTP entry — routes only, thin
     ├── GET  /api/briefs/today → content_briefs (Seoul market_date)
     ├── GET  /api/briefs/latest-date → newest market_date with final brief
     ├── GET  /api/reports/today → item_contents via brief.target_id
+    ├── POST /api/market-vector/ingest → item_contents → MARKET_VECTOR_DB
     ├── /api/audio/* → content_audio Voice pipeline (+ GET /api/audio/today)
     ├── /agents/live-market-room-agent/market-pulse → poll room WS + RPC
     └── /agents/ChatAgent/default  → WebSocket + RPC

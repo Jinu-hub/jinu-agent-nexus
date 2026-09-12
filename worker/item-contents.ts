@@ -118,6 +118,33 @@ export async function getTodayItemContent(
 }
 
 /**
+ * Load one active item_contents row by primary key (service_role).
+ */
+export async function getItemContentById(
+  env: Env,
+  id: string,
+): Promise<ItemContentRow | null> {
+  const itemId = id.trim();
+  if (!itemId) return null;
+
+  const client = createSupabaseClient(env, { privileged: true });
+  const { data, error } = await client
+    .from(ITEM_CONTENTS_TABLE)
+    .select(ITEM_CONTENTS_SELECT)
+    .eq("id", itemId)
+    .eq("is_active", true)
+    .not("content", "is", null)
+    .neq("content", "")
+    .maybeSingle()
+    .overrideTypes<ItemContentRow, { merge: false }>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data ?? null;
+}
+
+/**
  * HTTP routes for full reports:
  *   GET /api/reports/today — one item_contents row via today's brief.target_id
  *

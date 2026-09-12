@@ -239,10 +239,61 @@ npx tsc -b
 * `pgvector` / 임베딩 float export
 * 타임라인 파이프라인
 
-### 14.1+ (다음)
+### 14.1 Phase 1 — Market report ingest *(완료)*
 
-* Phase 1 — Market ingest (`item_id` 단위 chunk → embed → upsert)
-* Phase 2 — 관심사 쿼리 (+ 필터)
+* **목적:** 당일(또는 지정) `item_contents` 본문을 청크·임베딩해 `MARKET_VECTOR_DB`에 저장. 재실행 시 동일 `item_id` 벡터를 deterministic id로 교체.
+* **§6:** `POST /api/market-vector/ingest` 반영.
+* **머지:** A `market-vector.ts` + routes; B `index.ts` 체인 — [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md).
+
+**설계 (Phase 0 확정 반영)**
+
+* 청크: 기존 `chunkMarkdown` (~800자)
+* 벡터 id: `mr_{item_id}_{chunk_index}` — 재ingest 시 `0..199` deleteByIds 후 upsert
+* metadata: `item_id`, `market_date`, `lang`, `chunk_index`, `text` (Phase 2 조회용; DO SQLite 없음)
+* resolve: body `item_id` 있으면 직접 로드, 없으면 brief→`getTodayItemContent` (date/lang/…)
+
+**수정 및 추가 파일**
+
+* `worker/market-vector.ts` *(신규)* — ingest / deleteByItem
+* `worker/market-vector-routes.ts` *(신규)* — `POST /api/market-vector/ingest`
+* `worker/item-contents.ts` — `getItemContentById`
+* `worker/index.ts` — 라우트 체인
+* `WORK_NOTES.md` §6 · `CLAUDE.md` / `ARCHITECTURE.md` / `MERGE_STRATEGY.md`
+
+**확인**
+
+```bash
+# 데이터 있는 Latest (omit date) — lang 기본 ko
+curl -s -X POST http://localhost:5173/api/market-vector/ingest \
+  -H 'content-type: application/json' \
+  -d '{}'
+
+# 특정일
+curl -s -X POST http://localhost:5173/api/market-vector/ingest \
+  -H 'content-type: application/json' \
+  -d '{"date":"2026-09-11","lang":"ko"}'
+
+# item_id 직접
+curl -s -X POST http://localhost:5173/api/market-vector/ingest \
+  -H 'content-type: application/json' \
+  -d '{"item_id":"<uuid>"}'
+```
+
+* 기대 JSON: `{ ok, itemId, marketDate, lang, chunks, deletedIds, title }`
+* `npx tsc -b` OK
+* **로컬 검증 (OK):** `date=2026-09-11` `lang=ko` → `chunks:4`, `itemId=3f236446-…`, 동일 요청 재호출도 동일 (재ingest 안정)
+* `deletedIds:200` = sweep 한도(0..199), 실제 삭제 벡터 수 아님
+
+**의도적으로 안 함**
+
+* 유사도 쿼리 API / For you·prefetch 교체 (14.2–14.3)
+* 일배치 cron ingest
+* PDF+Market 통합 검색 / metadata index 튜닝
+* `report_type` 필터 필드 (나중)
+
+### 14.2+ (다음)
+
+* Phase 2 — 관심사 쿼리 (+ `market_date`/`lang`/`item_id` 필터)
 * Phase 3 — For you / prefetch 소비처 교체
 
 ---
