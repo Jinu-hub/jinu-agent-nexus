@@ -122,6 +122,26 @@ for (const name of [VECTORIZE_PDF, VECTORIZE_MARKET]) {
   }
 }
 
+// ─── 3b. Market metadata indexes (required for filtered query) ───────────
+log.header(`Vectorize metadata indexes: ${VECTORIZE_MARKET}`);
+for (const prop of ["market_date", "lang", "item_id"]) {
+  const r = run("npx", [
+    "wrangler",
+    "vectorize",
+    "create-metadata-index",
+    VECTORIZE_MARKET,
+    `--property-name=${prop}`,
+    "--type=string",
+  ]);
+  if (r.code === 0) log.ok(`metadata index ${prop}`);
+  else if (alreadyExists(r.out) || /already exists|conflict|409/i.test(r.out)) {
+    log.skip(`metadata index ${prop} already exists`);
+  } else {
+    log.fail(`metadata index ${prop}`);
+    log.info(r.out.trim());
+  }
+}
+
 // ─── 4. Workers KV (My Market Notes) ─────────────────────────────────────
 log.header(`Workers KV: ${NOTES_KV}`);
 {

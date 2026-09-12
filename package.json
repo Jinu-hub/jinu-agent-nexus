@@ -17,6 +17,7 @@
     "setup:kv": "wrangler kv namespace create NOTES && wrangler kv namespace create NOTES --preview",
     "setup:vectorize": "wrangler vectorize create pdf-vectorstore --dimensions=768 --metric=cosine",
     "setup:vectorize:market": "wrangler vectorize create market-memory-vectorstore --dimensions=768 --metric=cosine",
+    "setup:vectorize:market-meta": "wrangler vectorize create-metadata-index market-memory-vectorstore --property-name=market_date --type=string && wrangler vectorize create-metadata-index market-memory-vectorstore --property-name=lang --type=string && wrangler vectorize create-metadata-index market-memory-vectorstore --property-name=item_id --type=string",
     "seed:skills:local": "wrangler r2 object put boilerplate-bucket/skills/example-skill.md --file ./skills/example-skill.md --local",
     "seed:skills:remote": "wrangler r2 object put boilerplate-bucket/skills/example-skill.md --file ./skills/example-skill.md --remote"
   },

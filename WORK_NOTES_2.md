@@ -291,9 +291,38 @@ curl -s -X POST http://localhost:5173/api/market-vector/ingest \
 * PDF+Market 통합 검색 / metadata index 튜닝
 * `report_type` 필터 필드 (나중)
 
-### 14.2+ (다음)
+### 14.2 Phase 2 — 관심사 쿼리 *(완료)*
 
-* Phase 2 — 관심사 쿼리 (+ `market_date`/`lang`/`item_id` 필터)
+* **목적:** 관심사 유사도 검색. **ingest와 같이** brief/date → `item_contents.id`를 먼저 구한 뒤, 필터에 **`item_id`+`market_date`+`lang`을 항상** 넣음 (`itemId: null` 없음).
+* **§6:** `POST /api/market-vector/query` 반영.
+* **전제:** metadata index (`market_date`, `lang`, `item_id`) + 인덱스 생성 후 재ingest.
+* **기본값:** `top_k_per_query=2`, `hit_limit=3` (짧은 다이제스트 ~4–5청크 기준; 관심사 여러 개여도 거의 전부 반환 방지).
+
+**수정 및 추가 파일**
+
+* `worker/market-vector.ts` — `queryMarketVectors` (`resolveItemForIngest` 재사용)
+* `worker/market-vector-routes.ts` — query (Supabase로 id resolve)
+* `package.json` / `scripts/setup.mjs` — `setup:vectorize:market-meta`
+* docs (§6 / CLAUDE / ARCH / MERGE)
+
+**확인**
+
+```bash
+curl -s -X POST http://localhost:5173/api/market-vector/query \
+  -H 'content-type: application/json' \
+  -d '{"date":"2026-09-11","lang":"ko","queries":["물가","에너지"]}'
+```
+
+* 기대: `{ ok, itemId: "3f236446-…", marketDate, lang, queries, hits:[…] }`
+
+**의도적으로 안 함**
+
+* For you / prefetch 교체 (14.3)
+* MyMemory preferences 자동 로드 (호출측에서 queries 전달)
+* 일배치 cron / 통합 검색
+
+### 14.3+ (다음)
+
 * Phase 3 — For you / prefetch 소비처 교체
 
 ---

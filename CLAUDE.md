@@ -92,6 +92,7 @@ flowchart LR
 - `GET /api/briefs/latest-date` — newest `market_date` with a final brief (data-backed Latest)
 - `GET /api/reports/today` — `item_contents` full report via `content_briefs.target_id`
 - `POST /api/market-vector/ingest` — chunk+embed report → `MARKET_VECTOR_DB`
+- `POST /api/market-vector/query` — interest similarity search (+ date/lang/item filters)
 - `POST /api/upload` — PDF upload (not RPC; large FormData)
 - `/screenshots/*` — R2 screenshot proxy
 - Everything else → `routeAgentRequest` → ChatAgent DO
@@ -185,7 +186,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Change model | `wrangler.jsonc` vars only (usually no code change) |
 | AI provider logic | `worker/ai.ts` |
 | PDF ingest / chunking | `worker/ingest.ts`, RAG in `worker/tools/recall.ts` + `chat-agent/rag.ts` (`PDF_VECTOR_DB`) |
-| Market report vectors | `worker/market-vector.ts` + `market-vector-routes.ts` — `POST /api/market-vector/ingest` → `MARKET_VECTOR_DB` |
+| Market report vectors | `worker/market-vector.ts` + `market-vector-routes.ts` — ingest + `POST /api/market-vector/query` → `MARKET_VECTOR_DB` |
 | My Market Notes (KV) | `worker/notes.ts` + `wrangler.jsonc` `kv_namespaces` |
 | My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts`; panel interests UI `src/lib/topic-preference.ts` + `MyInterestsFold.tsx`; chat prefetch `user-interests.ts` (P3) |
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |

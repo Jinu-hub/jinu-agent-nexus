@@ -99,7 +99,7 @@
 - [ ] `.dev.vars` / production secrets: `API_TOKEN`, `SUPABASE_*`, `LIVE_ROOM_TOKEN`(optional)
 - [ ] NOTES KV (prod/preview)
 - [ ] R2 `AUDIO_BUCKET` (`market-memory-audio`) + 기존 `BUCKET`
-- [ ] Vectorize `PDF_VECTOR_DB` → `pdf-vectorstore` (768) + `MARKET_VECTOR_DB` → `market-memory-vectorstore` (768); same `EMBEDDING_MODEL`
+- [ ] Vectorize `PDF_VECTOR_DB` → `pdf-vectorstore` (768) + `MARKET_VECTOR_DB` → `market-memory-vectorstore` (768); same `EMBEDDING_MODEL`; market **metadata indexes** (`market_date`,`lang`,`item_id`) then re-ingest
 - [ ] DO migrations (MyMemory / Live / ChatAgent tags)
 - [ ] Voice cron schedule (`wrangler.jsonc` `triggers.crons` — `0 0` + `0 1` UTC)
 - [ ] `npm run seed:skills:*` if skills changed
@@ -134,7 +134,7 @@
 
 - 바인딩/경로/툴 키 rename (예외: §14.0 Vectorize PDF rename + Market index — Sources 미사용 시점에 완료)
 - baseline `ChatAgent` 대수술
-- §14 벡터 **query / For you·prefetch 교체** (Phase 14.2+; ingest는 §14.1 완료)
+- §14 벡터 **For you·prefetch 교체** (Phase 14.3; ingest·query는 §14.1–14.2 완료)
 - soul RULE **문구** 변경 (파일 위치만 Wave 1에서 분리)
 - PDF+Market **통합 검색** (나중 fan-out)
 
@@ -149,3 +149,4 @@
 | 2026-09-12 | Voice cron catch-up `0 1` — C 체크리스트 ([`WORK_NOTES_2` §13](./WORK_NOTES_2.md)) |
 | 2026-09-12 | Vectorize split/rename — C + B wrangler ([`WORK_NOTES_2` §14.0](./WORK_NOTES_2.md)) |
 | 2026-09-12 | Market vector ingest — A + B index ([`WORK_NOTES_2` §14.1](./WORK_NOTES_2.md)) |
+| 2026-09-12 | Market vector query + metadata indexes ([`WORK_NOTES_2` §14.2](./WORK_NOTES_2.md)) |

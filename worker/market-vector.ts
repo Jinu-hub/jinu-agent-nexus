@@ -2,13 +2,11 @@
 // Market report → Vectorize ingest (MARKET_VECTOR_DB)
 // ─────────────────────────────────────────────────────────────────────────
 //
-// Phase 14.1: chunk item_contents markdown, embed, upsert with metadata
-// (item_id, market_date, lang, chunk_index, text). Deterministic vector
-// ids so re-ingest can deleteByIds without a side store.
-// Query / For you wiring = Phase 14.2+.
+// Phase 14.1: ingest. Phase 14.2: queryMarketVectors + metadata filters.
+// For you / prefetch wiring = Phase 14.3+.
 // ─────────────────────────────────────────────────────────────────────────
 
-import { embedMany } from "ai";
+import { embed, embedMany } from "ai";
 
 import { createEmbedder } from "./ai";
 import { chunkMarkdown } from "./ingest";
@@ -191,5 +189,189 @@ export async function ingestMarketReport(
     chunks: texts.length,
     deletedIds,
     title: item.title,
+  };
+}
+
+// ─── Phase 14.2 query ─────────────────────────────────────────────────────
+
+/** Metadata properties that must be indexed for Vectorize filters. */
+export const MARKET_VECTOR_FILTER_PROPERTIES = [
+  "market_date",
+  "lang",
+  "item_id",
+] as const;
+
+const DEFAULT_TOP_K_PER_QUERY = 2;
+const DEFAULT_HIT_LIMIT = 3;
+const MAX_QUERIES = 8;
+
+export type MarketVectorHit = {
+  id: string;
+  score: number;
+  query: string;
+  itemId: string;
+  marketDate: string;
+  lang: string;
+  chunkIndex: number;
+  text: string;
+};
+
+export type QueryMarketVectorsOptions = {
+  queries: string[];
+  /** YYYY-MM-DD — used with brief resolve when itemId omitted. */
+  marketDate?: string;
+  lang?: string;
+  briefType?: string;
+  contentType?: string;
+  /** Prefer this item_contents.id; otherwise resolve via brief+date/lang. */
+  itemId?: string;
+  topKPerQuery?: number;
+  hitLimit?: number;
+  minScore?: number;
+};
+
+export type QueryMarketVectorsResult = {
+  ok: true;
+  marketDate: string;
+  lang: string;
+  /** Always set — resolved from item_contents (same as ingest). */
+  itemId: string;
+  queries: string[];
+  hits: MarketVectorHit[];
+};
+
+function normalizeQueries(raw: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const q of raw) {
+    const t = q.trim();
+    if (!t) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+    if (out.length >= MAX_QUERIES) break;
+  }
+  return out;
+}
+
+function metaString(
+  meta: Record<string, unknown> | null | undefined,
+  key: string,
+): string {
+  if (!meta) return "";
+  const v = meta[key];
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  return "";
+}
+
+function metaNumber(
+  meta: Record<string, unknown> | null | undefined,
+  key: string,
+): number {
+  if (!meta) return -1;
+  const v = meta[key];
+  return typeof v === "number" ? v : -1;
+}
+
+/**
+ * Same resolve path as ingest: item_id or brief → item_contents.
+ * item_id is always present when a report exists.
+ */
+async function resolveQueryItem(
+  env: Env,
+  options: QueryMarketVectorsOptions,
+): Promise<{ itemId: string; marketDate: string; lang: string }> {
+  const { item, marketDate, lang } = await resolveItemForIngest(env, {
+    marketDate: options.marketDate,
+    lang: options.lang,
+    briefType: options.briefType,
+    contentType: options.contentType,
+    itemId: options.itemId,
+  });
+  return { itemId: item.id, marketDate, lang };
+}
+
+/**
+ * Similarity search scoped to one report (item_id + market_date + lang).
+ */
+export async function queryMarketVectors(
+  env: Env,
+  options: QueryMarketVectorsOptions,
+): Promise<QueryMarketVectorsResult> {
+  const queries = normalizeQueries(options.queries ?? []);
+  if (queries.length === 0) {
+    throw new Error("queries must be a non-empty string array");
+  }
+
+  const scope = await resolveQueryItem(env, options);
+  const filter: VectorizeVectorMetadataFilter = {
+    item_id: scope.itemId,
+    market_date: scope.marketDate,
+    lang: scope.lang,
+  };
+
+  const topK = Math.min(
+    Math.max(options.topKPerQuery ?? DEFAULT_TOP_K_PER_QUERY, 1),
+    10,
+  );
+  const hitLimit = Math.min(
+    Math.max(options.hitLimit ?? DEFAULT_HIT_LIMIT, 1),
+    20,
+  );
+  const minScore =
+    typeof options.minScore === "number" && Number.isFinite(options.minScore)
+      ? options.minScore
+      : undefined;
+
+  const best = new Map<string, MarketVectorHit>();
+
+  for (const query of queries) {
+    const { embedding } = await embed({
+      model: createEmbedder(env),
+      value: query,
+    });
+    const matches = await env.MARKET_VECTOR_DB.query(Array.from(embedding), {
+      topK,
+      returnMetadata: "all",
+      filter,
+    });
+
+    for (const m of matches.matches) {
+      if (minScore !== undefined && m.score < minScore) continue;
+      const meta = (m.metadata ?? undefined) as
+        | Record<string, unknown>
+        | undefined;
+      const text = metaString(meta, "text");
+      if (!text) continue;
+
+      const hit: MarketVectorHit = {
+        id: m.id,
+        score: m.score,
+        query,
+        itemId: metaString(meta, "item_id") || scope.itemId,
+        marketDate: metaString(meta, "market_date") || scope.marketDate,
+        lang: metaString(meta, "lang") || scope.lang,
+        chunkIndex: metaNumber(meta, "chunk_index"),
+        text,
+      };
+
+      const prev = best.get(m.id);
+      if (!prev || hit.score > prev.score) best.set(m.id, hit);
+    }
+  }
+
+  const hits = [...best.values()]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, hitLimit);
+
+  return {
+    ok: true,
+    marketDate: scope.marketDate,
+    lang: scope.lang,
+    itemId: scope.itemId,
+    queries,
+    hits,
   };
 }
