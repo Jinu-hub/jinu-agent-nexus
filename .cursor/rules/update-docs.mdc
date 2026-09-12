@@ -7,27 +7,30 @@ alwaysApply: true
 
 When you add, change, or remove a **user**, **route**, **binding**, **secret**, **tool**, **panel**, or **Phase**, update docs in the **same change set** (before considering the task done). Do not leave docs for “later” unless the user explicitly says so.
 
+Project docs live under **`docs/`**. Root `README.md` / `CLAUDE.md` are short pointers only.
+
 ## Work notes split
 
 | File | Role |
 |------|------|
-| `WORK_NOTES.md` | **Archive** — §1 ~ §10.16. Do **not** append new feature/Phase sections. |
-| `WORK_NOTES_2.md` | **Active** — §11 onward. All new non-trivial work notes go here. |
-| `MERGE_STRATEGY.md` | **Baseline overlay** — A copy / B junction / C infra checklist for ~2-week port. |
+| `docs/WORK_NOTES.md` | **Archive** — §1 ~ §10.16. Do **not** append new feature/Phase sections. |
+| `docs/WORK_NOTES_2.md` | **Active** — §11 onward. All new non-trivial work notes go here. |
+| `docs/MERGE_STRATEGY.md` | **Baseline overlay** — A copy / B junction / C infra checklist for ~2-week port. |
+| `docs/ROUTING.md` | **HTTP/FE routing tree** — single source when paths change. |
 
 ## Mandatory
 
-- **`WORK_NOTES_2.md` is always required** for non-trivial work:
+- **`docs/WORK_NOTES_2.md` is always required** for non-trivial work:
   - New section (`## 11.` …) or Phase subsection (purpose, **수정 및 추가 파일**, curl/verify steps, what was *not* done)
-  - Follow the “기록 규칙” block at the top of `WORK_NOTES_2.md`
+  - Follow the “기록 규칙” block at the top of `docs/WORK_NOTES_2.md`
   - Record local verification results when you (or the user) confirmed OK
-- **`MERGE_STRATEGY.md` when portability boundaries change** — same change set:
+- **`docs/MERGE_STRATEGY.md` when portability boundaries change** — same change set:
   - New/moved **A** product modules (add/remove rows in the copy table)
   - Thicker/thinner **B** junctions (index / ChatAgent / App / wrangler / registry)
   - **C** infra (bindings, secrets, cron, R2/KV/DO)
   - Completed portability Wave — update Wave table + changelog date
-  - Do **not** paste full Phase narratives here; link `WORK_NOTES_2.md`
-- **Routing tree:** when HTTP paths change, update **`WORK_NOTES.md` §6 only** (single source). In the matching `WORK_NOTES_2.md` section, note “§6 반영” in one line — do not duplicate the full tree into `_2`.
+  - Do **not** paste full Phase narratives here; link `docs/WORK_NOTES_2.md`
+- **Routing tree:** when HTTP paths change, update **`docs/ROUTING.md` only** (single source). In the matching `docs/WORK_NOTES_2.md` section, note “ROUTING 반영” in one line — do not duplicate the full tree into `_2`.
 
 Skip only for pure typo/style edits with no behavior or API surface change.
 
@@ -35,25 +38,25 @@ Skip only for pure typo/style edits with no behavior or API surface change.
 
 | Change type | Also update |
 |-------------|-------------|
-| New/changed Worker route or DO | `ARCHITECTURE.md` (feature table + backend layers), `CLAUDE.md` (routing / file map / repo layout) |
-| New tool / panel / State field | `CLAUDE.md` file map; `ARCHITECTURE.md` tools/panels if listed |
-| New binding, secret, cron, R2/KV/Vectorize | `CLAUDE.md` config table; `.dev.vars.example` + `worker-env.d.ts` for secrets; **`MERGE_STRATEGY.md` C (+ B if wrangler)** |
-| Portability / module split (A thicker, B thinner) | **`MERGE_STRATEGY.md` A/B tables** (+ Wave row); detail in `WORK_NOTES_2.md` |
-| Human onboarding / deploy steps | `README.md` and/or `README.eng.md` only if setup steps actually changed |
-| LLM-facing architecture only | Prefer `CLAUDE.md`; do not duplicate long prose into README |
+| New/changed Worker route or DO | `docs/ARCHITECTURE.md` (feature table + backend layers), `docs/CLAUDE.md` (routing / file map / repo layout), **`docs/ROUTING.md`** |
+| New tool / panel / State field | `docs/CLAUDE.md` file map; `docs/ARCHITECTURE.md` tools/panels if listed |
+| New binding, secret, cron, R2/KV/Vectorize | `docs/CLAUDE.md` config table; `.dev.vars.example` + `worker-env.d.ts` for secrets; **`docs/MERGE_STRATEGY.md` C (+ B if wrangler)** |
+| Portability / module split (A thicker, B thinner) | **`docs/MERGE_STRATEGY.md` A/B tables** (+ Wave row); detail in `docs/WORK_NOTES_2.md` |
+| Human onboarding / deploy steps | `docs/README.md` and/or `docs/README.eng.md` only if setup steps actually changed |
+| LLM-facing architecture only | Prefer `docs/CLAUDE.md`; do not duplicate long prose into README |
 
 ## Style
 
-- Match existing `WORK_NOTES.md` / `WORK_NOTES_2.md` voice (Korean bullets, Phase tables, curl blocks).
-- Keep `CLAUDE.md` / `ARCHITECTURE.md` concise — maps and pointers, not essays.
+- Match existing `docs/WORK_NOTES.md` / `docs/WORK_NOTES_2.md` voice (Korean bullets, Phase tables, curl blocks).
+- Keep `docs/CLAUDE.md` / `docs/ARCHITECTURE.md` concise — maps and pointers, not essays.
 - Do not invent features in docs that are not in code.
 - Prefer editing existing sections over adding parallel “shadow” docs.
-- Do not copy archived §1–§10 content into `WORK_NOTES_2.md`; link to `WORK_NOTES.md` when needed.
+- Do not copy archived §1–§10 content into `docs/WORK_NOTES_2.md`; link to `docs/WORK_NOTES.md` when needed.
 
 ## Checklist before “done”
 
 1. Code works (or user verified).
-2. `WORK_NOTES_2.md` updated (and `WORK_NOTES.md` §6 if routes changed).
-3. `MERGE_STRATEGY.md` updated if A/B/C or Wave status changed.
-4. Touched surfaces reflected in `ARCHITECTURE.md` / `CLAUDE.md` when the table above says so.
+2. `docs/WORK_NOTES_2.md` updated (and `docs/ROUTING.md` if routes changed).
+3. `docs/MERGE_STRATEGY.md` updated if A/B/C or Wave status changed.
+4. Touched surfaces reflected in `docs/ARCHITECTURE.md` / `docs/CLAUDE.md` when the table above says so.
 5. Mention docs in the commit message `Docs:` section when committing.

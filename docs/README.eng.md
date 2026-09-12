@@ -12,7 +12,7 @@ Agents course**](https://nomadcoders.co/nomadclaw). Every feature in
 here is taught in the course; the README sections below tell you
 *which phase* covers each one and where to extend.
 
-![Demo — chat with the Memory panel updating live](demo.jpg)
+![Demo — chat with the Memory panel updating live](../demo.jpg)
 
 ---
 

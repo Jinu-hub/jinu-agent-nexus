@@ -3,7 +3,7 @@
 > 프로젝트의 주요 기능 개발 내역, 소스코드 변경 사항, 아키텍처 및 라우팅 현황을 기록하는 문서입니다.
 >
 > **아카이브 (§1 ~ §10.16).** 이후 작업 기록은 [`WORK_NOTES_2.md`](./WORK_NOTES_2.md) (§11~)에만 추가한다.  
-> **예외:** HTTP 라우팅 트리(**§6**)는 계속 이 파일에서만 갱신한다 (단일 소스).
+> **현재 HTTP/FE 라우팅 트리:** [`ROUTING.md`](./ROUTING.md) (단일 소스).
 
 ---
 
@@ -96,7 +96,8 @@
 
 ## 6. 전체 아키텍처 및 라우팅 현황
 
-> **문서 파일:** 이 절은 코드 추가가 아니라 라우팅 맵이다. 최초 기록은 `af181b2` (`WORK_NOTES.md` 신규). 아래는 **§7 완료 시점 스냅샷**과 **현재(§8~§10 반영) 트리**를 구분해 둔다.
+> **현재 트리:** [`ROUTING.md`](./ROUTING.md) — HTTP 경로 변경 시 그쪽만 갱신.  
+> 아래 §6.1은 **§7 완료 시점 스냅샷**(히스토리). 더 이상 갱신하지 않는다. 최초 기록 `af181b2`.
 
 ### 6.1 §7 완료 시점 스냅샷 (Notes / Memory / Settings / Live / Supabase health)
 
@@ -114,42 +115,6 @@ worker/index.ts (HTTP Gateway)
 src/
  ├── /      → Chat 메인 쉘 + 패널 (… + Settings)
  └── /live  → Market Pulse 실시간 투표방
-```
-
-### 6.2 현재 전체 라우팅 (§8 Voice · §9 Briefs · §10 Reports 이후)
-
-```text
-worker/index.ts (HTTP Gateway)
- ├── /notes, /notes/:key                           → Workers KV (My Market Notes)
- ├── /memory/*                                     → MyMemory DO (개인화 SQLite)
- ├── /settings, /settings/events                   → ChatAgent DO (설정 SQLite)
- ├── GET  /api/supabase/health                     → Supabase 도달성 점검
- ├── GET  /api/briefs/today                        → content_briefs 당일 브리핑 조회 (§9)
- ├── GET  /api/briefs/latest-date                  → 데이터 있는 최신 market_date (§10.5)
- ├── GET  /api/reports/today                       → item_contents 풀리포트 (via brief.target_id) (§10)
- ├── GET  /api/audio/pending                       → content_audio script_ready 조회 (§8 Phase 1)
- ├── GET  /api/audio/today                         → completed Voice 메타 + play URL (§8 Phase 7)
- ├── POST /api/audio/claim                         → script_ready → generating claim (§8 Phase 2)
- ├── GET  /api/audio/storage/health                → AUDIO_BUCKET put → get 점검 (§8 Phase 3)
- ├── POST /api/audio/tts                           → 1 row TTS 테스트, audio/mpeg (§8 Phase 4)
- ├── POST /api/audio/generate                      → TTS → R2 → completed (§8 Phase 5)
- ├── GET  /api/audio/file/:id                      → R2 MP3 스트리밍 (§8 Phase 5)
- ├── POST /api/audio/cron/run                      → Cron drain 1회 수동 실행 (§8 Phase 6)
- ├── POST /api/market-vector/ingest                → item_contents → MARKET_VECTOR_DB (§14.1)
- ├── POST /api/market-vector/query                 → 관심사 유사도 검색 (+ 필터) (§14.2)
- ├── POST /api/market-vector/clear                 → 해당 리포트 Vectorize 청크 삭제
- ├── POST /api/upload                              → ChatAgent DO (PDF RAG 업로드)
- ├── GET  /screenshots/*                           → R2 Bucket (브라우저 스크린샷)
- ├── /agents/ChatAgent/default                     → ChatAgent (WebSocket + Think Chat)
- └── /agents/live-market-room-agent/market-pulse   → LiveMarketRoomAgent (실시간 투표/알람)
-```
-
-### 프론트엔드 (React & Vite) — 현재
-
-```text
-src/ (React Frontend)
- ├── /      → Chat 메인 쉘 + 패널 (Memory, Skills, Files, Tools, Sources, Browser, Schedules, Extensions, MCP, Settings, Market …)
- └── /live  → Market Pulse 실시간 투표방 (단독 전체 화면)
 ```
 
 ---

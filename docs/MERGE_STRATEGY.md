@@ -153,3 +153,4 @@
 | 2026-09-12 | Market vector query + metadata indexes ([`WORK_NOTES_2` §14.2](./WORK_NOTES_2.md)) |
 | 2026-09-12 | Chat 「keyword」 vector search ([`WORK_NOTES_2` §14.3](./WORK_NOTES_2.md)) |
 | 2026-09-12 | Tag lexicon from report metadata ([`WORK_NOTES_2` §14.4](./WORK_NOTES_2.md)) |
+| 2026-09-12 | Docs → `docs/` + [`ROUTING.md`](./ROUTING.md) 단일 소스 ([`WORK_NOTES_2` §15](./WORK_NOTES_2.md)) |

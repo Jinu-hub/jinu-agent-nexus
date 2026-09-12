@@ -2,7 +2,8 @@
 
 > **이전 기록:** [`WORK_NOTES.md`](./WORK_NOTES.md) — §1 ~ §10.16 (아카이브. 새 기능은 여기에 추가하지 않음)  
 > **이후 기록:** 이 파일만 사용. 섹션 번호는 **§11**부터.  
-> **머지/포팅 체크리스트:** [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md) (A/B/C — Phase 서술 대신 여기 표 갱신)
+> **머지/포팅 체크리스트:** [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md) (A/B/C — Phase 서술 대신 여기 표 갱신)  
+> **HTTP/FE 라우팅:** [`ROUTING.md`](./ROUTING.md) (단일 소스)
 
 ---
 
@@ -23,7 +24,7 @@
 |------|------|
 | 새 큰 기능 | `## 11.` … `## 12.` … (정수 절) |
 | 같은 절 안의 단계 | `### 11.1` Phase / 버그픽스 소절 |
-| HTTP 경로 변경 | **라우팅 트리**는 [`WORK_NOTES.md` §6](./WORK_NOTES.md)만 갱신 (단일 소스). 이 파일 해당 절에 “§6 반영” 한 줄 |
+| HTTP 경로 변경 | **라우팅 트리**는 [`ROUTING.md`](./ROUTING.md)만 갱신 (단일 소스). 이 파일 해당 절에 “ROUTING 반영” 한 줄 |
 | 과거 Phase 조회 | `WORK_NOTES.md`만 본다. 내용을 여기로 복사하지 않음 |
 
 ### 스타일
@@ -35,7 +36,7 @@
 ### 관련 문서 (코드와 같이)
 
 `.cursor/rules/update-docs.mdc` 기준 — route/DO/tool/panel/binding 등이면 `ARCHITECTURE.md` / `CLAUDE.md` / `.dev.vars.example` 등도 같은 PR에서 갱신.  
-A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 함께.
+A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 함께. HTTP 경로면 [`ROUTING.md`](./ROUTING.md).
 
 ---
 
@@ -440,6 +441,34 @@ curl -sS 'http://localhost:5173/api/reports/today?date=2026-09-11&lang=en' \
 * brief/voice 자체 i18n 테이블 (이미 lang별 row)
 * ja 등 Settings에 없는 lang UI
 * i18n 없을 때 found:false로 바꾸기 (primary fallback 유지)
+
+---
+
+## 17. Docs 폴더화 + 라우팅 트리 분리
+
+* **목적:** 루트에 쌓인 프로젝트 문서를 `docs/`로 모으고, HTTP/FE 라우팅 트리를 [`ROUTING.md`](./ROUTING.md) 단일 소스로 분리 (WORK_NOTES §6.2 거슬림 해소).
+* **ROUTING 반영:** 현재 Worker·FE 트리는 `ROUTING.md`만 유지. `WORK_NOTES.md` §6.1은 §7 스냅샷 아카이브만.
+* **머지:** 문서 위치만 — A/B/C 코드 경계 변경 없음. [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md) 변경 로그만.
+
+**수정 및 추가 파일**
+
+* `docs/` — `README.md`, `README.eng.md`, `ARCHITECTURE.md`, `CLAUDE.md`, `MERGE_STRATEGY.md`, `WORK_NOTES.md`, `WORK_NOTES_2.md` *(이동)*
+* `docs/ROUTING.md` *(신규)* — HTTP/FE 라우팅 트리
+* 루트 `README.md` / `CLAUDE.md` — `docs/` 포인터 스텁
+* `.cursor/rules/update-docs.mdc` — `docs/…` · `ROUTING.md` 규칙
+* `docs/README*.md` — `demo.jpg` → `../demo.jpg`
+
+**확인**
+
+* 루트 스텁 → `docs/CLAUDE.md` / `docs/README.md` 링크
+* `WORK_NOTES.md` §6에 현재 트리 없음 · `ROUTING.md`에 market-vector/clear 포함
+
+**의도적으로 안 함**
+
+* `skills/*.md` 이동
+* `demo.jpg` 이동
+* 아카이브 §6.1 스냅샷 삭제
+* ARCHITECTURE / CLAUDE 안의 요약 라우트 목록 전량 삭제 (ROUTING 링크만 추가)
 
 ---
 

@@ -3,8 +3,8 @@
 > **For whom:** Project owner and collaborators who want to understand *what
 > exists* and *how data flows* without reading every source file.
 >
-> **For implementation details:** see `CLAUDE.md` (LLM dev guide) and
-> `README.md` / `README.eng.md` (setup & deploy).
+> **For implementation details:** see `CLAUDE.md` (LLM dev guide),
+> `README.md` / `README.eng.md` (setup & deploy), and `ROUTING.md` (HTTP/FE tree).
 
 ---
 
@@ -186,6 +186,8 @@ Built-in **Think** tools (not in `worker/tools/`): `read`, `write`, `edit`,
 
 ## Backend layers
 
+> Full path tree (single source): [`ROUTING.md`](./ROUTING.md). Summary below.
+
 ```
 worker/index.ts          HTTP entry — routes only, thin
     │
@@ -305,5 +307,8 @@ previous-day `market_date` drain — empty pending is a no-op).
 |----------|----------|
 | `ARCHITECTURE.md` (this file) | High-level structure & flows |
 | `CLAUDE.md` | AI assistants implementing features |
+| `ROUTING.md` | HTTP / FE path tree (single source) |
 | `README.md` | Setup, deploy, course-aligned how-tos |
 | `README.eng.md` | English README |
+| `WORK_NOTES_2.md` | Active work log |
+| `MERGE_STRATEGY.md` | Baseline overlay A/B/C |
