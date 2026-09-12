@@ -4,11 +4,15 @@
 //
 // Product role:
 //   Supabase item_contents = shared full markdown report ("풀리포트")
+//     · lang_code = primary / canonical language of the row
+//   item_content_i18n = translated title/summary/content
+//     · item_content_id → item_contents.id (+ lang_code)
 //   content_briefs.target_id → item_contents.id
-//   Cloudflare Worker       = read path for curl + (later) panel / chat
+//   Cloudflare Worker       = read path for curl + panel / chat
 //
 // Phase A: GET /api/reports/today — brief → target_id → item_contents.
 // Phase C: getTodayMarketReport chat tool + prefetch reuse getTodayItemContent().
+// Locale: when requested lang ≠ primary, overlay fields from item_content_i18n.
 // ─────────────────────────────────────────────────────────────────────────
 
 import { getTodayContentBrief } from "./content-briefs";
@@ -20,6 +24,7 @@ import {
 import { isMarketDateYmd } from "./market-date";
 
 export const ITEM_CONTENTS_TABLE = "item_contents";
+export const ITEM_CONTENT_I18N_TABLE = "item_content_i18n";
 
 /**
  * Product read fields for digest full reports.
@@ -27,6 +32,9 @@ export const ITEM_CONTENTS_TABLE = "item_contents";
  */
 const ITEM_CONTENTS_SELECT =
   "id, title, content, summary, lang_code, market_date, report_type, report_tier, category, tags, countries, regions, is_active, is_public, created_at, metadata";
+
+const ITEM_CONTENT_I18N_SELECT =
+  "id, item_content_id, lang_code, title, summary, content";
 
 export type ItemContentRow = {
   id: string;
@@ -45,6 +53,15 @@ export type ItemContentRow = {
   is_public: boolean | null;
   created_at: string | null;
   metadata: unknown;
+};
+
+type ItemContentI18nRow = {
+  id: string;
+  item_content_id: string;
+  lang_code: string;
+  title: string | null;
+  summary: string | null;
+  content: string | null;
 };
 
 export type GetTodayItemContentOptions = {
@@ -69,8 +86,52 @@ export type TodayItemContentResult = {
 };
 
 /**
+ * When requested lang differs from item_contents.lang_code, overlay
+ * title / summary / content from item_content_i18n (same item_content_id).
+ * Falls back to the primary row when no usable i18n row exists.
+ */
+export async function localizeItemContent(
+  env: Env,
+  item: ItemContentRow,
+  lang: string,
+): Promise<ItemContentRow> {
+  const requested = lang.trim();
+  if (!requested) return item;
+
+  const primary = (item.lang_code ?? "").trim();
+  if (primary && primary === requested) return item;
+
+  const client = createSupabaseClient(env, { privileged: true });
+  const { data, error } = await client
+    .from(ITEM_CONTENT_I18N_TABLE)
+    .select(ITEM_CONTENT_I18N_SELECT)
+    .eq("item_content_id", item.id)
+    .eq("lang_code", requested)
+    .not("content", "is", null)
+    .neq("content", "")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+    .overrideTypes<ItemContentI18nRow, { merge: false }>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) return item;
+
+  return {
+    ...item,
+    title: data.title ?? item.title,
+    summary: data.summary ?? item.summary,
+    content: data.content,
+    lang_code: requested,
+  };
+}
+
+/**
  * Resolve today's brief, then load item_contents by brief.target_id.
  * Uses service_role (trusted Worker read), matching content_briefs.
+ * Localizes title/summary/content via item_content_i18n when needed.
  */
 export async function getTodayItemContent(
   env: Env,
@@ -110,19 +171,24 @@ export async function getTodayItemContent(
   if (error) {
     throw new Error(error.message);
   }
+  if (!data) {
+    return base;
+  }
 
   return {
     ...base,
-    item: data ?? null,
+    item: await localizeItemContent(env, data, briefResult.lang),
   };
 }
 
 /**
  * Load one active item_contents row by primary key (service_role).
+ * Optional `lang` overlays item_content_i18n when it differs from primary.
  */
 export async function getItemContentById(
   env: Env,
   id: string,
+  lang?: string,
 ): Promise<ItemContentRow | null> {
   const itemId = id.trim();
   if (!itemId) return null;
@@ -141,7 +207,9 @@ export async function getItemContentById(
   if (error) {
     throw new Error(error.message);
   }
-  return data ?? null;
+  if (!data) return null;
+  if (!lang?.trim()) return data;
+  return localizeItemContent(env, data, lang);
 }
 
 /**

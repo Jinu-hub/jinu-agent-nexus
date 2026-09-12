@@ -99,7 +99,11 @@ async function resolveItemForIngest(
   const langFallback = (options.lang ?? "ko").trim() || "ko";
 
   if (options.itemId?.trim()) {
-    const item = await getItemContentById(env, options.itemId.trim());
+    const item = await getItemContentById(
+      env,
+      options.itemId.trim(),
+      langFallback,
+    );
     if (!item) {
       throw new Error(`item_contents not found: ${options.itemId.trim()}`);
     }

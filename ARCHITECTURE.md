@@ -149,7 +149,7 @@ in `Message.tsx` → then server `execute` runs.
 | Market Pulse poll | `/live` page | `worker/live-market-room.ts`, `src/live/` | DO state + SQLite (`LiveMarketRoomAgent`) |
 | Supabase (prep) | `GET /api/supabase/health` | `worker/supabase.ts` | External Postgres (Market Memory) |
 | Content briefs | `GET /api/briefs/today`, `GET /api/briefs/latest-date` | `worker/content-briefs.ts`, `market-date.ts` | Supabase `content_briefs` |
-| Full reports | `GET /api/reports/today` | `worker/item-contents.ts` | Supabase `item_contents` via `content_briefs.target_id` |
+| Full reports | `GET /api/reports/today` | `worker/item-contents.ts` | Supabase `item_contents` via `content_briefs.target_id`; localize via `item_content_i18n` when `lang` ≠ primary |
 | Market vectors | `POST /api/market-vector/ingest` · `/query` | `worker/market-vector.ts` + routes; chat `market-vector-search.ts` | Chunk+embed / 「keyword」 chat search → `MARKET_VECTOR_DB` (§14) |
 | Market panel | Market tab | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `src/lib/market-suggestions.ts` | briefs + audio + reports (lazy) + wide reader modal + TOC |
 | Browser | Browser | `navigate.ts`, `screenshot.ts`, Puppeteer | Remote browser session + R2 screenshots |
@@ -196,7 +196,7 @@ worker/index.ts          HTTP entry — routes only, thin
     ├── GET  /api/supabase/health → Supabase reachability probe
     ├── GET  /api/briefs/today → content_briefs (Seoul market_date)
     ├── GET  /api/briefs/latest-date → newest market_date with final brief
-    ├── GET  /api/reports/today → item_contents via brief.target_id
+    ├── GET  /api/reports/today → item_contents (+ item_content_i18n by lang) via brief.target_id
     ├── POST /api/market-vector/ingest → item_contents → MARKET_VECTOR_DB
     ├── POST /api/market-vector/query → interest search (+ filters)
     ├── /api/audio/* → content_audio Voice pipeline (+ GET /api/audio/today)

@@ -90,7 +90,7 @@ flowchart LR
 - `GET /api/supabase/health` — Supabase connectivity probe (Market Memory prep)
 - `GET /api/briefs/today` — `content_briefs` daily market-issue text (Seoul `market_date`)
 - `GET /api/briefs/latest-date` — newest `market_date` with a final brief (data-backed Latest)
-- `GET /api/reports/today` — `item_contents` full report via `content_briefs.target_id`
+- `GET /api/reports/today` — `item_contents` full report via `content_briefs.target_id` (+ `item_content_i18n` overlay by `lang`)
 - `POST /api/market-vector/ingest` — chunk+embed report → `MARKET_VECTOR_DB`
 - `POST /api/market-vector/query` — interest similarity search (+ date/lang/item filters)
 - `POST /api/upload` — PDF upload (not RPC; large FormData)
@@ -131,7 +131,7 @@ worker/
   live-market-room.ts  Market Pulse poll room Agent — state + vote log
   supabase.ts          Supabase client factory + `/api/supabase/health`
   content-briefs.ts    content_briefs today read (`/api/briefs/today`)
-  item-contents.ts     item_contents full report (`/api/reports/today` via brief.target_id)
+  item-contents.ts     item_contents full report (`/api/reports/today` via brief.target_id; `item_content_i18n` by lang)
   market-vector.ts     Market report → MARKET_VECTOR_DB ingest (§14)
   market-vector-routes.ts  HTTP `POST /api/market-vector/ingest`
   report-keywords.ts   Compact tags/places/entities for chat/prefetch (T3)
@@ -192,7 +192,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
 | Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today` + `GET /api/briefs/latest-date`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`; omit date = data-backed latest) |
-| Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today`; chat tool `getTodayMarketReport.ts` (excerpt + compact `keywords` via `report-keywords.ts`; lang = Settings `content_lang`) |
+| Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today`; primary `item_contents` + `item_content_i18n` overlay when `lang` ≠ primary `lang_code`; chat tool `getTodayMarketReport.ts` (excerpt + compact `keywords` via `report-keywords.ts`; lang = Settings `content_lang`) |
 | Market panel (sidebar) | `MarketPanel.tsx` + `ReportReader.tsx` + `report-topics.tsx` + `MyInterestsFold.tsx` + `BriefForYou.tsx` + `src/lib/market-date.ts` + `src/lib/market-tag-lexicon.ts` (display/expand from `metadata.tags.core` + `metadata.entities`; Ask/save stay slug/name); Topics chips/Keywords in `report-topics.tsx` (re-exported by ReportReader); off-switches unchanged; wired in `App.tsx` |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) + `hidden_panels` (tab strip); UI `src/panels/SettingsPanel.tsx`; App filters `PANELS` |
 | Market Memory intent | `market-turn-hooks.ts` + `market-intent.ts` + `market-prefetch.ts` + `market-vector-search.ts` + `soul-market.ts` + `market-memory-load.ts` — prefetch (`toolChoice: none`); 「keyword」 → `vectorSearch` (expand via report tag lexicon); ★ `interestHits` string match; beforeStep fallback for weather / no prefetch |

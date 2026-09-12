@@ -33,10 +33,10 @@ export function reportChatExcerpt(
   return lead.slice(0, 800);
 }
 
-/** ### headings under ## 하이라이트 (max 5) for grounded highlight answers. */
+/** ### headings under ## 하이라이트 / ## Highlights (max 5) for grounded answers. */
 export function reportHighlightHeadings(content: string | null): string[] {
   if (!content) return [];
-  const after = content.split(/##\s*하이라이트/)[1];
+  const after = content.split(/##\s*(?:하이라이트|Highlights)\b/i)[1];
   if (!after) return [];
   const section = after.split(/\n-----|\n##\s/)[0] ?? after;
   return [...section.matchAll(/^###\s+(.+)$/gm)]

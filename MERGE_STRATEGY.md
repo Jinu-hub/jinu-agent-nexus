@@ -52,7 +52,7 @@
 | Identity | `src/lib/agent-identity.ts` |
 | Settings domain | `worker/chat-agent/settings.ts`, `worker/settings-routes.ts`, `src/panels/SettingsPanel.tsx` |
 | Supabase | `worker/supabase.ts` |
-| Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts`, `worker/report-keywords.ts`, `worker/market-date.ts` |
+| Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts` (+ `item_content_i18n` localize), `worker/report-keywords.ts`, `worker/market-date.ts` |
 | Market vectors | `worker/market-vector.ts`, `worker/market-vector-routes.ts` |
 | Voice | `worker/content-audio.ts` (barrel), `content-audio-domain.ts`, `content-audio-routes.ts`, `audio-r2.ts`, `tts.ts`, `voice-lang-filter.ts`, `voice-audio-cron.ts` |
 | Shared load | `worker/market-memory-load.ts`, `worker/tools/market-date-resolve.ts` |

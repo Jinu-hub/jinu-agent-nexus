@@ -381,5 +381,47 @@ curl -s -X POST http://localhost:5173/api/market-vector/query \
 * Worker가 KO 번역을 생성/하드코딩
 * entities에 없는 동의어를 코드에서 발명
 
+### 16 Full report i18n overlay (`item_content_i18n`) *(완료)*
+
+* **목적:** Settings `content_lang` / `?lang=`에 맞춰 풀리포트 `title`·`summary`·`content`를 채운다.  
+  `item_contents.lang_code` = **주 언어**, 번역은 `item_content_i18n` (`item_content_id` + `lang_code`).
+* **동작:**
+  1. brief → `target_id` → `item_contents` (기존)
+  2. 요청 `lang`이 primary와 다르면 `item_content_i18n`에서 비어 있지 않은 `content` 행을 overlay
+  3. i18n 없으면 primary 그대로 (fallback)
+  4. overlay 후 `item.lang_code` = 요청 lang (패널/툴이 실제 본문 언어와 일치)
+  5. chat highlights: `## 하이라이트` + `## Highlights` 모두 인식
+* **§6:** 라우트 추가 없음
+
+**수정 및 추가 파일**
+
+* `worker/item-contents.ts` — `localizeItemContent()`; `getTodayItemContent` / `getItemContentById(lang?)`
+* `worker/tools/getTodayMarketReport.ts` — EN Highlights 헤딩
+* `worker/market-vector.ts` — ingest `itemId` 경로도 `lang` overlay
+* docs (CLAUDE / ARCH / MERGE / WORK_NOTES_2)
+
+**확인**
+
+```bash
+curl -sS 'http://localhost:5173/api/reports/today?date=2026-09-11&lang=ko' \
+  | python3 -c 'import json,sys; i=json.load(sys.stdin)["item"]; print(i["lang_code"], (i["title"] or "")[:60])'
+# ko · 한국어 제목
+
+curl -sS 'http://localhost:5173/api/reports/today?date=2026-09-11&lang=en' \
+  | python3 -c 'import json,sys; i=json.load(sys.stdin)["item"]; print(i["lang_code"], (i["title"] or "")[:60], (i["content"] or "")[:80])'
+# en · Global Market Issues… · This edition…
+```
+
+로컬 확인 결과 (2026-09-12):
+* `lang=ko` → `lang_code: ko`, 한국어 title/content (primary)
+* `lang=en` → `lang_code: en`, EN title + `This edition…` content (`item_content_i18n`)
+* `npx tsc -b` OK
+
+**의도적으로 안 함**
+
+* brief/voice 자체 i18n 테이블 (이미 lang별 row)
+* ja 등 Settings에 없는 lang UI
+* i18n 없을 때 found:false로 바꾸기 (primary fallback 유지)
+
 ---
 
