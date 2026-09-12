@@ -10,7 +10,7 @@
 import {
   generateVoiceAudio,
   listPendingContentAudio,
-} from "./content-audio";
+} from "./content-audio-domain";
 import { getSupabaseAccessMode, isSupabaseConfigured } from "./supabase";
 import {
   describeVoiceLangFilter,

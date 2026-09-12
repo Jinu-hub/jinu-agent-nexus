@@ -1,0 +1,495 @@
+// HTTP routes for content_audio — see content-audio-domain.ts for queue/TTS/R2 logic.
+
+import {
+  claimNextPendingContentAudio,
+  claimPendingContentAudio,
+  generateVoiceAudio,
+  getContentAudioById,
+  getTodayContentAudio,
+  hasUsableScript,
+  isUuid,
+  listPendingContentAudio,
+  type ClaimAudioResult,
+  type PendingAudioResponse,
+  publicQueryMessage,
+} from "./content-audio-domain";
+import { pingAudioBucket, getVoiceAudio } from "./audio-r2";
+import { createTTSProvider, ttsCharLimit } from "./tts";
+import { runVoiceAudioCron } from "./voice-audio-cron";
+import { getSupabaseAccessMode, isSupabaseConfigured } from "./supabase";
+import { isMarketDateYmd } from "./market-date";
+
+/**
+ * HTTP routes for Voice generation / playback:
+ *   GET  /api/audio/pending         — script_ready rows with a non-empty script
+ *   POST /api/audio/claim           — script_ready → generating (optional body `{ id }`)
+ *   GET  /api/audio/storage/health  — AUDIO_BUCKET put → get probe (no TTS, no DB write)
+ *   POST /api/audio/tts             — one-row TTS test; returns audio/mpeg (no R2, no DB write)
+ *   POST /api/audio/generate        — TTS → R2 → completed (JSON, not raw MP3)
+ *   GET  /api/audio/today           — completed Voice meta for market_date (+ play URL)
+ *   GET  /api/audio/file/:id        — stream stored MP3 from AUDIO_BUCKET
+ *   POST /api/audio/cron/run        — run Cron drain once (dev / manual test)
+ *
+ * Returns `null` if the path is not an audio route.
+ */
+export async function handleAudioRequest(
+  request: Request,
+  env: Env,
+): Promise<Response | null> {
+  const url = new URL(request.url);
+  const { pathname } = url;
+
+  if (pathname === "/api/audio/storage/health") {
+    if (request.method !== "GET") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    return handleStorageHealth(env);
+  }
+
+  if (pathname === "/api/audio/pending") {
+    if (request.method !== "GET") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    const blocked = supabaseServiceRoleGuard(env);
+    if (blocked) return blocked;
+    return handlePendingGet(env);
+  }
+
+  if (pathname === "/api/audio/today") {
+    if (request.method !== "GET") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    const blocked = supabaseServiceRoleGuard(env);
+    if (blocked) return blocked;
+    return handleTodayGet(request, env);
+  }
+
+  if (pathname === "/api/audio/claim") {
+    if (request.method !== "POST") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    const blocked = supabaseServiceRoleGuard(env);
+    if (blocked) return blocked;
+    return handleClaimPost(request, env);
+  }
+
+  if (pathname === "/api/audio/tts") {
+    if (request.method !== "POST") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    const blocked = supabaseServiceRoleGuard(env);
+    if (blocked) return blocked;
+    return handleTtsPost(request, env);
+  }
+
+  if (pathname === "/api/audio/generate") {
+    if (request.method !== "POST") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    const blocked = supabaseServiceRoleGuard(env);
+    if (blocked) return blocked;
+    return handleGeneratePost(request, env);
+  }
+
+  const fileMatch = pathname.match(/^\/api\/audio\/file\/([^/]+)$/);
+  if (fileMatch) {
+    if (request.method !== "GET") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    const blocked = supabaseServiceRoleGuard(env);
+    if (blocked) return blocked;
+    return handleFileGet(env, fileMatch[1]);
+  }
+
+  if (pathname === "/api/audio/cron/run") {
+    if (request.method !== "POST") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    const blocked = supabaseServiceRoleGuard(env);
+    if (blocked) return blocked;
+    return handleCronRunPost(env);
+  }
+
+  return null;
+}
+
+function supabaseServiceRoleGuard(env: Env): Response | null {
+  if (!isSupabaseConfigured(env)) {
+    return Response.json(
+      {
+        ok: false,
+        configured: false,
+        message:
+          "Set SUPABASE_URL and a usable key in .dev.vars (local) or via wrangler secret put (production).",
+      },
+      { status: 503 },
+    );
+  }
+
+  if (!getSupabaseAccessMode(env, { privileged: true })) {
+    return Response.json(
+      {
+        ok: false,
+        configured: true,
+        message:
+          "Set SUPABASE_SERVICE_ROLE_KEY for Worker-side content_audio reads.",
+      },
+      { status: 503 },
+    );
+  }
+
+  return null;
+}
+
+async function handlePendingGet(env: Env): Promise<Response> {
+  try {
+    const items = await listPendingContentAudio(env);
+    const body: PendingAudioResponse = {
+      ok: true,
+      count: items.length,
+      items,
+    };
+    return Response.json(body);
+  } catch (error) {
+    return queryFailed(error);
+  }
+}
+
+async function handleTodayGet(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const dateParam = url.searchParams.get("date")?.trim() || undefined;
+  if (dateParam && !isMarketDateYmd(dateParam)) {
+    return Response.json(
+      { ok: false, message: "date must be YYYY-MM-DD" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const result = await getTodayContentAudio(env, {
+      marketDate: dateParam,
+      lang: url.searchParams.get("lang") ?? undefined,
+      audioType: url.searchParams.get("audio_type") ?? undefined,
+      contentType: url.searchParams.get("content_type") ?? undefined,
+    });
+
+    const item = result.item;
+    const playPath = item ? `/api/audio/file/${item.id}` : null;
+    const playUrl = playPath ? `${url.origin}${playPath}` : null;
+
+    // Omit long script from the today meta payload.
+    const publicItem = item
+      ? {
+          id: item.id,
+          target_type: item.target_type,
+          target_id: item.target_id,
+          content_type: item.content_type,
+          audio_type: item.audio_type,
+          lang_code: item.lang_code,
+          title: item.title,
+          duration_seconds: item.duration_seconds,
+          storage_provider: item.storage_provider,
+          storage_key: item.storage_key,
+          status: item.status,
+          market_date: item.market_date,
+          model_info: item.model_info,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+        }
+      : null;
+
+    return Response.json({
+      ok: true,
+      marketDate: result.marketDate,
+      lang: result.lang,
+      audioType: result.audioType,
+      contentType: result.contentType,
+      status: result.status,
+      found: item !== null,
+      playPath,
+      playUrl,
+      item: publicItem,
+    });
+  } catch (error) {
+    return queryFailed(error);
+  }
+}
+
+async function handleClaimPost(
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const parsed = await parseClaimId(request);
+  if (!parsed.ok) {
+    return Response.json({ ok: false, message: parsed.message }, { status: 400 });
+  }
+
+  try {
+    const result = parsed.id
+      ? await claimPendingContentAudio(env, parsed.id)
+      : await claimNextPendingContentAudio(env);
+    return claimResponse(result);
+  } catch (error) {
+    return queryFailed(error);
+  }
+}
+
+async function handleTtsPost(request: Request, env: Env): Promise<Response> {
+  const parsed = await parseClaimId(request);
+  if (!parsed.ok) {
+    return Response.json({ ok: false, message: parsed.message }, { status: 400 });
+  }
+  if (!parsed.id) {
+    return Response.json(
+      { ok: false, message: "id is required" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const row = await getContentAudioById(env, parsed.id);
+    if (!row) {
+      return Response.json(
+        { ok: false, reason: "not_found" },
+        { status: 404 },
+      );
+    }
+    if (!hasUsableScript(row) || !row.script) {
+      return Response.json(
+        { ok: false, message: "script is empty" },
+        { status: 400 },
+      );
+    }
+    if (row.script.length > ttsCharLimit()) {
+      return Response.json(
+        {
+          ok: false,
+          message: `script exceeds TTS limit (${ttsCharLimit()} characters)`,
+        },
+        { status: 400 },
+      );
+    }
+
+    const tts = createTTSProvider(env);
+    const audio = await tts.generate({
+      text: row.script,
+      language: row.lang_code,
+    });
+
+    if (audio.byteLength < 64) {
+      return Response.json(
+        { ok: false, message: "TTS returned an empty audio payload" },
+        { status: 502 },
+      );
+    }
+
+    return new Response(audio, {
+      headers: {
+        "Content-Type": "audio/mpeg",
+        "Content-Disposition": `attachment; filename="${row.id}.mp3"`,
+        "X-Audio-Id": row.id,
+        "X-Audio-Lang": row.lang_code,
+        "X-TTS-Provider": tts.provider,
+        "X-TTS-Model": tts.model,
+        "X-TTS-Voice": tts.voice,
+        "Content-Length": String(audio.byteLength),
+      },
+    });
+  } catch (error) {
+    return queryFailed(error);
+  }
+}
+
+async function handleGeneratePost(
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  const parsed = await parseClaimId(request);
+  if (!parsed.ok) {
+    return Response.json({ ok: false, message: parsed.message }, { status: 400 });
+  }
+  if (!parsed.id) {
+    return Response.json(
+      { ok: false, message: "id is required" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const result = await generateVoiceAudio(env, parsed.id);
+    if (!result.ok) {
+      return Response.json(result.body, { status: result.httpStatus });
+    }
+    return Response.json({ ok: true, item: result.item });
+  } catch (error) {
+    return queryFailed(error);
+  }
+}
+
+async function handleFileGet(env: Env, rawId: string): Promise<Response> {
+  if (!isUuid(rawId)) {
+    return Response.json(
+      { ok: false, message: "id must be a UUID" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const row = await getContentAudioById(env, rawId);
+    if (!row) {
+      return Response.json(
+        { ok: false, reason: "not_found" },
+        { status: 404 },
+      );
+    }
+    if (!row.storage_key) {
+      return Response.json(
+        { ok: false, message: "row has no storage_key" },
+        { status: 404 },
+      );
+    }
+
+    const stored = await getVoiceAudio(env, row.storage_key);
+    if (!stored) {
+      return Response.json(
+        { ok: false, message: "audio object not found in AUDIO_BUCKET" },
+        { status: 404 },
+      );
+    }
+
+    return new Response(stored.body, {
+      headers: {
+        "Content-Type":
+          stored.httpMetadata?.contentType ?? "audio/mpeg",
+        "Content-Disposition": `inline; filename="${row.id}.mp3"`,
+        "X-Audio-Id": row.id,
+        "X-Storage-Key": row.storage_key,
+        "Content-Length": String(stored.size),
+      },
+    });
+  } catch (error) {
+    return queryFailed(error);
+  }
+}
+
+async function handleCronRunPost(env: Env): Promise<Response> {
+  try {
+    const result = await runVoiceAudioCron(env);
+    if (!result.ok) {
+      return Response.json(result, { status: 503 });
+    }
+    return Response.json(result);
+  } catch (error) {
+    return queryFailed(error);
+  }
+}
+
+type ParsedClaimId =
+  | { ok: true; id: string | null }
+  | { ok: false; message: string };
+
+async function parseClaimId(request: Request): Promise<ParsedClaimId> {
+  const text = await request.text();
+  if (!text.trim()) {
+    return { ok: true, id: null };
+  }
+
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return { ok: false, message: "invalid JSON body" };
+  }
+
+  if (body == null || typeof body !== "object" || Array.isArray(body)) {
+    return { ok: false, message: "body must be a JSON object" };
+  }
+
+  const id = (body as { id?: unknown }).id;
+  if (id == null || id === "") {
+    return { ok: true, id: null };
+  }
+  if (typeof id !== "string" || !isUuid(id)) {
+    return { ok: false, message: "id must be a UUID" };
+  }
+  return { ok: true, id };
+}
+
+function claimResponse(result: ClaimAudioResult): Response {
+  if (result.claimed) {
+    return Response.json({
+      ok: true,
+      claimed: true,
+      item: result.item,
+    });
+  }
+
+  if (result.reason === "none_pending") {
+    return Response.json({
+      ok: true,
+      claimed: false,
+      reason: result.reason,
+      item: null,
+    });
+  }
+
+  if (result.reason === "not_found") {
+    return Response.json(
+      {
+        ok: false,
+        claimed: false,
+        reason: result.reason,
+        item: null,
+      },
+      { status: 404 },
+    );
+  }
+
+  return Response.json(
+    {
+      ok: false,
+      claimed: false,
+      reason: result.reason,
+      status: result.status,
+      item: result.item,
+    },
+    { status: 409 },
+  );
+}
+
+function queryFailed(error: unknown): Response {
+  return Response.json(
+    {
+      ok: false,
+      message: publicQueryMessage(error),
+    },
+    { status: 502 },
+  );
+}
+
+async function handleStorageHealth(env: Env): Promise<Response> {
+  try {
+    const result = await pingAudioBucket(env);
+    if (!result.echoed) {
+      return Response.json(
+        {
+          ...result,
+          ok: false,
+          message: "put succeeded but get body did not match",
+        },
+        { status: 502 },
+      );
+    }
+    return Response.json(result);
+  } catch (error) {
+    return Response.json(
+      {
+        ok: false,
+        binding: "AUDIO_BUCKET",
+        bucket: "market-memory-audio",
+        message: error instanceof Error ? error.message : "AUDIO_BUCKET probe failed",
+      },
+      { status: 502 },
+    );
+  }
+}

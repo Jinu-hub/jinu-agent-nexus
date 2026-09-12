@@ -1,6 +1,7 @@
 # jinu-agent-nexus — AI Development Guide
 
-> Human docs: `README.md` (KO), `README.eng.md` (EN), `ARCHITECTURE.md` (flows).
+> Human docs: `README.md` (KO), `README.eng.md` (EN), `ARCHITECTURE.md` (flows),
+> `MERGE_STRATEGY.md` (baseline overlay A/B/C), `WORK_NOTES_2.md` (active work log).
 > This file is for **LLM-assisted development** — architecture, extension
 > patterns, and constraints. Not a copy of the README.
 
@@ -126,13 +127,18 @@ worker/
   item-contents.ts     item_contents full report (`/api/reports/today` via brief.target_id)
   report-keywords.ts   Compact tags/places/entities for chat/prefetch (T3)
   market-date.ts       Calendar YYYY-MM-DD helpers (default Asia/Seoul)
-  content-audio.ts     content_audio Voice queue + `/api/audio/*`
+  market-memory-load.ts resolve→fetch→retry for brief/voice/report tools+prefetch
+  content-audio.ts     Voice barrel (re-exports domain + routes)
+  content-audio-domain.ts  content_audio queue / TTS→R2 / today
+  content-audio-routes.ts  HTTP handlers for `/api/audio/*`
   chat-agent.ts        Re-export shim (imports use this path)
   chat-agent/
     ChatAgent.ts       Class — lifecycle + @callable RPC
     configure-session.ts
-    tools-registry.ts
+    soul-market.ts     Market RULE 5–7 (omit when porting without Market)
+    tools-registry.ts  getBoilerplateTools + getMarketMemoryTools
     refresh-state.ts
+    market-turn-hooks.ts beforeTurn/beforeStep Market seam
     market-intent.ts   Market / weather intent detection
     market-prefetch.ts beforeTurn Market Memory JSON inject
     rag.ts
@@ -148,9 +154,10 @@ worker/
 src/
   App.tsx              Main shell + tab registry (PANELS array)
   chat/                Chat UI (Chat, Message, Markdown)
-  panels/              One panel per file
+  panels/              One panel per file (+ `report-topics.tsx` for Market Topics)
   components/ui/       shadcn-style primitives
   lib/utils.ts         cn() helper
+  lib/market-date.ts   Seoul YMD helpers for Market panel (mirrors worker)
 skills/                Markdown files seeded to R2 as on-demand context
 wrangler.jsonc         All Cloudflare bindings and vars
 worker-env.d.ts        Env augmentations (secrets + typed DO stub)
@@ -176,10 +183,10 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
 | Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today` + `GET /api/briefs/latest-date`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`; omit date = data-backed latest) |
 | Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today`; chat tool `getTodayMarketReport.ts` (excerpt + compact `keywords` via `report-keywords.ts`; lang = Settings `content_lang`) |
-| Market panel (sidebar) | `src/panels/MarketPanel.tsx` + `ReportReader.tsx` + `MyInterestsFold.tsx` + `BriefForYou.tsx` (Topics: My interests + Tags as-is + Keywords top-10 round-robin over entities/places via `pickTopKeywords`/`ReportKeywordChips`; Ask + ★; P2 in-report; P4 Brief For-you taste via `brief-for-you.ts`) — briefs/audio/reports + Ask chips; off-switches `SHOW_REPORT_TOPIC_CHIPS` / `SHOW_TOPICS_SECTION` / `SHOW_REPORT_ENTITIES` / `SHOW_TOPIC_CHIP_ASK` / `SHOW_TOPIC_CHIP_STAR` / `SHOW_MY_INTERESTS` / `SHOW_INTERESTS_ONLY_FILTER` / `SHOW_BRIEF_FOR_YOU`; wired in `App.tsx` |
+| Market panel (sidebar) | `MarketPanel.tsx` + `ReportReader.tsx` + `report-topics.tsx` + `MyInterestsFold.tsx` + `BriefForYou.tsx` + `src/lib/market-date.ts`; Topics chips/Keywords in `report-topics.tsx` (re-exported by ReportReader); off-switches unchanged; wired in `App.tsx` |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) for Market Memory; UI `src/panels/SettingsPanel.tsx` |
-| Market Memory intent | `market-intent.ts` + `market-prefetch.ts` — `beforeTurn` prefetches brief/voice/report/compare into system (`toolChoice: none`); injects MyMemory `userInterests` (+ report `interestHits`) via `user-interests.ts` (P3); `beforeStep` forces tools only as fallback (weather / no prefetch) |
-| Voice audio pipeline | `worker/content-audio.ts` + `voice-audio-cron.ts` → `/api/audio/*`; today play `GET /api/audio/today` + tool `getTodayMarketVoice.ts` |
+| Market Memory intent | `market-turn-hooks.ts` + `market-intent.ts` + `market-prefetch.ts` + `soul-market.ts` + `market-memory-load.ts` — prefetch into system (`toolChoice: none`); interests via `user-interests.ts`; beforeStep fallback for weather / no prefetch |
+| Voice audio pipeline | `content-audio.ts` barrel + `content-audio-domain.ts` / `content-audio-routes.ts` + `voice-audio-cron.ts` → `/api/audio/*`; today play + tool `getTodayMarketVoice.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
 | UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` — empty state shares Market Memory suggestions |

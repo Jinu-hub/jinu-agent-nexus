@@ -30,12 +30,7 @@ import { INITIAL_STATE } from "./constants";
 import { configureChatSession } from "./configure-session";
 import { getChatTools } from "./tools-registry";
 import { refreshPanelState } from "./refresh-state";
-import {
-  detectMarketMemoryTool,
-  detectWeatherTool,
-  latestUserText,
-} from "./market-intent";
-import { buildMarketPrefetchBlock } from "./market-prefetch";
+import { marketBeforeStep, marketBeforeTurn } from "./market-turn-hooks";
 import {
   uploadPdf as uploadPdfImpl,
   deleteSource as deleteSourceImpl,
@@ -85,8 +80,8 @@ export class ChatAgent extends Think<Env, State> {
   browser?: Browser;
   page?: Page;
 
-  /** Set in beforeTurn when Market Memory was prefetched for this turn. */
-  private marketPrefetchReady = false;
+  /** Set in marketBeforeTurn when Market Memory was prefetched for this turn. */
+  marketPrefetchReady = false;
 
   getModel(): LanguageModel {
     return createModel(this.env);
@@ -100,58 +95,12 @@ export class ChatAgent extends Think<Env, State> {
     return getChatTools(this, this.env);
   }
 
-  /**
-   * Prefetch Market Memory into the system prompt so answers do not depend
-   * on the model emitting tool calls after reasoning (common hang).
-   */
   override async beforeTurn(ctx: TurnContext) {
-    this.marketPrefetchReady = false;
-    if (ctx.continuation) return;
-
-    const text = latestUserText(
-      ctx.messages as Array<{ role: string; content: unknown }>,
-    );
-    const block = await buildMarketPrefetchBlock(this, this.env, text);
-    if (!block) return;
-
-    this.marketPrefetchReady = true;
-    return {
-      system: `${ctx.system}
-
-## Prefetched Market Memory (authoritative for this turn)
-${block}`,
-      // Text-only: model often hangs after reasoning when tools are required.
-      toolChoice: "none" as const,
-    };
+    return marketBeforeTurn(this, this.env, ctx);
   }
 
-  /**
-   * Fallback: force tools when prefetch did not run (or weather).
-   * Skip Market force when beforeTurn already injected facts.
-   */
   override beforeStep(ctx: PrepareStepContext) {
-    if (ctx.stepNumber !== 0) return;
-    if (ctx.steps.some((step) => step.toolResults.length > 0)) return;
-
-    const text = latestUserText(ctx.messages);
-
-    if (this.marketPrefetchReady) return;
-
-    const weather = detectWeatherTool(text);
-    if (weather) {
-      return {
-        activeTools: [weather],
-        toolChoice: { type: "tool" as const, toolName: weather },
-      };
-    }
-
-    const tool = detectMarketMemoryTool(text);
-    if (!tool) return;
-
-    return {
-      activeTools: [tool],
-      toolChoice: { type: "tool" as const, toolName: tool },
-    };
+    return marketBeforeStep(this, ctx);
   }
 
   override async onStart() {

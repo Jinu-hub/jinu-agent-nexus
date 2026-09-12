@@ -15,11 +15,8 @@ import { createGetTodayMarketReportTool } from "../tools/getTodayMarketReport";
 
 import type { ChatAgent } from "../chat-agent";
 
-// HOW TO ADD A NEW TOOL:
-//   1. Drop a new file under `worker/tools/` exporting a factory.
-//   2. Import the factory here.
-//   3. Register it in the object below. The KEY is the LLM-visible name.
-export function getChatTools(agent: ChatAgent, env: Env): ToolSet {
+/** Boilerplate tools — keep when porting without Market Memory. */
+export function getBoilerplateTools(agent: ChatAgent, env: Env): ToolSet {
   return {
     getCurrentTime: createGetCurrentTimeTool(),
     getWeather: createGetWeatherTool(),
@@ -29,14 +26,32 @@ export function getChatTools(agent: ChatAgent, env: Env): ToolSet {
     recall: createRecallTool(agent, env),
     navigate: createNavigateTool(agent),
     screenshot: createScreenshotTool(agent, env),
-    getTodayMarketBrief: createGetTodayMarketBriefTool(agent, env),
-    getTodayMarketVoice: createGetTodayMarketVoiceTool(agent, env),
-    getTodayMarketReport: createGetTodayMarketReportTool(agent, env),
 
     // load_extension + list_extensions — extension management tools.
     // Per-extension tools are auto-merged by Think internally.
     ...(agent.extensionManager
       ? createExtensionTools({ manager: agent.extensionManager })
       : {}),
+  };
+}
+
+/** Market Memory tools — omit when porting without Market. */
+export function getMarketMemoryTools(agent: ChatAgent, env: Env): ToolSet {
+  return {
+    getTodayMarketBrief: createGetTodayMarketBriefTool(agent, env),
+    getTodayMarketVoice: createGetTodayMarketVoiceTool(agent, env),
+    getTodayMarketReport: createGetTodayMarketReportTool(agent, env),
+  };
+}
+
+// HOW TO ADD A NEW TOOL:
+//   1. Drop a new file under `worker/tools/` exporting a factory.
+//   2. Import the factory here.
+//   3. Register it in getBoilerplateTools or getMarketMemoryTools.
+//      The KEY is the LLM-visible name.
+export function getChatTools(agent: ChatAgent, env: Env): ToolSet {
+  return {
+    ...getBoilerplateTools(agent, env),
+    ...getMarketMemoryTools(agent, env),
   };
 }

@@ -28,6 +28,12 @@ import {
 } from "lucide-react";
 import type { ContentLang } from "../../worker/chat-agent/settings";
 import { MARKET_SUGGESTIONS } from "@/lib/market-suggestions";
+import {
+  calendarYesterdayYmd,
+  metaString,
+  seoulYmd,
+  shiftYmd,
+} from "@/lib/market-date";
 import { cn } from "@/lib/utils";
 import { PanelHeader } from "./PanelHeader";
 import {
@@ -120,33 +126,6 @@ type ReportResponse = {
   item?: ReportItem | null;
   message?: string;
 };
-
-function seoulYmd(now: Date = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-}
-
-function shiftYmd(ymd: string, deltaDays: number): string {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const anchor = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-  anchor.setUTCDate(anchor.getUTCDate() + deltaDays);
-  return seoulYmd(anchor);
-}
-
-/** Calendar Seoul yesterday — fallback only until /api/briefs/latest-date loads. */
-function calendarYesterdayYmd(now: Date = new Date()): string {
-  return shiftYmd(seoulYmd(now), -1);
-}
-
-function metaString(metadata: unknown, key: string): string | null {
-  if (!metadata || typeof metadata !== "object") return null;
-  const value = (metadata as Record<string, unknown>)[key];
-  return typeof value === "string" ? value : null;
-}
 
 function cacheKey(marketDate: string, marketLang: string): string {
   return `${marketDate}|${marketLang}`;

@@ -14,13 +14,10 @@ import { z } from "zod";
 import type { ChatAgent } from "../chat-agent";
 import { getSettings } from "../chat-agent/settings";
 import { getTodayItemContent } from "../item-contents";
-import { isMarketDateYmd } from "../market-date";
+import { withResolvedMarketDate } from "../market-memory-load";
 import { isSupabaseConfigured } from "../supabase";
 import { reportChatKeywords } from "../report-keywords";
-import {
-  resolveToolMarketDate,
-  seoulDateHints,
-} from "./market-date-resolve";
+import { seoulDateHints } from "./market-date-resolve";
 
 /** Lead blurb for chat grounding — never the full markdown body. */
 export function reportChatExcerpt(
@@ -73,36 +70,20 @@ export function createGetTodayMarketReportTool(agent: ChatAgent, env: Env) {
       }
 
       const { content_lang: lang } = getSettings(agent);
-      const resolved = await resolveToolMarketDate(env, date, { lang });
-      if (resolved.marketDate && !isMarketDateYmd(resolved.marketDate)) {
-        return {
-          ok: false as const,
-          reason: "invalid_date",
-          message: "date must be YYYY-MM-DD",
-        };
-      }
 
       try {
-        let result = await getTodayItemContent(env, {
-          marketDate: resolved.marketDate,
-          lang,
-        });
-        let correctedFrom: string | undefined;
-
-        if (
-          !result.item &&
-          resolved.fallbackMarketDate &&
-          resolved.fallbackMarketDate !== resolved.marketDate
-        ) {
-          const retry = await getTodayItemContent(env, {
-            marketDate: resolved.fallbackMarketDate,
-            lang,
-          });
-          if (retry.item) {
-            correctedFrom = resolved.marketDate;
-            result = retry;
-          }
+        const loaded = await withResolvedMarketDate(env, date, lang, (marketDate) =>
+          getTodayItemContent(env, { marketDate, lang }),
+        );
+        if (!loaded.ok) {
+          return {
+            ok: false as const,
+            reason: "invalid_date" as const,
+            message: "date must be YYYY-MM-DD",
+          };
         }
+
+        const { resolved, result, correctedFrom } = loaded;
 
         if (!result.item) {
           return {

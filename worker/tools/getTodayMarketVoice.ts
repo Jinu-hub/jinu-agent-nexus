@@ -14,12 +14,9 @@ import { z } from "zod";
 import type { ChatAgent } from "../chat-agent";
 import { getSettings } from "../chat-agent/settings";
 import { getTodayContentAudio } from "../content-audio";
-import { isMarketDateYmd } from "../market-date";
+import { withResolvedMarketDate } from "../market-memory-load";
 import { isSupabaseConfigured } from "../supabase";
-import {
-  resolveToolMarketDate,
-  seoulDateHints,
-} from "./market-date-resolve";
+import { seoulDateHints } from "./market-date-resolve";
 
 export function createGetTodayMarketVoiceTool(agent: ChatAgent, env: Env) {
   const { today, yesterday, latestHint } = seoulDateHints();
@@ -46,36 +43,20 @@ export function createGetTodayMarketVoiceTool(agent: ChatAgent, env: Env) {
       }
 
       const { content_lang: lang } = getSettings(agent);
-      const resolved = await resolveToolMarketDate(env, date, { lang });
-      if (resolved.marketDate && !isMarketDateYmd(resolved.marketDate)) {
-        return {
-          ok: false as const,
-          reason: "invalid_date",
-          message: "date must be YYYY-MM-DD",
-        };
-      }
 
       try {
-        let result = await getTodayContentAudio(env, {
-          marketDate: resolved.marketDate,
-          lang,
-        });
-        let correctedFrom: string | undefined;
-
-        if (
-          !result.item &&
-          resolved.fallbackMarketDate &&
-          resolved.fallbackMarketDate !== resolved.marketDate
-        ) {
-          const retry = await getTodayContentAudio(env, {
-            marketDate: resolved.fallbackMarketDate,
-            lang,
-          });
-          if (retry.item) {
-            correctedFrom = resolved.marketDate;
-            result = retry;
-          }
+        const loaded = await withResolvedMarketDate(env, date, lang, (marketDate) =>
+          getTodayContentAudio(env, { marketDate, lang }),
+        );
+        if (!loaded.ok) {
+          return {
+            ok: false as const,
+            reason: "invalid_date" as const,
+            message: "date must be YYYY-MM-DD",
+          };
         }
+
+        const { resolved, result, correctedFrom } = loaded;
 
         if (!result.item) {
           return {

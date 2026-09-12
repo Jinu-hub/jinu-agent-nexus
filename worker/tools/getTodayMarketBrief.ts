@@ -14,18 +14,9 @@ import { z } from "zod";
 import type { ChatAgent } from "../chat-agent";
 import { getSettings } from "../chat-agent/settings";
 import { getTodayContentBrief } from "../content-briefs";
-import { isMarketDateYmd } from "../market-date";
+import { metaString, withResolvedMarketDate } from "../market-memory-load";
 import { isSupabaseConfigured } from "../supabase";
-import {
-  resolveToolMarketDate,
-  seoulDateHints,
-} from "./market-date-resolve";
-
-function metaString(metadata: unknown, key: string): string | null {
-  if (!metadata || typeof metadata !== "object") return null;
-  const value = (metadata as Record<string, unknown>)[key];
-  return typeof value === "string" ? value : null;
-}
+import { seoulDateHints } from "./market-date-resolve";
 
 export function createGetTodayMarketBriefTool(agent: ChatAgent, env: Env) {
   const { today, yesterday, latestHint } = seoulDateHints();
@@ -52,36 +43,20 @@ export function createGetTodayMarketBriefTool(agent: ChatAgent, env: Env) {
       }
 
       const { content_lang: lang } = getSettings(agent);
-      const resolved = await resolveToolMarketDate(env, date, { lang });
-      if (resolved.marketDate && !isMarketDateYmd(resolved.marketDate)) {
-        return {
-          ok: false as const,
-          reason: "invalid_date",
-          message: "date must be YYYY-MM-DD",
-        };
-      }
 
       try {
-        let result = await getTodayContentBrief(env, {
-          marketDate: resolved.marketDate,
-          lang,
-        });
-        let correctedFrom: string | undefined;
-
-        if (
-          !result.item &&
-          resolved.fallbackMarketDate &&
-          resolved.fallbackMarketDate !== resolved.marketDate
-        ) {
-          const retry = await getTodayContentBrief(env, {
-            marketDate: resolved.fallbackMarketDate,
-            lang,
-          });
-          if (retry.item) {
-            correctedFrom = resolved.marketDate;
-            result = retry;
-          }
+        const loaded = await withResolvedMarketDate(env, date, lang, (marketDate) =>
+          getTodayContentBrief(env, { marketDate, lang }),
+        );
+        if (!loaded.ok) {
+          return {
+            ok: false as const,
+            reason: "invalid_date" as const,
+            message: "date must be YYYY-MM-DD",
+          };
         }
+
+        const { resolved, result, correctedFrom } = loaded;
 
         if (!result.item) {
           return {

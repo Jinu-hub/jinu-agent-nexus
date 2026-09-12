@@ -7,6 +7,7 @@ import { getSettings } from "./settings";
 import { getTodayContentAudio } from "../content-audio";
 import { getTodayContentBrief } from "../content-briefs";
 import { getTodayItemContent } from "../item-contents";
+import { metaString, withResolvedMarketDate } from "../market-memory-load";
 import { isMarketDateYmd, shiftMarketDateYmd } from "../market-date";
 import { isSupabaseConfigured } from "../supabase";
 import {
@@ -86,47 +87,24 @@ function briefSnippets(brief: {
   return [brief.title, brief.pulse, brief.takeaway, brief.contentExcerpt];
 }
 
-function metaString(metadata: unknown, key: string): string | null {
-  if (!metadata || typeof metadata !== "object") return null;
-  const value = (metadata as Record<string, unknown>)[key];
-  return typeof value === "string" ? value : null;
-}
-
 async function loadBrief(
   agent: ChatAgent,
   env: Env,
   date: string | undefined,
 ) {
   const { content_lang: lang } = getSettings(agent);
-  const resolved = await resolveToolMarketDate(env, date, { lang });
-  if (resolved.marketDate && !isMarketDateYmd(resolved.marketDate)) {
+  const loaded = await withResolvedMarketDate(env, date, lang, (marketDate) =>
+    getTodayContentBrief(env, { marketDate, lang }),
+  );
+  if (!loaded.ok) {
     return {
       ok: false as const,
-      reason: "invalid_date",
-      requestedDate: resolved.requestedDate,
+      reason: "invalid_date" as const,
+      requestedDate: loaded.resolved.requestedDate,
     };
   }
 
-  let result = await getTodayContentBrief(env, {
-    marketDate: resolved.marketDate,
-    lang,
-  });
-  let correctedFrom: string | undefined;
-
-  if (
-    !result.item &&
-    resolved.fallbackMarketDate &&
-    resolved.fallbackMarketDate !== resolved.marketDate
-  ) {
-    const retry = await getTodayContentBrief(env, {
-      marketDate: resolved.fallbackMarketDate,
-      lang,
-    });
-    if (retry.item) {
-      correctedFrom = resolved.marketDate;
-      result = retry;
-    }
-  }
+  const { resolved, result, correctedFrom } = loaded;
 
   if (!result.item) {
     return {
@@ -164,35 +142,18 @@ async function loadVoice(
   date: string | undefined,
 ) {
   const { content_lang: lang } = getSettings(agent);
-  const resolved = await resolveToolMarketDate(env, date, { lang });
-  if (resolved.marketDate && !isMarketDateYmd(resolved.marketDate)) {
+  const loaded = await withResolvedMarketDate(env, date, lang, (marketDate) =>
+    getTodayContentAudio(env, { marketDate, lang }),
+  );
+  if (!loaded.ok) {
     return {
       ok: false as const,
-      reason: "invalid_date",
-      requestedDate: resolved.requestedDate,
+      reason: "invalid_date" as const,
+      requestedDate: loaded.resolved.requestedDate,
     };
   }
 
-  let result = await getTodayContentAudio(env, {
-    marketDate: resolved.marketDate,
-    lang,
-  });
-  let correctedFrom: string | undefined;
-
-  if (
-    !result.item &&
-    resolved.fallbackMarketDate &&
-    resolved.fallbackMarketDate !== resolved.marketDate
-  ) {
-    const retry = await getTodayContentAudio(env, {
-      marketDate: resolved.fallbackMarketDate,
-      lang,
-    });
-    if (retry.item) {
-      correctedFrom = resolved.marketDate;
-      result = retry;
-    }
-  }
+  const { resolved, result, correctedFrom } = loaded;
 
   if (!result.item) {
     return {
@@ -228,35 +189,18 @@ async function loadReport(
   date: string | undefined,
 ) {
   const { content_lang: lang } = getSettings(agent);
-  const resolved = await resolveToolMarketDate(env, date, { lang });
-  if (resolved.marketDate && !isMarketDateYmd(resolved.marketDate)) {
+  const loaded = await withResolvedMarketDate(env, date, lang, (marketDate) =>
+    getTodayItemContent(env, { marketDate, lang }),
+  );
+  if (!loaded.ok) {
     return {
       ok: false as const,
-      reason: "invalid_date",
-      requestedDate: resolved.requestedDate,
+      reason: "invalid_date" as const,
+      requestedDate: loaded.resolved.requestedDate,
     };
   }
 
-  let result = await getTodayItemContent(env, {
-    marketDate: resolved.marketDate,
-    lang,
-  });
-  let correctedFrom: string | undefined;
-
-  if (
-    !result.item &&
-    resolved.fallbackMarketDate &&
-    resolved.fallbackMarketDate !== resolved.marketDate
-  ) {
-    const retry = await getTodayItemContent(env, {
-      marketDate: resolved.fallbackMarketDate,
-      lang,
-    });
-    if (retry.item) {
-      correctedFrom = resolved.marketDate;
-      result = retry;
-    }
-  }
+  const { resolved, result, correctedFrom } = loaded;
 
   if (!result.item) {
     return {

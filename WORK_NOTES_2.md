@@ -1,7 +1,8 @@
 # jinu-agent-nexus 개발 작업노트 (계속)
 
 > **이전 기록:** [`WORK_NOTES.md`](./WORK_NOTES.md) — §1 ~ §10.16 (아카이브. 새 기능은 여기에 추가하지 않음)  
-> **이후 기록:** 이 파일만 사용. 섹션 번호는 **§11**부터.
+> **이후 기록:** 이 파일만 사용. 섹션 번호는 **§11**부터.  
+> **머지/포팅 체크리스트:** [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md) (A/B/C — Phase 서술 대신 여기 표 갱신)
 
 ---
 
@@ -33,11 +34,82 @@
 
 ### 관련 문서 (코드와 같이)
 
-`.cursor/rules/update-docs.mdc` 기준 — route/DO/tool/panel/binding 등이면 `ARCHITECTURE.md` / `CLAUDE.md` / `.dev.vars.example` 등도 같은 PR에서 갱신.
+`.cursor/rules/update-docs.mdc` 기준 — route/DO/tool/panel/binding 등이면 `ARCHITECTURE.md` / `CLAUDE.md` / `.dev.vars.example` 등도 같은 PR에서 갱신.  
+A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 함께.
 
 ---
 
-## 11. (다음 작업)
+## 11. Portability refactor — 이식성 정리 (Wave 1+)
 
-> 첫 비트리비얼 작업부터 이 절을 채운다.
+* **목적:** 기능을 늘리지 않고, ~2주 뒤 **신규 baseline overlay 포팅**을 쉽게 하기 위해 제품 모듈(A)을 두껍게·접합점(B)을 얇고 선택 가능하게 정리한다. 공개 HTTP/툴 키/바인딩 이름은 변경하지 않음.
+* **§6:** 라우트 추가 없음 → `WORK_NOTES.md` §6 미변경.
+* **머지 전략:** A/B/C·검증·Wave 표는 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)가 단일 소스 (본 절은 구현 이력).
+
+| 소절 | 내용 |
+|------|------|
+| **11.1** | Market seams optionalize — turn hooks / soul RULE 5–7 / tools registry split |
+| **11.2** | `content-audio` domain/routes + barrel |
+| **11.3** | `withResolvedMarketDate` (+ `metaString`) tools·prefetch 공통화 |
+| **11.4** | ReportReader topics 분리 + FE `market-date` 헬퍼 |
+
+### 11.1 Market seams *(완료)*
+
+* **목적:** ChatAgent 접합점에서 Market을 빼기 쉽게 — hooks / soul / tools 모듈 분리
+* **수정 및 추가 파일:**
+  * `worker/chat-agent/market-turn-hooks.ts` *(신규)* — `marketBeforeTurn` / `marketBeforeStep`
+  * `worker/chat-agent/soul-market.ts` *(신규)* — RULE 5–7 (`MARKET_SOUL_RULES`)
+  * `worker/chat-agent/ChatAgent.ts` — hooks 위임; `marketPrefetchReady` public
+  * `worker/chat-agent/configure-session.ts` — soul에 `MARKET_SOUL_RULES` compose
+  * `worker/chat-agent/tools-registry.ts` — `getBoilerplateTools` + `getMarketMemoryTools` → `getChatTools`
+* **확인:** 동작 동일 (prefetch 시 `toolChoice: none`, 툴 키 불변). `tsc --noEmit` OK
+* **의도적으로 안 함:** intent 정규식·callable·State 변경
+
+### 11.2 content-audio split *(완료)*
+
+* **목적:** ~1080줄 단일 파일을 domain / HTTP로 분리, import 경로 `./content-audio` 유지
+* **수정 및 추가 파일:**
+  * `worker/content-audio-domain.ts` *(신규)* — queue/TTS/R2 도메인
+  * `worker/content-audio-routes.ts` *(신규)* — `handleAudioRequest` + 라우트 핸들러
+  * `worker/content-audio.ts` — barrel re-export
+  * `worker/voice-audio-cron.ts` — domain 직접 import (순환 의존 방지)
+* **확인:** 공개 `/api/audio/*`·export 심볼 동일. §6 미변경
+* **의도적으로 안 함:** 라우트/응답 shape 변경
+
+### 11.3 market-memory-load *(완료)*
+
+* **목적:** brief/voice/report 툴 + prefetch의 resolve→fetch→retry 중복 제거
+* **수정 및 추가 파일:**
+  * `worker/market-memory-load.ts` *(신규)* — `withResolvedMarketDate`, `metaString`
+  * `worker/tools/getTodayMarketBrief.ts` / `Voice` / `Report` — 헬퍼 사용
+  * `worker/chat-agent/market-prefetch.ts` — `loadBrief`/`Voice`/`Report` 헬퍼 사용
+* **확인:** 반환 필드·presentation 문자열 유지
+* **의도적으로 안 함:** 툴 JSON 필드명 변경
+
+### 11.4 FE topics + market-date *(완료)*
+
+* **목적:** Topics UI 독립 파일 + 패널 Seoul 날짜 헬퍼 공통화
+* **수정 및 추가 파일:**
+  * `src/panels/report-topics.tsx` *(신규)* — chips/Keywords/Entities + flags
+  * `src/panels/ReportReader.tsx` — TOC/Article/Modal + topics re-export
+  * `src/lib/market-date.ts` *(신규)* — `seoulYmd` / `shiftYmd` / `metaString` (worker API 미러)
+  * `src/panels/MarketPanel.tsx` — 로컬 날짜·metaString 제거, lib import
+* **확인:** MarketPanel import 경로(`./ReportReader`) 유지 가능
+* **의도적으로 안 함:** MarketPanel fetch 훅 / App panel-registry (Wave 2)
+
+### 11.5 Typecheck fixes *(완료)*
+
+* **수정:** `marketBeforeTurn(agent, env, ctx)` — `env`는 ChatAgent에서 전달 (`agent.env` protected)
+* **수정:** `publicQueryMessage`를 domain으로 이동(generate catch); routes는 import; 미사용 import 제거
+* **확인:** `npx tsc -b` 통과
+
+### Wave 2 (나중 · 문서만)
+
+* MarketPanel `useMarketDayData` + Voice/Brief 섹션 컴포넌트
+* Optional `panel-registry.tsx` / upload·screenshot route 추출 (`index.ts`는 이미 thin)
+
+### 의도적으로 안 함
+
+* 바인딩·경로·툴 키 rename, ChatAgent 대수술, §10.14 벡터, 신규 기능, soul RULE **문구** 변경(파일 위치만)
+
+---
 
