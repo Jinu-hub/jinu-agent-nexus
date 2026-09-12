@@ -107,14 +107,20 @@
     },
   ],
 
-  // Vectorize index — vector DB for the RAG `recall` tool. Dimensions
-  // must match the embedding model: `text-embedding-3-small` is 1536-dim.
-  // Create with `npm run setup:vectorize`. The dimensions are IMMUTABLE
-  // after creation — if you switch embedding models, drop and recreate.
+  // Vectorize — dimensions must match EMBEDDING_MODEL (default 768 BGE).
+  // Create with `npm run setup:vectorize` (+ `:market`). Dimensions are
+  // IMMUTABLE — switch embedding models → drop and recreate both indexes.
+  // PDF Sources (`recall`) and Market report interest search use separate
+  // indexes so results never mix; unified search can fan-out later.
   "vectorize": [
     {
-      "binding": "VECTOR_DB",
-      "index_name": "boilerplate-vectorstore",
+      "binding": "PDF_VECTOR_DB",
+      "index_name": "pdf-vectorstore",
+      "remote": true,
+    },
+    {
+      "binding": "MARKET_VECTOR_DB",
+      "index_name": "market-memory-vectorstore",
       "remote": true,
     },
   ],

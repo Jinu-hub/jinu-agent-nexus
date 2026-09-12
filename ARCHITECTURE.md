@@ -75,7 +75,8 @@ flowchart TB
 
   subgraph External["Cloudflare services"]
     R2["R2: boilerplate-bucket"]
-    VDB["Vectorize: boilerplate-vectorstore"]
+    VDB["Vectorize: pdf-vectorstore"]
+    MVDB["Vectorize: market-memory-vectorstore"]
     AI["Workers AI / AI Gateway"]
     Browser["Browser Rendering"]
   end
@@ -91,6 +92,7 @@ flowchart TB
 
   DO --> R2
   DO --> VDB
+  DO --> MVDB
   DO --> AI
   DO --> Browser
   Refresh -->|"state sync"| Panels
@@ -243,7 +245,8 @@ Called after: cold start, every chat turn, and most `@callable` mutations.
 | `LiveMarketRoomAgent` | DO class | Market Pulse poll room — synced state + vote log |
 | `NOTES` | Workers KV | My Market Notes (`/notes`) — personalization seed |
 | `BUCKET` | `boilerplate-bucket` | Skills, PDFs, screenshots |
-| `VECTOR_DB` | `boilerplate-vectorstore` (768-dim) | RAG embeddings |
+| `PDF_VECTOR_DB` | `pdf-vectorstore` (768-dim) | PDF Sources RAG |
+| `MARKET_VECTOR_DB` | `market-memory-vectorstore` (768-dim) | Market report interest search (§14) |
 | `AI` | Workers AI | Default models + PDF→markdown |
 | `BROWSER` | Browser Rendering (remote) | Navigate / screenshot / Live View |
 | `LOADER` | worker_loaders | Runtime extensions |
@@ -259,9 +262,9 @@ previous-day `market_date` drain — empty pending is a no-op).
 - `LIVE_ROOM_TOKEN` (optional) — Market Pulse room gate
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (optional) — Market Memory
 
-> R2/Vectorize still use `boilerplate-*` names from initial setup. The Worker
-> and repo are renamed to `jinu-agent-nexus`; infra names can stay until you
-> deliberately recreate resources.
+> R2 bucket still uses `boilerplate-bucket` from initial setup. Vectorize
+> indexes were renamed to `pdf-vectorstore` / `market-memory-vectorstore`
+> (Phase 0 §14). Empty legacy `boilerplate-vectorstore` may be deleted.
 
 ---
 

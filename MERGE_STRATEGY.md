@@ -78,7 +78,7 @@
 | 파일 | 넣을 것 (요약) |
 |------|----------------|
 | `worker/index.ts` | `handleNotes` / `Memory` / `Settings` / `Supabase` / `Briefs` / `Reports` / `Audio` 체인; DO re-export (`ChatAgent`, `MyMemory`, `LiveMarketRoomAgent`); `scheduled` → voice cron |
-| `wrangler.jsonc` | NOTES KV, MyMemory + Live DO, AUDIO_BUCKET, crons, `run_worker_first` paths, vars |
+| `wrangler.jsonc` | NOTES KV, MyMemory + Live DO, AUDIO_BUCKET, `PDF_VECTOR_DB` + `MARKET_VECTOR_DB`, crons, `run_worker_first` paths, vars |
 | `worker/chat-agent/ChatAgent.ts` | `marketBeforeTurn` / `marketBeforeStep` 위임; settings cleanup (이미 있으면 유지) |
 | `configure-session.ts` | `MARKET_SOUL_RULES` compose (`soul-market.ts`) |
 | `tools-registry.ts` | `...getMarketMemoryTools(agent, env)` merge |
@@ -98,6 +98,7 @@
 - [ ] `.dev.vars` / production secrets: `API_TOKEN`, `SUPABASE_*`, `LIVE_ROOM_TOKEN`(optional)
 - [ ] NOTES KV (prod/preview)
 - [ ] R2 `AUDIO_BUCKET` (`market-memory-audio`) + 기존 `BUCKET`
+- [ ] Vectorize `PDF_VECTOR_DB` → `pdf-vectorstore` (768) + `MARKET_VECTOR_DB` → `market-memory-vectorstore` (768); same `EMBEDDING_MODEL`
 - [ ] DO migrations (MyMemory / Live / ChatAgent tags)
 - [ ] Voice cron schedule (`wrangler.jsonc` `triggers.crons` — `0 0` + `0 1` UTC)
 - [ ] `npm run seed:skills:*` if skills changed
@@ -130,10 +131,11 @@
 
 ### 의도적으로 하지 않음 (포팅 전)
 
-- 바인딩/경로/툴 키 rename
+- 바인딩/경로/툴 키 rename (예외: §14.0 Vectorize PDF rename + Market index — Sources 미사용 시점에 완료)
 - baseline `ChatAgent` 대수술
-- §10.14 벡터 검색 등 대형 신규 기능
+- §14 벡터 **ingest / query / For you·prefetch 교체** (Phase 1+; 인프라·설계만 §14.0)
 - soul RULE **문구** 변경 (파일 위치만 Wave 1에서 분리)
+- PDF+Market **통합 검색** (나중 fan-out)
 
 ---
 
@@ -143,3 +145,5 @@
 |------|------|
 | 2026-09-12 | 문서 신설. Wave 1 반영 A/B/C 초안 |
 | 2026-09-12 | Settings `hidden_panels` — B `App.tsx` tab filter 표기 ([`WORK_NOTES_2` §12](./WORK_NOTES_2.md)) |
+| 2026-09-12 | Voice cron catch-up `0 1` — C 체크리스트 ([`WORK_NOTES_2` §13](./WORK_NOTES_2.md)) |
+| 2026-09-12 | Vectorize split/rename — C + B wrangler ([`WORK_NOTES_2` §14.0](./WORK_NOTES_2.md)) |

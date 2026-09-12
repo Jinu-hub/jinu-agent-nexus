@@ -69,11 +69,16 @@
 // The embedding model's dimension count MUST match the Vectorize
 // index's. Defaults in this repo: 768 (BGE base). To switch:
 //
-//   npx wrangler vectorize delete boilerplate-vectorstore
-//   npx wrangler vectorize create boilerplate-vectorstore \
+//   npx wrangler vectorize delete pdf-vectorstore
+//   npx wrangler vectorize create pdf-vectorstore \
+//     --dimensions=<new-dim> --metric=cosine
+//   npx wrangler vectorize delete market-memory-vectorstore
+//   npx wrangler vectorize create market-memory-vectorstore \
 //     --dimensions=<new-dim> --metric=cosine
 //
-// Vectorize dimensions are immutable after creation.
+// Vectorize dimensions are immutable after creation. Keep PDF + Market
+// indexes on the same dim / EMBEDDING_MODEL.
+
 // ─────────────────────────────────────────────────────────────────────────
 
 import { createOpenAI } from "@ai-sdk/openai";

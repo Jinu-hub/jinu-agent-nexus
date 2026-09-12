@@ -26,7 +26,7 @@ import type { ChatAgent } from "../chat-agent";
 import { createEmbedder } from "../ai";
 
 // The factory accepts both the agent (for `sql` access) and `env`
-// (for `VECTOR_DB` and the embedder). Splitting them is just a
+// (for `PDF_VECTOR_DB` and the embedder). Splitting them is just a
 // visibility quirk — `env` is protected on the agent class, so we
 // hand it in explicitly from within the class at the call site.
 export function createRecallTool(agent: ChatAgent, env: Env) {
@@ -41,7 +41,7 @@ export function createRecallTool(agent: ChatAgent, env: Env) {
         model: createEmbedder(env),
         value: query,
       });
-      const matches = await env.VECTOR_DB.query(embedding, { topK: 5 });
+      const matches = await env.PDF_VECTOR_DB.query(embedding, { topK: 5 });
 
       // For each matching vector ID, look up the raw chunk text from
       // SQLite. flatMap because some matches might be stale (vector

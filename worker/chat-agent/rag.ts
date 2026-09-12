@@ -52,7 +52,7 @@ async function ingestMarkdown(
     `;
     return { id, values: embeddings[i], metadata: { source } };
   });
-  await env.VECTOR_DB.upsert(vectors);
+  await env.PDF_VECTOR_DB.upsert(vectors);
   agent.broadcast(JSON.stringify({ type: "source_added", source }));
   await refreshPanelState(agent);
   return { source, chunks: texts.length };
@@ -67,7 +67,7 @@ export async function deleteSource(
     SELECT id FROM chunks WHERE source = ${source}
   `.map((r) => r.id);
   for (let i = 0; i < ids.length; i += 100) {
-    await env.VECTOR_DB.deleteByIds(ids.slice(i, i + 100));
+    await env.PDF_VECTOR_DB.deleteByIds(ids.slice(i, i + 100));
   }
 
   const [doc] = agent.sql<{ r2_key: string | null }>`
@@ -88,7 +88,7 @@ export async function deleteAllSources(agent: RagAgentHost, env: Env) {
     (r) => r.id,
   );
   for (let i = 0; i < ids.length; i += 100) {
-    await env.VECTOR_DB.deleteByIds(ids.slice(i, i + 100));
+    await env.PDF_VECTOR_DB.deleteByIds(ids.slice(i, i + 100));
   }
   const keys = agent.sql<{ r2_key: string }>`
     SELECT r2_key FROM documents WHERE r2_key IS NOT NULL

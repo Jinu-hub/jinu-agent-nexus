@@ -127,14 +127,16 @@ That runs three things in sequence, each idempotent (already-exists
 errors are caught and turned into "skip" messages, not failures):
 
 1. `wrangler r2 bucket create boilerplate-bucket`
-2. `wrangler vectorize create boilerplate-vectorstore --dimensions=768 --metric=cosine`
-3. `wrangler r2 object put boilerplate-bucket/skills/*.md --remote`
+2. `wrangler vectorize create pdf-vectorstore --dimensions=768 --metric=cosine`
+3. `wrangler vectorize create market-memory-vectorstore --dimensions=768 --metric=cosine`
+4. `wrangler r2 object put boilerplate-bucket/skills/*.md --remote`
 
 If you'd rather run them by hand:
 
 ```bash
-npm run setup:r2          # creates R2 bucket "boilerplate-bucket"
-npm run setup:vectorize   # creates Vectorize index, 768-dim cosine
+npm run setup:r2                 # creates R2 bucket "boilerplate-bucket"
+npm run setup:vectorize          # PDF Sources index, 768-dim cosine
+npm run setup:vectorize:market   # Market report index, 768-dim cosine
 npm run seed:skills:remote
 ```
 
@@ -344,8 +346,11 @@ If you change to a model with different dimensions, drop and
 recreate the Vectorize index — its dimensions are immutable:
 
 ```bash
-npx wrangler vectorize delete boilerplate-vectorstore
-npx wrangler vectorize create boilerplate-vectorstore \
+npx wrangler vectorize delete pdf-vectorstore
+npx wrangler vectorize create pdf-vectorstore \
+  --dimensions=<new-dim> --metric=cosine
+npx wrangler vectorize delete market-memory-vectorstore
+npx wrangler vectorize create market-memory-vectorstore \
   --dimensions=<new-dim> --metric=cosine
 ```
 

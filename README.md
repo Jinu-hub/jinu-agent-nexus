@@ -112,14 +112,16 @@ npm run setup
 이 명령어는 아래 세 가지 작업을 순서대로 실행합니다. 모두 멱등적으로 작성되어 있기 때문에 같은 명령어를 다시 실행해도 괜찮습니다. 이미 만들어진 리소스가 있다면 오류로 중단하지 않고 "skip" 메시지와 함께 건너뜁니다.
 
 1. `wrangler r2 bucket create boilerplate-bucket`
-2. `wrangler vectorize create boilerplate-vectorstore --dimensions=768 --metric=cosine`
-3. `wrangler r2 object put boilerplate-bucket/skills/*.md --remote`
+2. `wrangler vectorize create pdf-vectorstore --dimensions=768 --metric=cosine`
+3. `wrangler vectorize create market-memory-vectorstore --dimensions=768 --metric=cosine`
+4. `wrangler r2 object put boilerplate-bucket/skills/*.md --remote`
 
 수동으로 실행하고 싶다면 다음을 사용하세요:
 
 ```bash
-npm run setup:r2          # "boilerplate-bucket" R2 버킷 생성
-npm run setup:vectorize   # 768차원 cosine Vectorize 인덱스 생성
+npm run setup:r2                 # "boilerplate-bucket" R2 버킷 생성
+npm run setup:vectorize          # PDF Sources 인덱스 (768-dim cosine)
+npm run setup:vectorize:market   # Market report 인덱스 (768-dim cosine)
 npm run seed:skills:remote
 ```
 
@@ -293,8 +295,11 @@ Unified Billing이 적용된 AI Gateway:
 차원이 다른 모델로 바꾸면 Vectorize 인덱스를 삭제하고 다시 생성해야 합니다. Vectorize 차원은 생성 후 변경할 수 없습니다:
 
 ```bash
-npx wrangler vectorize delete boilerplate-vectorstore
-npx wrangler vectorize create boilerplate-vectorstore \
+npx wrangler vectorize delete pdf-vectorstore
+npx wrangler vectorize create pdf-vectorstore \
+  --dimensions=<new-dim> --metric=cosine
+npx wrangler vectorize delete market-memory-vectorstore
+npx wrangler vectorize create market-memory-vectorstore \
   --dimensions=<new-dim> --metric=cosine
 ```
 

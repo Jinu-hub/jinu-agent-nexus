@@ -109,7 +109,7 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 
 ### 의도적으로 안 함
 
-* 바인딩·경로·툴 키 rename, ChatAgent 대수술, §10.14 벡터, 신규 기능, soul RULE **문구** 변경(파일 위치만)
+* 바인딩·경로·툴 키 rename (예외 §14.0 Vectorize), ChatAgent 대수술, §14 Phase 1+ 벡터 ingest/UI, 신규 기능, soul RULE **문구** 변경(파일 위치만)
 
 ---
 
@@ -183,6 +183,67 @@ curl -s "http://localhost:5173/cdn-cgi/handler/scheduled?cron=0+1+*+*+*"
 * 과거 쌓인 `script_ready` 일괄 backfill (날짜 필터 유지)
 * cron 시각을 01:00만으로 이동 (00:00 primary 유지)
 * Queues / retry-on-failed
+
+---
+
+## 14. Vector interest search (§10.14 착수)
+
+* **목적:** MyMemory 관심사로 **당일 풀 리포트 문단**을 벡터 검색 (Brief 문자열 `includes` / keyword exact의 한계 해소). PDF RAG와 **인덱스 분리**.
+* **아카이브 TODO:** [`WORK_NOTES.md` §10.14](./WORK_NOTES.md) — 구현 이력은 이 절.
+* **§6:** Phase 0 라우트 없음.
+* **머지:** C Vectorize 2개 + B `wrangler` 바인딩 — [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md).
+
+### 14.0 Phase 0 — 설계 고정 + Vectorize 인프라 *(완료)*
+
+**설계 결정**
+
+| 항목 | 결정 |
+|------|------|
+| 인덱스 | **분리** — PDF `pdf-vectorstore` / Market `market-memory-vectorstore` |
+| 바인딩 | `PDF_VECTOR_DB` / `MARKET_VECTOR_DB` (구 `VECTOR_DB` + `boilerplate-vectorstore` rename; Sources 0건이라 재ingest 없음) |
+| dim / 모델 | 둘 다 768 + 기존 `EMBEDDING_MODEL` (`@cf/baai/bge-base-en-v1.5`) |
+| metadata (Market) | **필수** `item_id`, `market_date`, `lang`; 선택(나중) `report_type` / `chunk_index` |
+| 필터 | 검색 시 `market_date`+`lang` 및/또는 `item_id` — 날짜·종류 혼입 방지 |
+| 청크 원문 | Phase 1에서 확정 (metadata 발췌 vs hit 후 `item_contents` 재조회) |
+| 외부 API | Worker 검색 API로 문단+score+메타 반환 가능 (숫자 배열 export는 비목표) |
+| 통합 검색 | **나중** — 두 인덱스 fan-out + score merge (프롬프트로 인덱스명 지시 아님) |
+| 소비처 (Phase 3) | For you / chat prefetch `interestHits` → 리포트 문단; Brief `brief-for-you`는 임시 |
+
+**수정 및 추가 파일**
+
+* `wrangler.jsonc` — vectorize 2 bindings
+* `worker/chat-agent/rag.ts`, `worker/tools/recall.ts` — `PDF_VECTOR_DB`
+* `worker/ai.ts` — recreate 주석 (양쪽 인덱스)
+* `package.json` — `setup:vectorize` + `setup:vectorize:market`
+* `scripts/setup.mjs` — 두 인덱스 create
+* `CLAUDE.md` / `ARCHITECTURE.md` / `MERGE_STRATEGY.md` / `README.md` / `README.eng.md`
+
+**확인**
+
+```bash
+npm run setup:vectorize
+npm run setup:vectorize:market
+npm run cf-typegen
+npx tsc -b
+```
+
+* Sources 패널 0 — PDF rename 안전.
+* `cf-typegen` + `tsc -b` OK (로컬).
+* **원격 인덱스 create**는 사용자가 CLI로 실행: `npm run setup:vectorize` + `setup:vectorize:market` (또는 `npm run setup`).
+* 빈 legacy `boilerplate-vectorstore`는 대시보드/CLI에서 삭제 가능 (선택).
+
+**의도적으로 안 함 (Phase 0)**
+
+* `item_contents` ingest / query API / For you·prefetch 교체
+* PDF+Market 통합 검색
+* `pgvector` / 임베딩 float export
+* 타임라인 파이프라인
+
+### 14.1+ (다음)
+
+* Phase 1 — Market ingest (`item_id` 단위 chunk → embed → upsert)
+* Phase 2 — 관심사 쿼리 (+ 필터)
+* Phase 3 — For you / prefetch 소비처 교체
 
 ---
 

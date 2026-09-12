@@ -11,8 +11,8 @@
 //   1. Sanity-check `.dev.vars` and `wrangler.jsonc` for placeholder
 //      values you still need to fill in.
 //   2. Create the R2 bucket.
-//   3. Create the Vectorize index (768-dim, cosine — matches the
-//      default embedding model).
+//   3. Create Vectorize indexes (768-dim, cosine — matches the
+//      default embedding model): PDF Sources + Market reports.
 //   4. Create Workers KV namespace for My Market Notes (print ids —
 //      paste into wrangler.jsonc if still using placeholders).
 //   5. Seed `skills/*.md` into the R2 bucket under `skills/`.
@@ -26,12 +26,13 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const BUCKET = "boilerplate-bucket";
-const VECTORIZE = "boilerplate-vectorstore";
+const VECTORIZE_PDF = "pdf-vectorstore";
+const VECTORIZE_MARKET = "market-memory-vectorstore";
 const NOTES_KV = "NOTES";
 // 768 matches `@cf/baai/bge-base-en-v1.5` (the default embedding
 // model in wrangler.jsonc). If you switch EMBEDDING_MODEL to one
 // with different dimensions, update this value AND drop/recreate
-// the Vectorize index — its dimensions are immutable.
+// both Vectorize indexes — dimensions are immutable.
 const VECTOR_DIM = 768;
 const SKILLS_DIR = "skills";
 
@@ -102,14 +103,14 @@ log.header(`R2 bucket: ${BUCKET}`);
   }
 }
 
-// ─── 3. Vectorize index ──────────────────────────────────────────────────
-log.header(`Vectorize index: ${VECTORIZE}`);
-{
+// ─── 3. Vectorize indexes (PDF Sources + Market reports) ─────────────────
+for (const name of [VECTORIZE_PDF, VECTORIZE_MARKET]) {
+  log.header(`Vectorize index: ${name}`);
   const r = run("npx", [
     "wrangler",
     "vectorize",
     "create",
-    VECTORIZE,
+    name,
     `--dimensions=${VECTOR_DIM}`,
     "--metric=cosine",
   ]);

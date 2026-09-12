@@ -33,7 +33,8 @@
 | Worker name | `jinu-agent-nexus` |
 | R2 bucket | `boilerplate-bucket` (binding `BUCKET`) |
 | Workers KV | binding `NOTES` — My Market Notes (`/notes`) |
-| Vectorize | `boilerplate-vectorstore`, **768-dim** (binding `VECTOR_DB`) |
+| Vectorize (PDF) | `pdf-vectorstore`, **768-dim** (binding `PDF_VECTOR_DB`) |
+| Vectorize (Market) | `market-memory-vectorstore`, **768-dim** (binding `MARKET_VECTOR_DB`) |
 | Default chat model | `@cf/zai-org/glm-4.7-flash` (Workers AI, free tier) |
 | Default embed model | `@cf/baai/bge-base-en-v1.5` (768-dim, must match Vectorize) |
 | AI Gateway name | `agent-boilerplate` (unused until non-`@cf/` models) |
@@ -42,7 +43,8 @@
 | Secrets | `API_TOKEN`, `LIVE_ROOM_TOKEN` (optional), `SUPABASE_*` (optional) in `.dev.vars` / `wrangler secret put` |
 
 **Embedding dimension rule:** Changing `EMBEDDING_MODEL` may require dropping
-and recreating the Vectorize index. See `worker/ai.ts` and README "Switching
+and recreating **both** Vectorize indexes (`pdf-vectorstore`,
+`market-memory-vectorstore`). See `worker/ai.ts` and README "Switching
 models".
 
 ## Architecture in one pass
@@ -63,7 +65,8 @@ flowchart LR
 
   subgraph CF["Bindings"]
     R2["BUCKET"]
-    VDB["VECTOR_DB"]
+    VDB["PDF_VECTOR_DB"]
+    MVDB["MARKET_VECTOR_DB"]
     AI["AI / Gateway"]
   end
 
@@ -74,6 +77,7 @@ flowchart LR
   Agent --> Tools
   Agent --> R2
   Agent --> VDB
+  Agent --> MVDB
   Agent --> AI
   Agent -->|"setState"| Panels
 ```
@@ -177,7 +181,8 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | New skill | `skills/*.md` → `npm run seed:skills:local` or `:remote` |
 | Change model | `wrangler.jsonc` vars only (usually no code change) |
 | AI provider logic | `worker/ai.ts` |
-| PDF ingest / chunking | `worker/ingest.ts`, RAG in `worker/tools/recall.ts` |
+| PDF ingest / chunking | `worker/ingest.ts`, RAG in `worker/tools/recall.ts` + `chat-agent/rag.ts` (`PDF_VECTOR_DB`) |
+| Market report vectors | `MARKET_VECTOR_DB` (`market-memory-vectorstore`) — ingest/query in §14 Phase 1+ |
 | My Market Notes (KV) | `worker/notes.ts` + `wrangler.jsonc` `kv_namespaces` |
 | My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts`; panel interests UI `src/lib/topic-preference.ts` + `MyInterestsFold.tsx`; chat prefetch `user-interests.ts` (P3) |
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
@@ -239,8 +244,9 @@ Reference implementations:
 2. **Minimize diff** — match existing patterns and comment style.
 3. **Do not edit** `worker-configuration.d.ts` — run `npm run cf-typegen`.
 4. **Do not commit** `.dev.vars` or secrets.
-5. **Do not rename** R2/Vectorize resources casually — already provisioned
-   as `boilerplate-*`.
+5. **Do not rename** R2/`boilerplate-bucket` casually. Vectorize is
+   `pdf-vectorstore` + `market-memory-vectorstore` (do not merge
+   casually — unified search is fan-out later).
 6. **Preserve course-style comments** in worker code when touching nearby
    lines.
 7. **Peer deps:** `@cloudflare/shell`, `@ai-sdk/react` are direct
