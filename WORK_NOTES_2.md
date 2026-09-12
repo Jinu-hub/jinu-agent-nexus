@@ -317,13 +317,38 @@ curl -s -X POST http://localhost:5173/api/market-vector/query \
 
 **의도적으로 안 함**
 
-* For you / prefetch 교체 (14.3)
+* For you / ★ prefetch 벡터 교체 (나중)
 * MyMemory preferences 자동 로드 (호출측에서 queries 전달)
 * 일배치 cron / 통합 검색
 
-### 14.3+ (다음)
+### 14.3 Phase 3 — 챗 벡터 검색 *(완료)*
 
-* Phase 3 — For you / prefetch 소비처 교체
+* **목적:** 사용자가 챗에서 하는 **평범한 키워드 검색**을 벡터로. Topics 칩/`「키워드」` → `queryMarketVectors` → 문단만으로 답.
+* **§6:** 라우트 추가 없음 (기존 query API 재사용).
+* **동작:**
+  * 유저 말에서 `「…」` / `"…"` 추출 + `YYYY-MM-DD`면 그 날짜
+  * prefetch에 `vectorSearch` (`minScore` 0.68; 하이픈→공백 normalize만, 동의어 맵 없음)
+  * hits 있으면 **그 문단만** 근거; 없으면 “가까운 내용 없음”
+* **미룸:** For you / ★관심사 prefetch 벡터 교체
+
+**수정 및 추가 파일**
+
+* `worker/chat-agent/market-vector-search.ts` *(신규)*
+* `worker/chat-agent/market-prefetch.ts` — `withVectorSearch`
+* `worker/chat-agent/soul-market.ts` — `vectorSearch` 규칙
+* docs (CLAUDE / ARCH / MERGE)
+
+**확인**
+
+1. ingest된 `2026-09-11`에서 Topics `energy` 클릭 → 챗 답이 하이라이트/원유 쪽 (OpenAI→국채 같은 억지 매칭 없음)
+2. prefetch에 `vectorSearch.hits` (또는 empty)
+3. `npx tsc -b` OK
+
+**의도적으로 안 함**
+
+* For you UI 벡터화
+* ★목록 자동 벡터 prefetch
+* 일배치 cron / 여러 itemId 검색
 
 ---
 

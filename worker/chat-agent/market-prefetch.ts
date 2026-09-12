@@ -30,6 +30,13 @@ import {
   resolveInterestHits,
   type CompactInterest,
 } from "./user-interests";
+import {
+  extractMarketDateFromText,
+  extractQuotedQueries,
+  runChatVectorSearch,
+  vectorSearchInstructionClause,
+  type ChatVectorSearchResult,
+} from "./market-vector-search";
 
 /** Attach compact userInterests (+ interestHits) to a prefetch payload. */
 function withUserInterests<T extends Record<string, unknown>>(
@@ -61,6 +68,36 @@ function withUserInterests<T extends Record<string, unknown>>(
     instruction,
     userInterests: interests,
     ...(includeHits ? { interestHits } : {}),
+  };
+}
+
+/** §14.3 — attach vectorSearch when the user message has 「keyword」 queries. */
+async function withVectorSearch<T extends Record<string, unknown>>(
+  env: Env,
+  payload: T,
+  opts: {
+    userText: string;
+    marketDate?: string;
+    lang?: string;
+  },
+): Promise<T & { vectorSearch?: ChatVectorSearchResult }> {
+  const queries = extractQuotedQueries(opts.userText);
+  if (queries.length === 0) return payload;
+
+  const search = await runChatVectorSearch(env, {
+    queries,
+    marketDate: opts.marketDate,
+    lang: opts.lang,
+  });
+  const instruction =
+    typeof payload.instruction === "string"
+      ? payload.instruction + vectorSearchInstructionClause(search)
+      : payload.instruction;
+
+  return {
+    ...payload,
+    instruction,
+    vectorSearch: search,
   };
 }
 
@@ -238,7 +275,10 @@ async function loadReport(
 function resolveAskDate(
   intent: MarketMemoryIntent,
   hints: ReturnType<typeof seoulDateHints>,
+  userText?: string,
 ): string | undefined {
+  const fromText = userText ? extractMarketDateFromText(userText) : undefined;
+  if (fromText) return fromText;
   if (intent.kind === "compare") return undefined;
   if (intent.dateHint === "today") return hints.today;
   // Calendar yesterday only when user said 어제 — not "latest"
@@ -278,7 +318,11 @@ export async function buildMarketPrefetchBlock(
 
   try {
     if (intent.kind === "voice") {
-      const voice = await loadVoice(agent, env, resolveAskDate(intent, hints));
+      const voice = await loadVoice(
+        agent,
+        env,
+        resolveAskDate(intent, hints, userText),
+      );
       return JSON.stringify(
         withUserInterests(
           {
@@ -331,7 +375,8 @@ export async function buildMarketPrefetchBlock(
     }
 
     if (intent.kind === "reportVsBrief") {
-      const askDate = resolveAskDate(intent, hints);
+      const { content_lang: lang } = getSettings(agent);
+      const askDate = resolveAskDate(intent, hints, userText);
       const [brief, report] = await Promise.all([
         loadBrief(agent, env, askDate),
         loadReport(agent, env, askDate),
@@ -346,18 +391,30 @@ export async function buildMarketPrefetchBlock(
           ? reportSnippets(report)
           : []),
       ];
+      const marketDate =
+        (report && "marketDate" in report && typeof report.marketDate === "string"
+          ? report.marketDate
+          : undefined) ??
+        (brief && "marketDate" in brief && typeof brief.marketDate === "string"
+          ? brief.marketDate
+          : undefined) ??
+        askDate;
       return JSON.stringify(
-        withUserInterests(
-          {
-            intent: "reportVsBrief",
-            seoulHints: hints,
-            brief,
-            report,
-            instruction:
-              "Same-day Brief vs Report — content only, not format. Product fact: Brief is usually distilled FROM Report highlights (pulse/takeaway ≈ highlight themes), so do NOT say 'Brief is short / Report is long' or 'Brief compresses, Report expands' — that is empty. Instead: (1) name 1–2 themes both share; (2) name what Report adds beyond Brief (e.g. 주요/추가 항목, extra companies/events, 마무리, 용어) using summary/excerpt/highlights vs brief pulse/takeaway/excerpt; (3) if they largely align, say so in one line. Short natural language. No full markdown dump. No <tool_call>/XML. One line: details in Market tab → Brief / Report.",
-          },
-          userInterests,
-          { keywords: reportKw, snippets, includeHits: true },
+        await withVectorSearch(
+          env,
+          withUserInterests(
+            {
+              intent: "reportVsBrief",
+              seoulHints: hints,
+              brief,
+              report,
+              instruction:
+                "Same-day Brief vs Report — content only, not format. Product fact: Brief is usually distilled FROM Report highlights (pulse/takeaway ≈ highlight themes), so do NOT say 'Brief is short / Report is long' or 'Brief compresses, Report expands' — that is empty. Instead: (1) name 1–2 themes both share; (2) name what Report adds beyond Brief (e.g. 주요/추가 항목, extra companies/events, 마무리, 용어) using summary/excerpt/highlights vs brief pulse/takeaway/excerpt; (3) if they largely align, say so in one line. Short natural language. No full markdown dump. No <tool_call>/XML. One line: details in Market tab → Brief / Report.",
+            },
+            userInterests,
+            { keywords: reportKw, snippets, includeHits: true },
+          ),
+          { userText, marketDate, lang },
         ),
         null,
         2,
@@ -365,11 +422,9 @@ export async function buildMarketPrefetchBlock(
     }
 
     if (intent.kind === "report") {
-      const report = await loadReport(
-        agent,
-        env,
-        resolveAskDate(intent, hints),
-      );
+      const { content_lang: lang } = getSettings(agent);
+      const askDate = resolveAskDate(intent, hints, userText);
+      const report = await loadReport(agent, env, askDate);
       const keywordsOnly = Boolean(intent.keywordsOnly);
       const reportKw =
         report && "keywords" in report
@@ -377,22 +432,34 @@ export async function buildMarketPrefetchBlock(
           : null;
       const snippets =
         report && "summary" in report ? reportSnippets(report) : [];
+      const marketDate =
+        report && "marketDate" in report && typeof report.marketDate === "string"
+          ? report.marketDate
+          : askDate;
+      const quoted = extractQuotedQueries(userText);
+      const baseInstruction = intent.fullText
+        ? "User wants the FULL report. Do NOT paste content/excerpt into chat. Do NOT emit <tool_call> or XML. Reply in 1–2 short lines pointing to Market tab → Report (include marketDate)."
+        : keywordsOnly && quoted.length === 0
+          ? "User wants KEYWORDS only. Answer from report.keywords (tags, places, companies, institutions, technologies, industries, products) — short bullet or comma list. Do NOT invent names missing from keywords. Do NOT paste excerpt/full report. Do NOT emit <tool_call>/XML. One short line: more detail in Market tab → Topics. If interestHits is non-empty, list those FIRST before other keywords."
+          : quoted.length > 0
+            ? "User asked about a specific keyword in the full report. Prefer vectorSearch.hits when present."
+            : "Answer briefly using title/summary/excerpt/highlights/keywords in natural language. Do NOT paste the full report. Do NOT emit <tool_call> or XML — facts are already here. If interestHits is non-empty, lead with those themes (first bullet), then other highlights. One short line: Market tab → Report / Topics.";
       return JSON.stringify(
-        withUserInterests(
-          {
-            intent: "report",
-            fullTextAsk: Boolean(intent.fullText),
-            keywordsOnly,
-            seoulHints: hints,
-            report,
-            instruction: intent.fullText
-              ? "User wants the FULL report. Do NOT paste content/excerpt into chat. Do NOT emit <tool_call> or XML. Reply in 1–2 short lines pointing to Market tab → Report (include marketDate)."
-              : keywordsOnly
-                ? "User wants KEYWORDS only. Answer from report.keywords (tags, places, companies, institutions, technologies, industries, products) — short bullet or comma list. Do NOT invent names missing from keywords. Do NOT paste excerpt/full report. Do NOT emit <tool_call>/XML. One short line: more detail in Market tab → Topics. If interestHits is non-empty, list those FIRST before other keywords."
-                : "Answer briefly using title/summary/excerpt/highlights/keywords in natural language. Do NOT paste the full report. Do NOT emit <tool_call> or XML — facts are already here. If interestHits is non-empty, lead with those themes (first bullet), then other highlights. One short line: Market tab → Report / Topics.",
-          },
-          userInterests,
-          { keywords: reportKw, snippets, includeHits: true },
+        await withVectorSearch(
+          env,
+          withUserInterests(
+            {
+              intent: "report",
+              fullTextAsk: Boolean(intent.fullText),
+              keywordsOnly,
+              seoulHints: hints,
+              report,
+              instruction: baseInstruction,
+            },
+            userInterests,
+            { keywords: reportKw, snippets, includeHits: true },
+          ),
+          { userText, marketDate, lang },
         ),
         null,
         2,
@@ -400,21 +467,31 @@ export async function buildMarketPrefetchBlock(
     }
 
     // brief / fullText
-    const brief = await loadBrief(agent, env, resolveAskDate(intent, hints));
+    const { content_lang: lang } = getSettings(agent);
+    const askDate = resolveAskDate(intent, hints, userText);
+    const brief = await loadBrief(agent, env, askDate);
     const fullTextAsk = intent.kind === "fullText";
     const snippets = "title" in brief ? briefSnippets(brief) : [];
+    const marketDate =
+      brief && "marketDate" in brief && typeof brief.marketDate === "string"
+        ? brief.marketDate
+        : askDate;
     return JSON.stringify(
-      withUserInterests(
-        {
-          intent: intent.kind,
-          seoulHints: hints,
-          brief,
-          instruction: fullTextAsk
-            ? "User wants the FULL brief. Do NOT paste content/excerpt into chat. Reply in 1–2 short lines pointing to Market tab → Brief / Latest (include marketDate). Tools unnecessary."
-            : "Answer the user's question briefly using title/pulse/takeaway/excerpt as evidence. Do NOT paste the full brief. One short line: Market tab → Latest for the full text. Do not call getTodayMarketBrief unless a needed date is missing.",
-        },
-        userInterests,
-        { snippets, includeHits: true },
+      await withVectorSearch(
+        env,
+        withUserInterests(
+          {
+            intent: intent.kind,
+            seoulHints: hints,
+            brief,
+            instruction: fullTextAsk
+              ? "User wants the FULL brief. Do NOT paste content/excerpt into chat. Reply in 1–2 short lines pointing to Market tab → Brief / Latest (include marketDate). Tools unnecessary."
+              : "Answer the user's question briefly using title/pulse/takeaway/excerpt as evidence. Do NOT paste the full brief. One short line: Market tab → Latest for the full text. Do not call getTodayMarketBrief unless a needed date is missing.",
+          },
+          userInterests,
+          { snippets, includeHits: true },
+        ),
+        { userText, marketDate, lang },
       ),
       null,
       2,

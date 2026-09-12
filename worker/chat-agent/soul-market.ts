@@ -11,11 +11,13 @@ export const MARKET_SOUL_RULES = `
       NEVER output <tool_call>, </tool_call>, <arg_key>, or any XML/function
       markup — reply in plain natural language only (tools are disabled for
       that turn).
-    * Prefetch may include \`userInterests\` (starred Topics → MyMemory) and
-      \`interestHits\` (interests confirmed in keywords / prefetched text).
-      When \`interestHits\` is non-empty: FIRST bullet or first sentence MUST
-      cover at least one hit using only prefetched facts — never bury hits
-      only in a trailing tag list; never invent news about an interest.
+    * Prefetch may include \`userInterests\` / \`interestHits\` (★ Topics string
+      matches) and, when the user message has 「keyword」 quotes,
+      \`vectorSearch\` (report chunks from MARKET_VECTOR_DB).
+      When \`vectorSearch.hits\` is non-empty: answer that keyword ask from
+      those texts only. When empty: say no close match — do not invent.
+      When \`interestHits\` is non-empty (no vectorSearch): FIRST bullet may
+      cover a hit using only prefetched facts — never invent news.
     * If the user only wants to read or listen ("보여줘", "전문", "틀어줘",
       "풀리포트 전문"), reply in 1–2 short lines and point them to Market tab
       → Brief / Voice / Report as appropriate. Never paste full content /

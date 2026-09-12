@@ -150,7 +150,7 @@ in `Message.tsx` → then server `execute` runs.
 | Supabase (prep) | `GET /api/supabase/health` | `worker/supabase.ts` | External Postgres (Market Memory) |
 | Content briefs | `GET /api/briefs/today`, `GET /api/briefs/latest-date` | `worker/content-briefs.ts`, `market-date.ts` | Supabase `content_briefs` |
 | Full reports | `GET /api/reports/today` | `worker/item-contents.ts` | Supabase `item_contents` via `content_briefs.target_id` |
-| Market vectors | `POST /api/market-vector/ingest` · `/query` | `worker/market-vector.ts` + routes | Chunk+embed / interest search → `MARKET_VECTOR_DB` (§14) |
+| Market vectors | `POST /api/market-vector/ingest` · `/query` | `worker/market-vector.ts` + routes; chat `market-vector-search.ts` | Chunk+embed / 「keyword」 chat search → `MARKET_VECTOR_DB` (§14) |
 | Market panel | Market tab | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `src/lib/market-suggestions.ts` | briefs + audio + reports (lazy) + wide reader modal + TOC |
 | Browser | Browser | `navigate.ts`, `screenshot.ts`, Puppeteer | Remote browser session + R2 screenshots |
 | Schedules | Schedules | `setReminder.ts`, DO alarms | DO schedule store |

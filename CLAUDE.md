@@ -186,7 +186,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Change model | `wrangler.jsonc` vars only (usually no code change) |
 | AI provider logic | `worker/ai.ts` |
 | PDF ingest / chunking | `worker/ingest.ts`, RAG in `worker/tools/recall.ts` + `chat-agent/rag.ts` (`PDF_VECTOR_DB`) |
-| Market report vectors | `worker/market-vector.ts` + `market-vector-routes.ts` — ingest + `POST /api/market-vector/query` → `MARKET_VECTOR_DB` |
+| Market report vectors | `worker/market-vector.ts` + `market-vector-routes.ts` — ingest + query; chat 「keyword」 via `market-vector-search.ts` → prefetch `vectorSearch` |
 | My Market Notes (KV) | `worker/notes.ts` + `wrangler.jsonc` `kv_namespaces` |
 | My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts`; panel interests UI `src/lib/topic-preference.ts` + `MyInterestsFold.tsx`; chat prefetch `user-interests.ts` (P3) |
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
@@ -195,7 +195,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today`; chat tool `getTodayMarketReport.ts` (excerpt + compact `keywords` via `report-keywords.ts`; lang = Settings `content_lang`) |
 | Market panel (sidebar) | `MarketPanel.tsx` + `ReportReader.tsx` + `report-topics.tsx` + `MyInterestsFold.tsx` + `BriefForYou.tsx` + `src/lib/market-date.ts`; Topics chips/Keywords in `report-topics.tsx` (re-exported by ReportReader); off-switches unchanged; wired in `App.tsx` |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) + `hidden_panels` (tab strip); UI `src/panels/SettingsPanel.tsx`; App filters `PANELS` |
-| Market Memory intent | `market-turn-hooks.ts` + `market-intent.ts` + `market-prefetch.ts` + `soul-market.ts` + `market-memory-load.ts` — prefetch into system (`toolChoice: none`); interests via `user-interests.ts`; beforeStep fallback for weather / no prefetch |
+| Market Memory intent | `market-turn-hooks.ts` + `market-intent.ts` + `market-prefetch.ts` + `market-vector-search.ts` + `soul-market.ts` + `market-memory-load.ts` — prefetch (`toolChoice: none`); 「keyword」 → `vectorSearch`; ★ `interestHits` string match; beforeStep fallback for weather / no prefetch |
 | Voice audio pipeline | `content-audio.ts` barrel + `content-audio-domain.ts` / `content-audio-routes.ts` + `voice-audio-cron.ts` (UTC `0 0` + catch-up `0 1`) → `/api/audio/*`; today play + tool `getTodayMarketVoice.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |

@@ -57,7 +57,7 @@
 | Voice | `worker/content-audio.ts` (barrel), `content-audio-domain.ts`, `content-audio-routes.ts`, `audio-r2.ts`, `tts.ts`, `voice-lang-filter.ts`, `voice-audio-cron.ts` |
 | Shared load | `worker/market-memory-load.ts`, `worker/tools/market-date-resolve.ts` |
 | Market tools | `worker/tools/getTodayMarketBrief.ts`, `getTodayMarketVoice.ts`, `getTodayMarketReport.ts` |
-| Chat Market | `worker/chat-agent/market-intent.ts`, `market-prefetch.ts`, `market-turn-hooks.ts`, `soul-market.ts`, `user-interests.ts` |
+| Chat Market | `worker/chat-agent/market-intent.ts`, `market-prefetch.ts`, `market-vector-search.ts`, `market-turn-hooks.ts`, `soul-market.ts`, `user-interests.ts` |
 
 ### Frontend Market
 
@@ -134,7 +134,7 @@
 
 - 바인딩/경로/툴 키 rename (예외: §14.0 Vectorize PDF rename + Market index — Sources 미사용 시점에 완료)
 - baseline `ChatAgent` 대수술
-- §14 벡터 **For you·prefetch 교체** (Phase 14.3; ingest·query는 §14.1–14.2 완료)
+- §14 벡터 **For you / ★ prefetch 교체** (나중; 챗 「keyword」 검색은 §14.3 완료)
 - soul RULE **문구** 변경 (파일 위치만 Wave 1에서 분리)
 - PDF+Market **통합 검색** (나중 fan-out)
 
@@ -150,3 +150,4 @@
 | 2026-09-12 | Vectorize split/rename — C + B wrangler ([`WORK_NOTES_2` §14.0](./WORK_NOTES_2.md)) |
 | 2026-09-12 | Market vector ingest — A + B index ([`WORK_NOTES_2` §14.1](./WORK_NOTES_2.md)) |
 | 2026-09-12 | Market vector query + metadata indexes ([`WORK_NOTES_2` §14.2](./WORK_NOTES_2.md)) |
+| 2026-09-12 | Chat 「keyword」 vector search ([`WORK_NOTES_2` §14.3](./WORK_NOTES_2.md)) |
