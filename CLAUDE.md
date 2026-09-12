@@ -93,6 +93,7 @@ flowchart LR
 - `GET /api/reports/today` — `item_contents` full report via `content_briefs.target_id` (+ `item_content_i18n` overlay by `lang`)
 - `POST /api/market-vector/ingest` — chunk+embed report → `MARKET_VECTOR_DB`
 - `POST /api/market-vector/query` — interest similarity search (+ date/lang/item filters)
+- `POST /api/market-vector/clear` — delete Vectorize chunks for one report (no re-ingest)
 - `POST /api/upload` — PDF upload (not RPC; large FormData)
 - `/screenshots/*` — R2 screenshot proxy
 - Everything else → `routeAgentRequest` → ChatAgent DO
@@ -133,7 +134,7 @@ worker/
   content-briefs.ts    content_briefs today read (`/api/briefs/today`)
   item-contents.ts     item_contents full report (`/api/reports/today` via brief.target_id; `item_content_i18n` by lang)
   market-vector.ts     Market report → MARKET_VECTOR_DB ingest (§14)
-  market-vector-routes.ts  HTTP `POST /api/market-vector/ingest`
+  market-vector-routes.ts  HTTP `POST /api/market-vector/{ingest,query,clear}`
   report-keywords.ts   Compact tags/places/entities for chat/prefetch (T3)
   market-date.ts       Calendar YYYY-MM-DD helpers (default Asia/Seoul)
   market-memory-load.ts resolve→fetch→retry for brief/voice/report tools+prefetch
@@ -186,7 +187,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Change model | `wrangler.jsonc` vars only (usually no code change) |
 | AI provider logic | `worker/ai.ts` |
 | PDF ingest / chunking | `worker/ingest.ts`, RAG in `worker/tools/recall.ts` + `chat-agent/rag.ts` (`PDF_VECTOR_DB`) |
-| Market report vectors | `worker/market-vector.ts` + `market-vector-routes.ts` — ingest + query; chat 「keyword」 via `market-vector-search.ts` → prefetch `vectorSearch` |
+| Market report vectors | `worker/market-vector.ts` + `market-vector-routes.ts` — ingest / query / clear; id `mr_{itemId}_{lang}_{i}` (ko/en coexist); chat 「keyword」 via `market-vector-search.ts` → prefetch `vectorSearch` |
 | My Market Notes (KV) | `worker/notes.ts` + `wrangler.jsonc` `kv_namespaces` |
 | My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts`; panel interests UI `src/lib/topic-preference.ts` + `MyInterestsFold.tsx`; chat prefetch `user-interests.ts` (P3) |
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |

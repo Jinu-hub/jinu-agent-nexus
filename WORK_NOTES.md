@@ -137,6 +137,7 @@ worker/index.ts (HTTP Gateway)
  ├── POST /api/audio/cron/run                      → Cron drain 1회 수동 실행 (§8 Phase 6)
  ├── POST /api/market-vector/ingest                → item_contents → MARKET_VECTOR_DB (§14.1)
  ├── POST /api/market-vector/query                 → 관심사 유사도 검색 (+ 필터) (§14.2)
+ ├── POST /api/market-vector/clear                 → 해당 리포트 Vectorize 청크 삭제
  ├── POST /api/upload                              → ChatAgent DO (PDF RAG 업로드)
  ├── GET  /screenshots/*                           → R2 Bucket (브라우저 스크린샷)
  ├── /agents/ChatAgent/default                     → ChatAgent (WebSocket + Think Chat)

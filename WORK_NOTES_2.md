@@ -203,6 +203,7 @@ curl -s "http://localhost:5173/cdn-cgi/handler/scheduled?cron=0+1+*+*+*"
 | 바인딩 | `PDF_VECTOR_DB` / `MARKET_VECTOR_DB` (구 `VECTOR_DB` + `boilerplate-vectorstore` rename; Sources 0건이라 재ingest 없음) |
 | dim / 모델 | 둘 다 768 + 기존 `EMBEDDING_MODEL` (`@cf/baai/bge-base-en-v1.5`) |
 | metadata (Market) | **필수** `item_id`, `market_date`, `lang`; 선택(나중) `report_type` / `chunk_index` |
+| 벡터 id | `mr_{item_id}_{lang}_{chunk_index}` — lang별 공존 (legacy `mr_{item_id}_{i}`는 delete 시 sweep) |
 | 필터 | 검색 시 `market_date`+`lang` 및/또는 `item_id` — 날짜·종류 혼입 방지 |
 | 청크 원문 | Phase 1에서 확정 (metadata 발췌 vs hit 후 `item_contents` 재조회) |
 | 외부 API | Worker 검색 API로 문단+score+메타 반환 가능 (숫자 배열 export는 비목표) |
@@ -248,7 +249,7 @@ npx tsc -b
 **설계 (Phase 0 확정 반영)**
 
 * 청크: 기존 `chunkMarkdown` (~800자)
-* 벡터 id: `mr_{item_id}_{chunk_index}` — 재ingest 시 `0..199` deleteByIds 후 upsert
+* 벡터 id: `mr_{item_id}_{lang}_{chunk_index}` — 재ingest 시 해당 lang의 `0..199` (+ legacy `mr_{item_id}_{i}`) deleteByIds 후 upsert. **ko/en 공존** (같은 `item_id`라도 lang별 id)
 * metadata: `item_id`, `market_date`, `lang`, `chunk_index`, `text` (Phase 2 조회용; DO SQLite 없음)
 * resolve: body `item_id` 있으면 직접 로드, 없으면 brief→`getTodayItemContent` (date/lang/…)
 
@@ -282,7 +283,22 @@ curl -s -X POST http://localhost:5173/api/market-vector/ingest \
 * 기대 JSON: `{ ok, itemId, marketDate, lang, chunks, deletedIds, title }`
 * `npx tsc -b` OK
 * **로컬 검증 (OK):** `date=2026-09-11` `lang=ko` → `chunks:4`, `itemId=3f236446-…`, 동일 요청 재호출도 동일 (재ingest 안정)
-* `deletedIds:200` = sweep 한도(0..199), 실제 삭제 벡터 수 아님
+* `deletedIds` = lang sweep(0..199) + legacy id sweep(0..199) → 최대 400 (실제 삭제 수 아님)
+* **id에 lang (B안):** `mr_{itemId}_{lang}_{i}` — ko ingest 후 en ingest 해도 ko 벡터 유지
+* **로컬 검증 (2026-09-12):** ko `chunks:4` + en `chunks:9` 연속 ingest → query ko hits `…_ko_*`, en hits `…_en_*` (공존 확인). `list-vectors`는 upsert 직후 empty로 보일 수 있음(쿼리 우선)
+
+**Clear (재ingest 없이 삭제)**
+
+* §6: `POST /api/market-vector/clear` — ingest와 동일 resolve(`date`/`lang`/`item_id`) 후 `deleteMarketVectorsForItem`
+* 기대: `{ ok, itemId, marketDate, lang, deletedIds }` (`deletedIds` = lang+legacy sweep)
+
+```bash
+curl -s -X POST http://localhost:5173/api/market-vector/clear \
+  -H 'content-type: application/json' \
+  -d '{"date":"2026-09-11","lang":"ko"}'
+```
+
+* **로컬 검증 (2026-09-12):** Worker `clear`는 `{ ok, deletedIds:200 }` 반환하나, `remote: true` 바인딩에서 list/query에 잔여가 남을 수 있음 → `npx wrangler vectorize delete-vectors market-memory-vectorstore --ids …` 로 원격 인덱스 9건 enqueue 삭제 확인. 이후 `list-vectors` empty · query hits 0.
 
 **의도적으로 안 함**
 
@@ -290,6 +306,8 @@ curl -s -X POST http://localhost:5173/api/market-vector/ingest \
 * 일배치 cron ingest
 * PDF+Market 통합 검색 / metadata index 튜닝
 * `report_type` 필터 필드 (나중)
+* 인덱스 전체 wipe (`list-vectors` 후 일괄 삭제) — 현재는 item 단위만
+* Worker clear의 remote 바인딩 delete 신뢰성 조사 (CLI로 우회 확인만)
 
 ### 14.2 Phase 2 — 관심사 쿼리 *(완료)*
 

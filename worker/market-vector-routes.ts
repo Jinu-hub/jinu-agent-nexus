@@ -5,12 +5,17 @@ import {
   isSupabaseConfigured,
 } from "./supabase";
 import { isMarketDateYmd } from "./market-date";
-import { ingestMarketReport, queryMarketVectors } from "./market-vector";
+import {
+  clearMarketVectors,
+  ingestMarketReport,
+  queryMarketVectors,
+} from "./market-vector";
 
 /**
  * HTTP routes:
  *   POST /api/market-vector/ingest — chunk + embed report → MARKET_VECTOR_DB
  *   POST /api/market-vector/query  — similarity search (scoped to one item_id)
+ *   POST /api/market-vector/clear  — delete Vectorize chunks for one report
  *
  * Returns `null` if the path is not a market-vector route.
  */
@@ -40,7 +45,57 @@ export async function handleMarketVectorRequest(
     return handleQueryPost(request, env);
   }
 
+  if (pathname === "/api/market-vector/clear") {
+    if (request.method !== "POST") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    const blocked = supabaseServiceRoleGuard(env);
+    if (blocked) return blocked;
+    return handleClearPost(request, env);
+  }
+
   return null;
+}
+
+async function handleClearPost(request: Request, env: Env): Promise<Response> {
+  const body = await readJsonObject(request);
+  if (body instanceof Response) return body;
+
+  const dateRaw = str(body.date) ?? str(body.market_date) ?? undefined;
+  const itemId = str(body.item_id);
+  if (!itemId && (!dateRaw || !isMarketDateYmd(dateRaw))) {
+    return Response.json(
+      {
+        ok: false,
+        message: "Provide item_id and/or date (YYYY-MM-DD) to resolve the report",
+      },
+      { status: 400 },
+    );
+  }
+  if (dateRaw && !isMarketDateYmd(dateRaw)) {
+    return Response.json(
+      { ok: false, message: "date must be YYYY-MM-DD" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const result = await clearMarketVectors(env, {
+      marketDate: dateRaw,
+      lang: str(body.lang) ?? undefined,
+      briefType: str(body.brief_type) ?? undefined,
+      contentType: str(body.content_type) ?? undefined,
+      itemId: itemId ?? undefined,
+    });
+    return Response.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "clear failed";
+    const notFound = /not found|no item_contents/i.test(message);
+    return Response.json(
+      { ok: false, message },
+      { status: notFound ? 404 : 502 },
+    );
+  }
 }
 
 async function handleIngestPost(request: Request, env: Env): Promise<Response> {

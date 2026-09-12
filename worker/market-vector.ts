@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 //
 // Phase 14.1: ingest. Phase 14.2: queryMarketVectors + metadata filters.
+// Vector id: mr_{itemId}_{lang}_{chunkIndex} so ko/en coexist (B안).
 // For you / prefetch wiring = Phase 14.3+.
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -49,8 +50,71 @@ export type IngestMarketReportResult = {
   title: string | null;
 };
 
-export function marketChunkVectorId(itemId: string, chunkIndex: number): string {
+export function marketChunkVectorId(
+  itemId: string,
+  lang: string,
+  chunkIndex: number,
+): string {
+  const safeLang = (lang.trim().toLowerCase() || "ko").replace(/[^a-z0-9_-]/g, "");
+  return `mr_${itemId}_${safeLang}_${chunkIndex}`;
+}
+
+/** Pre-lang id scheme — swept on delete so old ko/en overwrite leftovers go away. */
+function legacyMarketChunkVectorId(itemId: string, chunkIndex: number): string {
   return `mr_${itemId}_${chunkIndex}`;
+}
+
+/**
+ * Delete chunk ids for one item + lang (and legacy ids without lang).
+ * Missing ids are fine — Vectorize deleteByIds is idempotent per batch.
+ */
+export async function deleteMarketVectorsForItem(
+  env: Env,
+  itemId: string,
+  lang: string,
+): Promise<number> {
+  const id = itemId.trim();
+  if (!id) return 0;
+
+  const safeLang = (lang.trim().toLowerCase() || "ko").replace(/[^a-z0-9_-]/g, "");
+  const ids = [
+    ...Array.from({ length: MARKET_VECTOR_MAX_CHUNKS }, (_, i) =>
+      marketChunkVectorId(id, safeLang, i),
+    ),
+    ...Array.from({ length: MARKET_VECTOR_MAX_CHUNKS }, (_, i) =>
+      legacyMarketChunkVectorId(id, i),
+    ),
+  ];
+  for (let i = 0; i < ids.length; i += 100) {
+    await env.MARKET_VECTOR_DB.deleteByIds(ids.slice(i, i + 100));
+  }
+  return ids.length;
+}
+
+export type ClearMarketVectorsOptions = IngestMarketReportOptions;
+
+export type ClearMarketVectorsResult = {
+  ok: true;
+  itemId: string;
+  marketDate: string;
+  lang: string;
+  deletedIds: number;
+};
+
+/** Resolve report then delete its Vectorize chunks for that lang (no re-ingest). */
+export async function clearMarketVectors(
+  env: Env,
+  options: ClearMarketVectorsOptions = {},
+): Promise<ClearMarketVectorsResult> {
+  const { item, marketDate, lang } = await resolveItemForIngest(env, options);
+  const deletedIds = await deleteMarketVectorsForItem(env, item.id, lang);
+  return {
+    ok: true,
+    itemId: item.id,
+    marketDate,
+    lang,
+    deletedIds,
+  };
 }
 
 function normalizeLang(raw: string | null | undefined, fallback: string): string {
@@ -66,26 +130,6 @@ function normalizeMarketDate(
   if (t && isMarketDateYmd(t)) return t;
   if (fallback && isMarketDateYmd(fallback)) return fallback;
   throw new Error("item_contents.market_date missing or invalid");
-}
-
-/**
- * Delete deterministic chunk ids for an item (0 .. MAX-1).
- * Missing ids are fine — Vectorize deleteByIds is idempotent per batch.
- */
-export async function deleteMarketVectorsForItem(
-  env: Env,
-  itemId: string,
-): Promise<number> {
-  const id = itemId.trim();
-  if (!id) return 0;
-
-  const ids = Array.from({ length: MARKET_VECTOR_MAX_CHUNKS }, (_, i) =>
-    marketChunkVectorId(id, i),
-  );
-  for (let i = 0; i < ids.length; i += 100) {
-    await env.MARKET_VECTOR_DB.deleteByIds(ids.slice(i, i + 100));
-  }
-  return ids.length;
 }
 
 async function resolveItemForIngest(
@@ -136,7 +180,7 @@ async function resolveItemForIngest(
 
 /**
  * Ingest one full report into MARKET_VECTOR_DB.
- * Replaces any previous vectors for the same item_id.
+ * Replaces previous vectors for the same item_id + lang (ko/en coexist).
  */
 export async function ingestMarketReport(
   env: Env,
@@ -158,7 +202,7 @@ export async function ingestMarketReport(
     );
   }
 
-  const deletedIds = await deleteMarketVectorsForItem(env, item.id);
+  const deletedIds = await deleteMarketVectorsForItem(env, item.id, lang);
 
   const { embeddings } = await embedMany({
     model: createEmbedder(env),
@@ -174,7 +218,7 @@ export async function ingestMarketReport(
       text,
     };
     return {
-      id: marketChunkVectorId(item.id, i),
+      id: marketChunkVectorId(item.id, lang, i),
       values: embeddings[i],
       metadata: meta,
     };
