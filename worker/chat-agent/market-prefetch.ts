@@ -98,7 +98,8 @@ async function withVectorSearch<T extends Record<string, unknown>>(
   });
   const instruction =
     typeof payload.instruction === "string"
-      ? payload.instruction + vectorSearchInstructionClause(search)
+      ? payload.instruction +
+        vectorSearchInstructionClause(search, opts.userText)
       : payload.instruction;
 
   return {

@@ -350,6 +350,8 @@ curl -s -X POST http://localhost:5173/api/market-vector/query \
   * prefetch에 `vectorSearch` (`minScore` 0.68; 리포트 `metadata.tags.core` lexicon으로 expand — 하드코딩 맵 없음)
   * hits 있으면 **그 문단만** 근거; 없으면 “가까운 내용 없음”
   * **답 포맷 (2026-09-12):** `vectorSearchInstructionClause` 고정 템플릿 — `**「표시어」**` + 불릿 2–4(빈 줄) + Market 탭 한 줄; score/vector 메타 출력 금지
+  * **lexical 예외 (2026-09-14):** `minScore` 미만이어도 청크 `text`에 쿼리 문자열이 있으면 채택 (`textIncludesQuery`) — NVIDIA 중심 문단의 Hugging Face 등 누락 방지
+  * **Ask 문구 (2026-09-14):** Topics 칩=`… 관련 내용에 대해 설명해줘` (`짧게 짚어줘` 제거)
 * **미룸:** For you / ★관심사 prefetch 벡터 교체
 
 **수정 및 추가 파일**

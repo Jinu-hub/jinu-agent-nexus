@@ -175,6 +175,7 @@ export async function runChatVectorSearch(
 /** Prefetch instruction when vectorSearch is attached. */
 export function vectorSearchInstructionClause(
   search: ChatVectorSearchResult,
+  userText?: string,
 ): string {
   if (search.error) {
     return (
@@ -195,7 +196,13 @@ export function vectorSearchInstructionClause(
     search.queries.length === 1
       ? search.queries[0]
       : search.queries.join(" / ");
-  const bulletHint = Math.min(Math.max(search.hits.length, 2), 4);
+  const explain = isVectorExplainAsk(userText);
+  const bulletHint = explain
+    ? Math.min(Math.max(search.hits.length + 1, 3), 5)
+    : Math.min(Math.max(search.hits.length, 2), 4);
+  const depth = explain
+    ? `${bulletHint} bullets (min 3, max 5); each bullet may be 1–2 sentences; cover cause/effect when present in hits`
+    : `${bulletHint} bullets (min 2, max 4); each bullet = one line / one sentence`;
   return (
     " CRITICAL: keyword ask — answer ONLY from vectorSearch.hits text. " +
     "Do NOT invent. Do NOT pad with unrelated highlights/추가 항목. " +
@@ -203,9 +210,17 @@ export function vectorSearchInstructionClause(
     "OUTPUT SHAPE (markdown; blank lines required):\n" +
     `1) First line only: **「${label}」** (use this display phrase; not an English slug unless the user typed one)\n` +
     "2) Blank line\n" +
-    `3) ${bulletHint} bullets (min 2, max 4), each on its own line as "- …" — one sentence per bullet\n` +
+    `3) ${depth}\n` +
     "4) Blank line between bullets\n" +
     "5) Final line only: 원문·리포트는 Market 탭.\n" +
     "No other sections, no nested headers, no score footnotes."
+  );
+}
+
+/** True when the user asked for explanation (not a short tip). */
+export function isVectorExplainAsk(userText?: string): boolean {
+  if (!userText?.trim()) return false;
+  return /관련\s*내용에\s*대해\s*설명|설명해\s*줘|자세히|상세히|풀어\s*줘/.test(
+    userText,
   );
 }

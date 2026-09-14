@@ -361,6 +361,21 @@ function metaNumber(
 }
 
 /**
+ * Lexical safety net: chunk text already contains the query string
+ * (case / hyphen / whitespace insensitive). Used so clear mentions like
+ * "Hugging Face" are not dropped solely for minScore (NVIDIA-heavy chunks).
+ */
+export function textIncludesQuery(text: string, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return false;
+  const t = text.toLowerCase();
+  if (t.includes(q)) return true;
+  const tLoose = t.replace(/[\s_-]+/g, "");
+  const qLoose = q.replace(/[\s_-]+/g, "");
+  return qLoose.length >= 2 && tLoose.includes(qLoose);
+}
+
+/**
  * Same resolve path as ingest: item_id or brief → item_contents.
  * item_id is always present when a report exists.
  */
@@ -425,12 +440,20 @@ export async function queryMarketVectors(
     });
 
     for (const m of matches.matches) {
-      if (minScore !== undefined && m.score < minScore) continue;
       const meta = (m.metadata ?? undefined) as
         | Record<string, unknown>
         | undefined;
       const text = metaString(meta, "text");
       if (!text) continue;
+      // Soft floor: keep below-minScore hits when the chunk literally mentions
+      // the query (avoids "Hugging Face" empty while the report names it).
+      if (
+        minScore !== undefined &&
+        m.score < minScore &&
+        !textIncludesQuery(text, query)
+      ) {
+        continue;
+      }
 
       const hit: MarketVectorHit = {
         id: m.id,

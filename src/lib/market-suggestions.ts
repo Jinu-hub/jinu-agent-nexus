@@ -79,11 +79,9 @@ export function topicChipAskPrompt(
     marketDate && /^\d{4}-\d{2}-\d{2}$/.test(marketDate)
       ? marketDate
       : "Latest";
+  const ask = "관련 내용에 대해 설명해줘";
   if (kind === "place") {
-    return `${when} 풀리포트에서 ${name} 관련 포인트만 짧게 짚어줘`;
+    return `${when} 풀리포트에서 ${name} ${ask}`;
   }
-  if (kind === "entity") {
-    return `${when} 풀리포트에서 「${name}」 관련 내용만 짧게 짚어줘`;
-  }
-  return `${when} 풀리포트에서 「${name}」 키워드 관련 내용만 짧게 짚어줘`;
+  return `${when} 풀리포트에서 「${name}」 ${ask}`;
 }
