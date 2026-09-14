@@ -191,13 +191,21 @@ export function vectorSearchInstructionClause(
       "Do NOT invent facts. Do NOT use unrelated report fields to fake a match."
     );
   }
+  const label =
+    search.queries.length === 1
+      ? search.queries[0]
+      : search.queries.join(" / ");
+  const bulletHint = Math.min(Math.max(search.hits.length, 2), 4);
   return (
-    " CRITICAL: The user asked about specific keyword(s). " +
-    "Answer ONLY from vectorSearch.hits text (report chunks). " +
-    "Lead with those points; keep it short. " +
-    "In the heading, use the user's quoted phrase (natural display label) — " +
-    "do NOT prefer raw English slugs like 10y-treasury-yield unless the user wrote that. " +
+    " CRITICAL: keyword ask — answer ONLY from vectorSearch.hits text. " +
     "Do NOT invent. Do NOT pad with unrelated highlights/추가 항목. " +
-    "One short line: full report in Market tab."
+    "Do NOT mention scores, hit counts, vectorSearch, embeddings, or prefetch JSON.\n" +
+    "OUTPUT SHAPE (markdown; blank lines required):\n" +
+    `1) First line only: **「${label}」** (use this display phrase; not an English slug unless the user typed one)\n` +
+    "2) Blank line\n" +
+    `3) ${bulletHint} bullets (min 2, max 4), each on its own line as "- …" — one sentence per bullet\n` +
+    "4) Blank line between bullets\n" +
+    "5) Final line only: 원문·리포트는 Market 탭.\n" +
+    "No other sections, no nested headers, no score footnotes."
   );
 }

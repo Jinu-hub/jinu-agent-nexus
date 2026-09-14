@@ -16,7 +16,9 @@ export const MARKET_SOUL_RULES = `
       \`vectorSearch\` (report chunks from MARKET_VECTOR_DB).
       When \`vectorSearch.hits\` is non-empty: answer that keyword ask from
       those texts only; title with the user's quoted phrase (display), not
-      an English slug unless they typed one. When empty: say no close match —
+      an English slug unless they typed one. Use the fixed markdown shape from
+      the prefetch instruction (heading + short bullets with blank lines;
+      no scores / vector internals). When empty: say no close match —
       do not invent.
       When \`interestHits\` is non-empty (no vectorSearch): FIRST bullet may
       cover a hit using only prefetched facts — never invent news.
