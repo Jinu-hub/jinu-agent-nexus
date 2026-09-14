@@ -196,6 +196,7 @@ export function ReportReaderModal({
   preferences,
   onToggleInterest,
   interestsOnly,
+  labelMap,
 }: {
   open: boolean;
   onClose: () => void;
@@ -213,6 +214,8 @@ export function ReportReaderModal({
   preferences?: PreferenceRow[];
   onToggleInterest?: (source: TopicPreferenceSource) => void;
   interestsOnly?: boolean;
+  /** Same topic_labels map as Market Topics — keeps chip labels consistent. */
+  labelMap?: Record<string, string> | null;
 }) {
   const titleId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -279,6 +282,7 @@ export function ReportReaderModal({
               preferences={preferences}
               onToggleInterest={onToggleInterest}
               interestsOnly={interestsOnly}
+              labelMap={labelMap}
             />
           </div>
           <button

@@ -119,6 +119,7 @@ export function SettingsPanel({
   onToggleReportSeries: (slugs: string[], enabled: boolean) => Promise<void>;
 }) {
   const [panelsOpen, setPanelsOpen] = useState(false);
+  const [marketOpen, setMarketOpen] = useState(false);
   const [groups, setGroups] = useState<ReportSeriesContentGroup[] | null>(null);
   const [seriesLoading, setSeriesLoading] = useState(true);
   const [seriesError, setSeriesError] = useState<string | null>(null);
@@ -171,6 +172,16 @@ export function SettingsPanel({
       ? `${TOGGLEABLE_PANELS.length} tabs shown`
       : `${visibleCount} shown · ${hiddenCount} hidden`;
 
+  const controllableGroups = (groups ?? []).filter((g) => !g.soon);
+  const enabledSeriesCount = controllableGroups.filter((g) =>
+    g.controllableSlugs.every((slug) => !disabledSeries.has(slug)),
+  ).length;
+  const marketSummary = seriesLoading
+    ? `lang ${settings?.content_lang ?? "…"}`
+    : controllableGroups.length === 0
+      ? `${settings?.content_lang ?? "ko"}`
+      : `${settings?.content_lang ?? "ko"} · ${enabledSeriesCount}/${controllableGroups.length} series`;
+
   return (
     <section>
       <PanelHeader
@@ -190,115 +201,142 @@ export function SettingsPanel({
         </div>
       ) : settings ? (
         <div className="space-y-2">
-          <div className="paper-inset space-y-3 px-3 py-2.5">
-            <p className="text-xs font-medium">Market</p>
-
-            <div>
-              <p className="text-[11px] font-medium text-muted-foreground">
-                Content
-              </p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                Choose which Market Memory series to use. Weekly and daily
-                market issues share one switch. Inactive catalog entries stay
-                off until they ship.
-              </p>
-              <div className="mt-2 space-y-1.5">
-                {seriesLoading && !groups ? (
-                  <div className="flex items-center gap-2 py-2 text-[11px] text-muted-foreground">
-                    <LoaderCircle className="size-3 animate-spin" />
-                    Loading series…
-                  </div>
-                ) : groups && groups.length > 0 ? (
-                  groups.map((group) => {
-                    const soon = group.soon;
-                    const enabled = soon
-                      ? false
-                      : group.controllableSlugs.every(
-                          (slug) => !disabledSeries.has(slug),
-                        );
-                    return (
-                      <div
-                        key={group.id}
-                        className={cn(
-                          "flex items-center justify-between gap-3 rounded-md px-2.5 py-1.5",
-                          soon ? "bg-muted/25 opacity-70" : "bg-muted/40",
-                        )}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="truncate text-xs font-medium">
-                              {group.title}
-                            </span>
-                            {soon && <SoonBadge />}
-                          </div>
-                          <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
-                            {group.detail}
-                          </p>
-                        </div>
-                        <SettingSwitch
-                          checked={enabled}
-                          disabled={updating || soon}
-                          label={
-                            soon
-                              ? `${group.title} (coming soon)`
-                              : `Use ${group.title}`
-                          }
-                          onChange={(nextEnabled) =>
-                            void onToggleReportSeries(
-                              group.controllableSlugs.length > 0
-                                ? group.controllableSlugs
-                                : group.slugs,
-                              nextEnabled,
-                            )
-                          }
-                        />
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="py-1 text-[11px] text-muted-foreground">
-                    {seriesError ?? "No report series found."}
+          <div className="paper-inset px-3 py-2.5">
+            <button
+              type="button"
+              onClick={() => setMarketOpen((v) => !v)}
+              aria-expanded={marketOpen}
+              className={cn(
+                "flex w-full items-center gap-1.5 text-left",
+                marketOpen && "mb-2",
+              )}
+            >
+              <p className="text-xs font-medium">Market</p>
+              {!marketOpen && (
+                <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">
+                  {marketSummary}
+                </span>
+              )}
+              {marketOpen && <span className="min-w-0 flex-1" />}
+              <ChevronDown
+                className={cn(
+                  "size-3.5 shrink-0 text-muted-foreground transition-transform",
+                  marketOpen && "rotate-180",
+                )}
+              />
+            </button>
+            {marketOpen && (
+              <div className="space-y-3">
+                <div>
+                  <p className="text-[11px] font-medium text-muted-foreground">
+                    Content
                   </p>
-                )}
-                {seriesError && groups && groups.length > 0 && (
-                  <p className="text-[10px] text-destructive">{seriesError}</p>
-                )}
-              </div>
-            </div>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                    Choose which Market Memory series to use. Weekly and daily
+                    market issues share one switch. Inactive catalog entries
+                    stay off until they ship.
+                  </p>
+                  <div className="mt-2 space-y-1.5">
+                    {seriesLoading && !groups ? (
+                      <div className="flex items-center gap-2 py-2 text-[11px] text-muted-foreground">
+                        <LoaderCircle className="size-3 animate-spin" />
+                        Loading series…
+                      </div>
+                    ) : groups && groups.length > 0 ? (
+                      groups.map((group) => {
+                        const soon = group.soon;
+                        const enabled = soon
+                          ? false
+                          : group.controllableSlugs.every(
+                              (slug) => !disabledSeries.has(slug),
+                            );
+                        return (
+                          <div
+                            key={group.id}
+                            className={cn(
+                              "flex items-center justify-between gap-3 rounded-md px-2.5 py-1.5",
+                              soon ? "bg-muted/25 opacity-70" : "bg-muted/40",
+                            )}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="truncate text-xs font-medium">
+                                  {group.title}
+                                </span>
+                                {soon && <SoonBadge />}
+                              </div>
+                              <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
+                                {group.detail}
+                              </p>
+                            </div>
+                            <SettingSwitch
+                              checked={enabled}
+                              disabled={updating || soon}
+                              label={
+                                soon
+                                  ? `${group.title} (coming soon)`
+                                  : `Use ${group.title}`
+                              }
+                              onChange={(nextEnabled) =>
+                                void onToggleReportSeries(
+                                  group.controllableSlugs.length > 0
+                                    ? group.controllableSlugs
+                                    : group.slugs,
+                                  nextEnabled,
+                                )
+                              }
+                            />
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="py-1 text-[11px] text-muted-foreground">
+                        {seriesError ?? "No report series found."}
+                      </p>
+                    )}
+                    {seriesError && groups && groups.length > 0 && (
+                      <p className="text-[10px] text-destructive">
+                        {seriesError}
+                      </p>
+                    )}
+                  </div>
+                </div>
 
-            <div className="border-t border-border/50 pt-3">
-              <p className="text-[11px] font-medium text-muted-foreground">
-                Language
-              </p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                Preferred lang_code for Market Memory briefs and voice
-                (Supabase). Independent of chat reply language.
-              </p>
-              <div className="mt-2.5 flex gap-1.5">
-                {CONTENT_LANGS.map((lang) => {
-                  const selected = settings.content_lang === lang;
-                  return (
-                    <button
-                      key={lang}
-                      type="button"
-                      disabled={updating}
-                      aria-pressed={selected}
-                      onClick={() => void onContentLangChange(lang)}
-                      className={cn(
-                        "min-w-12 rounded-md px-3 py-1.5 font-mono text-xs transition-colors",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        "disabled:cursor-not-allowed disabled:opacity-50",
-                        selected
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80",
-                      )}
-                    >
-                      {lang}
-                    </button>
-                  );
-                })}
+                <div className="border-t border-border/50 pt-3">
+                  <p className="text-[11px] font-medium text-muted-foreground">
+                    Language
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                    Preferred lang_code for Market Memory briefs and voice
+                    (Supabase). Independent of chat reply language.
+                  </p>
+                  <div className="mt-2.5 flex gap-1.5">
+                    {CONTENT_LANGS.map((lang) => {
+                      const selected = settings.content_lang === lang;
+                      return (
+                        <button
+                          key={lang}
+                          type="button"
+                          disabled={updating}
+                          aria-pressed={selected}
+                          onClick={() => void onContentLangChange(lang)}
+                          className={cn(
+                            "min-w-12 rounded-md px-3 py-1.5 font-mono text-xs transition-colors",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            "disabled:cursor-not-allowed disabled:opacity-50",
+                            selected
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80",
+                          )}
+                        >
+                          {lang}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="paper-inset px-3 py-2.5">

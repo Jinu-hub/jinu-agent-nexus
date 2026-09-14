@@ -658,3 +658,27 @@ curl -s -X POST http://localhost:5173/api/market-vector/ingest \
 
 ---
 
+## 23. Report UI — hide duplicate summary blurb (selected series)
+
+* **목적:** Weekly AI / Weekly Market / Daily Market 리포트는 `summary`가 본문 lead와 중복되는 경우가 많아 Market Report의 **회색 summary 블록만** 숨김. 다른 시리즈(예: KR)는 summary 유지. 본문 문자열은 자르지 않음.
+* **수정:** `worker/report-series.ts` — `hidesReportSummaryBlurb`; `src/panels/MarketPanel.tsx` — 패널·모달 summary 조건부 표시
+* **의도적으로 안 함:** content 본문 trim; chat excerpt/`summary` 필드 변경; `daily-market-issues-kr` 숨김
+
+---
+
+## 24. Full report modal — same topic labelMap as Topics
+
+* **목적:** 와이드 Report 리더의 Tags/Keywords가 패널 Topics와 다른 라벨(slug vs 한글)로 보이던 문제 — `ReportReaderModal`에 `topicLabelMap` 미전달이 원인.
+* **수정:** `ReportReader.tsx` + `MarketPanel.tsx` — `labelMap` prop 연결; Report/모달 열 때도 `fetchTopicLabels`
+* **의도적으로 안 함:** Keywords의 COMPANY/TECHNOLOGY 섹션 prefix 제거 (의도된 구분)
+
+---
+
+## 25. Settings Market — collapsible fold
+
+* **목적:** Settings의 Market(Content/Language)을 Panel tabs와 같은 여닫이로. 접힌 요약: `ko · 2/2 series`.
+* **수정:** `src/panels/SettingsPanel.tsx` — `marketOpen` + ChevronDown
+* **의도적으로 안 함:** 기본 펼침; Content/Language 각각 별도 여닫이
+
+---
+

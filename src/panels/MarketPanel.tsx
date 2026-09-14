@@ -29,6 +29,7 @@ import {
 import type { ContentLang } from "../../worker/chat-agent/settings";
 import {
   enabledReportSeriesRows,
+  hidesReportSummaryBlurb,
   type ReportSeriesRow,
 } from "../../worker/report-series";
 import { MARKET_SUGGESTIONS } from "@/lib/market-suggestions";
@@ -559,6 +560,9 @@ export function MarketPanel({
   const voiceItem = activeSlot?.voice?.item ?? null;
   const playPath = activeSlot?.voice?.playPath ?? null;
   const reportItem = activeSlot?.report ?? null;
+  const showReportSummaryBlurb =
+    Boolean(reportItem?.summary?.trim()) &&
+    !hidesReportSummaryBlurb(activeSlot?.seriesSlug);
   const hasReportCandidate = Boolean(activeSlot?.targetId);
   const hasReport = Boolean(reportItem?.content);
   const reportKeys =
@@ -608,13 +612,17 @@ export function MarketPanel({
 
   useEffect(() => {
     if (!SHOW_TOPICS_SECTION || !SHOW_REPORT_TOPIC_CHIPS) return;
-    if (!topicsOpen || !date || !activeSeriesId || !hasReport) return;
+    // Topics fold, Report fold, or wide reader — same labelMap for chips.
+    if (!(topicsOpen || reportOpen || reportModalOpen)) return;
+    if (!date || !activeSeriesId || !hasReport) return;
     const key = slotCacheKey(date, lang, activeSeriesId);
     if (topicsLoadKey === key) return;
     setTopicsLoadKey(key);
     void loadTopicLabels(lang);
   }, [
     topicsOpen,
+    reportOpen,
+    reportModalOpen,
     date,
     lang,
     activeSeriesId,
@@ -625,17 +633,7 @@ export function MarketPanel({
 
   const toggleTopics = () => {
     if (!date) return;
-    setTopicsOpen((wasOpen) => {
-      const next = !wasOpen;
-      if (next && activeSeriesId && hasReport) {
-        const key = slotCacheKey(date, lang, activeSeriesId);
-        if (topicsLoadKey !== key) {
-          setTopicsLoadKey(key);
-          void loadTopicLabels(lang);
-        }
-      }
-      return next;
-    });
+    setTopicsOpen((wasOpen) => !wasOpen);
   };
 
   const toggleReport = () => {
@@ -1185,7 +1183,7 @@ export function MarketPanel({
                     {reportDateMismatch}
                   </p>
                 ) : null}
-                {reportItem!.summary ? (
+                {showReportSummaryBlurb ? (
                   <p className="rounded-md bg-muted/40 px-2 py-1.5 text-[10px] leading-relaxed text-muted-foreground">
                     {reportItem!.summary}
                   </p>
@@ -1245,7 +1243,7 @@ export function MarketPanel({
           onClose={() => setReportModalOpen(false)}
           title={reportItem.title ?? "Untitled report"}
           meta={reportMeta}
-          summary={reportItem.summary}
+          summary={showReportSummaryBlurb ? reportItem.summary : null}
           content={reportItem.content}
           dateMismatch={reportDateMismatch}
           tags={reportItem.tags}
@@ -1257,6 +1255,7 @@ export function MarketPanel({
           preferences={preferences}
           onToggleInterest={toggleInterest}
           interestsOnly={interestsOnly}
+          labelMap={topicLabelMap}
         />
       ) : null}
 

@@ -70,6 +70,24 @@ const SERIES_TAB_LABELS: Record<string, string> = {
   "daily-market-issues-kr": "Market (KR)",
 };
 
+/**
+ * Series whose `item_contents.summary` usually repeats the report lead —
+ * hide the gray summary blurb in Market Report UI (data/chat unchanged).
+ */
+const HIDE_REPORT_SUMMARY_BLURB_SLUGS = new Set([
+  "weekly-ai-issues",
+  "weekly-market-issues",
+  "daily-market-issues",
+]);
+
+/** True when Market Report UI should omit the gray summary block. */
+export function hidesReportSummaryBlurb(
+  seriesSlug: string | null | undefined,
+): boolean {
+  const slug = seriesSlug?.trim();
+  return Boolean(slug && HIDE_REPORT_SUMMARY_BLURB_SLUGS.has(slug));
+}
+
 /** UI / API label for a catalog row (Settings Content rows). */
 export function reportSeriesDisplayTitle(row: ReportSeriesRow): string {
   return SERIES_TITLE_OVERRIDES[row.slug] ?? row.title;
