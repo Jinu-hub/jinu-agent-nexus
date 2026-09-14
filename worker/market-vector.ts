@@ -11,13 +11,15 @@ import { embed, embedMany } from "ai";
 
 import { createEmbedder } from "./ai";
 import { chunkMarkdown } from "./ingest";
+import { isMarketDateYmd, marketDateYmdInTimeZone } from "./market-date";
 import {
-  getItemContentById,
-  getTodayItemContent,
-  type ItemContentRow,
-} from "./item-contents";
-import { isMarketDateYmd } from "./market-date";
+  listReportsForMarketDay,
+  resolveEnabledSeriesIds,
+  resolveOneReportForIngest,
+  type ResolvedMarketReport,
+} from "./market-item-resolve";
 import { resolveMarketLabels } from "./market-labels";
+import { listReportSeries } from "./report-series";
 
 /** Sweep ceiling when replacing an item's chunks (orphan high indices). */
 export const MARKET_VECTOR_MAX_CHUNKS = 200;
@@ -32,13 +34,20 @@ export type MarketVectorMeta = {
 };
 
 export type IngestMarketReportOptions = {
-  /** YYYY-MM-DD. Used with getTodayItemContent when itemId omitted. */
+  /** YYYY-MM-DD. Resolves via market_memory_items when itemId omitted. */
   marketDate?: string;
   lang?: string;
+  /** @deprecated Ignored — ingest uses item_contents / mmi, not content_briefs. */
   briefType?: string;
+  /** @deprecated Ignored — ingest uses item_contents / mmi, not content_briefs. */
   contentType?: string;
-  /** If set, load this item_contents row directly (skip brief resolve). */
+  /** Load this item_contents row directly. */
   itemId?: string;
+  /** Ingest the report for this series on marketDate. */
+  seriesId?: string;
+  /** Override enabled series list (otherwise ChatAgent settings + catalog). */
+  seriesIds?: string[];
+  disabledReportSeries?: string[];
 };
 
 export type IngestMarketReportResult = {
@@ -49,6 +58,8 @@ export type IngestMarketReportResult = {
   chunks: number;
   deletedIds: number;
   title: string | null;
+  seriesId?: string;
+  seriesSlug?: string;
   /** Present when post-ingest label resolve ran (or failed softly). */
   labels?: {
     ok: boolean;
@@ -56,6 +67,20 @@ export type IngestMarketReportResult = {
     droppedKeywords: number;
     error?: string;
   };
+};
+
+export type IngestMarketReportsBatchResult = {
+  ok: true;
+  batch: true;
+  marketDate: string;
+  lang: string;
+  ingested: IngestMarketReportResult[];
+  skipped: Array<{
+    seriesId: string;
+    seriesSlug: string;
+    itemId?: string;
+    reason: string;
+  }>;
 };
 
 export function marketChunkVectorId(
@@ -114,87 +139,40 @@ export async function clearMarketVectors(
   env: Env,
   options: ClearMarketVectorsOptions = {},
 ): Promise<ClearMarketVectorsResult> {
-  const { item, marketDate, lang } = await resolveItemForIngest(env, options);
-  const deletedIds = await deleteMarketVectorsForItem(env, item.id, lang);
+  const resolved = await resolveItemForIngest(env, options);
+  const deletedIds = await deleteMarketVectorsForItem(
+    env,
+    resolved.item.id,
+    resolved.lang,
+  );
   return {
     ok: true,
-    itemId: item.id,
-    marketDate,
-    lang,
+    itemId: resolved.item.id,
+    marketDate: resolved.marketDate,
+    lang: resolved.lang,
     deletedIds,
   };
-}
-
-function normalizeLang(raw: string | null | undefined, fallback: string): string {
-  const t = (raw ?? fallback).trim().toLowerCase();
-  return t || fallback;
-}
-
-function normalizeMarketDate(
-  raw: string | null | undefined,
-  fallback: string,
-): string {
-  const t = (raw ?? "").trim();
-  if (t && isMarketDateYmd(t)) return t;
-  if (fallback && isMarketDateYmd(fallback)) return fallback;
-  throw new Error("item_contents.market_date missing or invalid");
 }
 
 async function resolveItemForIngest(
   env: Env,
   options: IngestMarketReportOptions,
-): Promise<{
-  item: ItemContentRow;
-  marketDate: string;
-  lang: string;
-}> {
-  const langFallback = (options.lang ?? "ko").trim() || "ko";
-
-  if (options.itemId?.trim()) {
-    const item = await getItemContentById(
-      env,
-      options.itemId.trim(),
-      langFallback,
-    );
-    if (!item) {
-      throw new Error(`item_contents not found: ${options.itemId.trim()}`);
-    }
-    const marketDate = normalizeMarketDate(
-      item.market_date,
-      options.marketDate ?? "",
-    );
-    const lang = normalizeLang(item.lang_code, langFallback);
-    return { item, marketDate, lang };
-  }
-
-  const result = await getTodayItemContent(env, {
+): Promise<ResolvedMarketReport> {
+  return resolveOneReportForIngest(env, {
     marketDate: options.marketDate,
     lang: options.lang,
-    briefType: options.briefType,
-    contentType: options.contentType,
+    itemId: options.itemId,
+    seriesId: options.seriesId,
+    seriesIds: options.seriesIds,
+    disabledReportSeries: options.disabledReportSeries,
   });
-  if (!result.item) {
-    throw new Error(
-      `no item_contents for market_date=${result.marketDate} lang=${result.lang}`,
-    );
-  }
-  const marketDate = normalizeMarketDate(
-    result.item.market_date,
-    result.marketDate,
-  );
-  const lang = normalizeLang(result.item.lang_code, result.lang);
-  return { item: result.item, marketDate, lang };
 }
 
-/**
- * Ingest one full report into MARKET_VECTOR_DB.
- * Replaces previous vectors for the same item_id + lang (ko/en coexist).
- */
-export async function ingestMarketReport(
+async function ingestResolvedReport(
   env: Env,
-  options: IngestMarketReportOptions = {},
+  resolved: ResolvedMarketReport,
 ): Promise<IngestMarketReportResult> {
-  const { item, marketDate, lang } = await resolveItemForIngest(env, options);
+  const { item, marketDate, lang } = resolved;
   const content = item.content?.trim() ?? "";
   if (!content) {
     throw new Error(`item_contents ${item.id} has empty content`);
@@ -267,7 +245,94 @@ export async function ingestMarketReport(
     chunks: texts.length,
     deletedIds,
     title: item.title,
+    seriesId: resolved.seriesId || undefined,
+    seriesSlug: resolved.seriesSlug || undefined,
     labels,
+  };
+}
+
+/**
+ * Ingest one full report into MARKET_VECTOR_DB.
+ * Replaces previous vectors for the same item_id + lang (ko/en coexist).
+ */
+export async function ingestMarketReport(
+  env: Env,
+  options: IngestMarketReportOptions = {},
+): Promise<IngestMarketReportResult> {
+  const resolved = await resolveItemForIngest(env, options);
+  return ingestResolvedReport(env, resolved);
+}
+
+/**
+ * Ingest every enabled-series report for a market day (Settings Content ON).
+ * Skips series with no mmi row or empty content; fails when nothing ingested.
+ */
+export async function ingestMarketReportsForDay(
+  env: Env,
+  options: IngestMarketReportOptions = {},
+): Promise<IngestMarketReportsBatchResult> {
+  const lang = (options.lang?.trim() || "ko").toLowerCase();
+  const marketDate =
+    options.marketDate?.trim() || marketDateYmdInTimeZone();
+  if (!isMarketDateYmd(marketDate)) {
+    throw new Error("marketDate must be YYYY-MM-DD");
+  }
+
+  const seriesIds = await resolveEnabledSeriesIds(env, {
+    seriesIds: options.seriesIds,
+    disabledReportSeries: options.disabledReportSeries,
+    useChatSettings: true,
+  });
+
+  const catalog = await listReportSeries(env);
+  const slugById = new Map(catalog.map((row) => [row.id, row.slug]));
+
+  const reports = await listReportsForMarketDay(env, {
+    marketDate,
+    lang,
+    seriesIds,
+  });
+
+  const ingested: IngestMarketReportResult[] = [];
+  const skipped: IngestMarketReportsBatchResult["skipped"] = [];
+
+  const foundSeries = new Set(reports.map((r) => r.seriesId));
+  for (const id of seriesIds) {
+    if (!foundSeries.has(id)) {
+      skipped.push({
+        seriesId: id,
+        seriesSlug: slugById.get(id) ?? "",
+        reason: "no market_memory_items row with content for this date",
+      });
+    }
+  }
+
+  for (const resolved of reports) {
+    try {
+      ingested.push(await ingestResolvedReport(env, resolved));
+    } catch (error) {
+      skipped.push({
+        seriesId: resolved.seriesId,
+        seriesSlug: resolved.seriesSlug,
+        itemId: resolved.item.id,
+        reason: error instanceof Error ? error.message : "ingest failed",
+      });
+    }
+  }
+
+  if (ingested.length === 0) {
+    throw new Error(
+      `no reports ingested for market_date=${marketDate} lang=${lang}`,
+    );
+  }
+
+  return {
+    ok: true,
+    batch: true,
+    marketDate,
+    lang,
+    ingested,
+    skipped,
   };
 }
 
@@ -303,13 +368,15 @@ export type MarketVectorHit = {
 
 export type QueryMarketVectorsOptions = {
   queries: string[];
-  /** YYYY-MM-DD — used with brief resolve when itemId omitted. */
+  /** YYYY-MM-DD — mmi resolve when itemId omitted. */
   marketDate?: string;
   lang?: string;
+  /** @deprecated Ignored for resolve. */
   briefType?: string;
+  /** @deprecated Ignored for resolve. */
   contentType?: string;
-  /** Prefer this item_contents.id; otherwise resolve via brief+date/lang. */
   itemId?: string;
+  seriesId?: string;
   topKPerQuery?: number;
   hitLimit?: number;
   minScore?: number;
@@ -383,14 +450,17 @@ async function resolveQueryItem(
   env: Env,
   options: QueryMarketVectorsOptions,
 ): Promise<{ itemId: string; marketDate: string; lang: string }> {
-  const { item, marketDate, lang } = await resolveItemForIngest(env, {
+  const resolved = await resolveItemForIngest(env, {
     marketDate: options.marketDate,
     lang: options.lang,
-    briefType: options.briefType,
-    contentType: options.contentType,
     itemId: options.itemId,
+    seriesId: options.seriesId,
   });
-  return { itemId: item.id, marketDate, lang };
+  return {
+    itemId: resolved.item.id,
+    marketDate: resolved.marketDate,
+    lang: resolved.lang,
+  };
 }
 
 /**

@@ -8,6 +8,7 @@ import { isMarketDateYmd } from "./market-date";
 import {
   clearMarketVectors,
   ingestMarketReport,
+  ingestMarketReportsForDay,
   queryMarketVectors,
 } from "./market-vector";
 
@@ -83,9 +84,8 @@ async function handleClearPost(request: Request, env: Env): Promise<Response> {
     const result = await clearMarketVectors(env, {
       marketDate: dateRaw,
       lang: str(body.lang) ?? undefined,
-      briefType: str(body.brief_type) ?? undefined,
-      contentType: str(body.content_type) ?? undefined,
       itemId: itemId ?? undefined,
+      seriesId: str(body.series_id) ?? undefined,
     });
     return Response.json(result);
   } catch (error) {
@@ -110,13 +110,23 @@ async function handleIngestPost(request: Request, env: Env): Promise<Response> {
     );
   }
 
+  const itemId = str(body.item_id);
+  const seriesId = str(body.series_id);
+
   try {
-    const result = await ingestMarketReport(env, {
+    if (itemId || seriesId) {
+      const result = await ingestMarketReport(env, {
+        marketDate: dateRaw,
+        lang: str(body.lang) ?? undefined,
+        itemId: itemId ?? undefined,
+        seriesId: seriesId ?? undefined,
+      });
+      return Response.json(result);
+    }
+
+    const result = await ingestMarketReportsForDay(env, {
       marketDate: dateRaw,
       lang: str(body.lang) ?? undefined,
-      briefType: str(body.brief_type) ?? undefined,
-      contentType: str(body.content_type) ?? undefined,
-      itemId: str(body.item_id) ?? undefined,
     });
     return Response.json(result);
   } catch (error) {
@@ -169,9 +179,8 @@ async function handleQueryPost(request: Request, env: Env): Promise<Response> {
       queries,
       marketDate: dateRaw,
       lang: str(body.lang) ?? undefined,
-      briefType: str(body.brief_type) ?? undefined,
-      contentType: str(body.content_type) ?? undefined,
       itemId,
+      seriesId: str(body.series_id) ?? undefined,
       topKPerQuery: num(body.top_k_per_query) ?? num(body.topKPerQuery),
       hitLimit: num(body.hit_limit) ?? num(body.hitLimit),
       minScore: num(body.min_score) ?? num(body.minScore),

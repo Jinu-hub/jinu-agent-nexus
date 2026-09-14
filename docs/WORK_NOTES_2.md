@@ -610,3 +610,32 @@ curl -s "http://localhost:5173/api/market/day?date=2026-09-12&lang=ko\
 
 ---
 
+## 21. Market vector ingest — mmi + Settings batch (no brief)
+
+* **목적:** Vectorize ingest가 `content_briefs`에 의존하지 않고 `market_memory_items` → `item_contents`만 사용. `date`+`lang`만 넣으면 **ChatAgent Settings ON 시리즈**를 순차 ingest.
+* **ROUTING:** `POST /api/market-vector/ingest` 응답 shape 확장 (`batch` + `ingested[]` / `skipped[]`)
+
+### 21.1 Phase *(완료)*
+
+* **수정 및 추가 파일:**
+  * `worker/market-item-resolve.ts` *(신규)* — enabled series + `listReportsForMarketDay`
+  * `worker/market-settings.ts` *(신규)* — DO에서 `disabled_report_series` 읽기
+  * `worker/market-vector.ts` — `ingestMarketReportsForDay`; resolve brief 제거
+  * `worker/market-vector-routes.ts` — `item_id`/`series_id` 단건 vs batch
+* **동작:**
+  * body에 `item_id` 또는 `series_id` → **1건** ingest (기존 JSON)
+  * 그 외 `date`+`lang` → Settings ON catalog series마다 mmi 조회 후 **순차 ingest**
+  * 해당 날 row 없음 → `skipped` (전체 실패 아님); 1건도 ingest 못하면 404
+* **확인:**
+
+```bash
+curl -s -X POST http://localhost:5173/api/market-vector/ingest \
+  -H 'content-type: application/json' \
+  -d '{"date":"2026-09-12","lang":"ko"}' | jq '.batch, [.ingested[].seriesSlug], .skipped'
+# batch true · ["weekly-ai-issues","weekly-market-issues"] · daily skipped (no row that date)
+```
+
+* **의도적으로 안 함:** query/clear 멀티 fan-out; chat prefetch brief 경로; cron ingest
+
+---
+

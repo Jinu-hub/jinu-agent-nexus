@@ -138,6 +138,8 @@ worker/
   supabase.ts          Supabase client factory + `/api/supabase/health`
   report-series.ts     report_series catalog (`/api/report-series`) for Settings Content
   market-day.ts        enabled series → market_memory_items slots (`/api/market/day`)
+  market-item-resolve.ts  item_contents via mmi (ingest/query; no brief)
+  market-settings.ts   read ChatAgent settings from Worker HTTP
   content-briefs.ts    content_briefs today read (`/api/briefs/today`)
   item-contents.ts     item_contents full report (`/api/reports/today` via brief.target_id; `item_content_i18n` by lang)
   market-vector.ts     Market report → MARKET_VECTOR_DB ingest (§14)

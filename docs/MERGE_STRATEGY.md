@@ -54,6 +54,7 @@
 | Supabase | `worker/supabase.ts` |
 | Report series catalog | `worker/report-series.ts` — Settings Content toggles |
 | Market day reads | `worker/market-day.ts` — enabled `series_id` → mmi → item_contents |
+| Market item resolve | `worker/market-item-resolve.ts`, `worker/market-settings.ts` — ingest/query resolve without brief |
 | Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts` (+ `item_content_i18n` localize), `worker/report-keywords.ts`, `worker/market-date.ts` |
 | Market vectors | `worker/market-vector.ts`, `worker/market-vector-routes.ts` |
 | Market topic labels | `worker/market-labels.ts`, `worker/market-labels-routes.ts` |
@@ -160,3 +161,4 @@
 | 2026-09-12 | Topic body labels B안 — A + B index ([`WORK_NOTES_2` §18](./WORK_NOTES_2.md)) |
 | 2026-09-14 | Settings Market Content (`report_series` + `disabled_report_series`) — A + ROUTING ([`WORK_NOTES_2` §19](./WORK_NOTES_2.md)) |
 | 2026-09-14 | Market day API + same-date series tabs — A + ROUTING ([`WORK_NOTES_2` §20](./WORK_NOTES_2.md)) |
+| 2026-09-14 | Vector ingest mmi batch (Settings ON) — A ([`WORK_NOTES_2` §21](./WORK_NOTES_2.md)) |
