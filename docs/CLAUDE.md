@@ -171,9 +171,11 @@ worker/
   ingest.ts            Markdown chunker for RAG ingest
   tools/               One tool per file. See "Extension patterns" below.
 src/
+  main.tsx             React entry — pathname switch (/live, /<series-slug>, shell)
   App.tsx              Main shell + tab registry (PANELS array)
   chat/                Chat UI (Chat, Message, Markdown)
   panels/              One panel per file (+ `report-topics.tsx` for Market Topics)
+  reports/             Standalone `/<report_series.slug>` reading pages
   components/ui/       shadcn-style primitives
   lib/utils.ts         cn() helper
   lib/market-date.ts   Seoul YMD helpers for Market panel (mirrors worker)
@@ -201,6 +203,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts`; `topic_labels` + preferences.`display`; panel interests UI `src/lib/topic-preference.ts` + `MyInterestsFold.tsx`; chat prefetch `user-interests.ts` (P3) |
 | Market topic labels | `worker/market-labels.ts` + routes — body-grounded resolve (exact→LLM); post-ingest hook; UI/vector expand consume cache |
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
+| Report page (`/<slug>`) | `src/reports/ReportSurface.tsx` + `src/lib/report-pages.ts` (`REPORT_PAGES` registry) + `src/lib/brief-format.ts` (`parseBriefParts` from `metadata`, `parseBriefBody` text fallback); routed by pathname in `src/main.tsx`; reads `/settings` + `/api/report-series` + `/api/market/{latest-date,day}`; warm palette via `.report-warm` in `src/index.css` (shell stays neutral) |
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
 | Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today` + `GET /api/briefs/latest-date`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`; omit date = data-backed latest) |
 | Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today`; primary `item_contents` + `item_content_i18n` overlay when `lang` ≠ primary `lang_code`; chat tool `getTodayMarketReport.ts` (excerpt + compact `keywords` via `report-keywords.ts`; lang = Settings `content_lang`) |

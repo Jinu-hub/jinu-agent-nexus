@@ -682,3 +682,59 @@ curl -s -X POST http://localhost:5173/api/market-vector/ingest \
 
 ---
 
+## 26. 리포트 전용 페이지 — `/daily-market-issues` (Brief 아티클)
+
+* **목적:** 리포트 종류가 늘어나고(마켓 외 다른 카테고리 포함) 각 콘텐츠가 어느 정도 **정해진 포맷**을 갖기 때문에, 사이드 패널이 아니라 **메인 프레임 전용 화면**에서 읽기 좋은 템플릿으로 보여준다. 첫 단계는 `daily-market-issues`의 **Brief만**.
+* **ROUTING 반영:** FE `/daily-market-issues` (`?date=` `?lang=`)
+* **경로 규칙:** URL = `/<report_series.slug>`. `src/lib/report-pages.ts`의 `REPORT_PAGES`에 등록된 slug만 라우팅되고, 나머지는 기존처럼 Market 패널 전용.
+* **라우터 미도입:** `/live`와 같은 방식 — `src/main.tsx`의 pathname 분기 (SPA fallback은 `wrangler.jsonc`에 이미 있음).
+
+### 26.1 Phase 1 — Brief 템플릿 *(완료)*
+
+* **데이터 소스:** `content_briefs.metadata`가 이미 구조화되어 있어 **본문 파싱이 아니라 메타데이터**를 템플릿에 그린다.
+
+| metadata | 화면 |
+|----------|------|
+| `pulse` | 리드 문단 |
+| `highlights[] {title, summary}` | `01 / 02 / 03` 번호 섹션 |
+| `market_reaction[] {label, value, direction}` | Market reaction 리스트 (↗/↘) |
+| `takeaway` | 하단 Takeaway 블록 |
+
+* `highlights`가 없는 과거 row → `parseBriefBody()`가 본문 텍스트(리드 + `1.` `2.` 번호 항목)에서 복원하는 **폴백**.
+* **수정 및 추가 파일:**
+  * `src/lib/report-pages.ts` *(신규)* — `REPORT_PAGES` 등록부 + `matchReportPage()`
+  * `src/lib/brief-format.ts` *(신규)* — `parseBriefParts()` (metadata) + `parseBriefBody()` (텍스트 폴백)
+  * `src/reports/ReportSurface.tsx` *(신규)* — 전체 화면 아티클 (헤더 + 날짜 네비 + Brief 템플릿)
+  * `src/main.tsx` — `matchReportPage()` 분기 추가
+  * docs: `ROUTING.md`, `WORK_NOTES_2.md`, `ARCHITECTURE.md`, `CLAUDE.md`, `MERGE_STRATEGY.md`
+* **읽는 API (에이전트 연결 없음, Market 패널과 동일):**
+  * `GET /settings` → `content_lang` (`?lang=`이 있으면 그쪽 우선)
+  * `GET /api/report-series` → slug → series row
+  * `GET /api/market/latest-date` → 초기 날짜
+  * `GET /api/market/day` → 해당 날 brief
+* **확인:**
+
+```bash
+curl -s "http://localhost:5173/api/market/day?date=2026-09-11&lang=ko\
+&series_id=596797cb-3007-43b4-9c47-d19ee8991a78" | jq '.slots[0].brief.metadata | keys'
+# → ["highlights","market_date","market_reaction","pulse","takeaway","topic"]
+```
+
+  * `http://localhost:5173/daily-market-issues` → Latest(`2026-09-11`) 자동 로드, 제목·리드·`01~03`·Market reaction·Takeaway 렌더 OK
+  * `?date=2026-09-13` (미발행) → "Nothing published for this day" + 최신일 안내
+  * `/` 기존 채팅 쉘 회귀 없음
+* **의도적으로 안 함:** 같은 화면 안 채팅(다음 단계); Voice / 풀리포트 / Topics 섹션; 다른 slug 페이지 등록; 날짜 변경 시 URL 동기화; `disabled_report_series` 기반 접근 차단(직접 URL은 의도로 봄)
+
+### 26.2 Warm paper 테마 *(완료)*
+
+* **목적:** 리딩 화면만 따뜻한 톤으로 — 크림 종이 배경 + 웜 잉크 + 주황 액센트 1개. 에이전트 쉘의 중립 팔레트(`index.css` 상단 주석의 "industry-neutral" 결정)는 **건드리지 않음**.
+* **적용 방식:** `.report-warm` 래퍼에서 테마 CSS 변수(`--background` / `--foreground` / `--card` / `--border` / `--primary` …)를 **재선언**만 한다. 하위의 `bg-background`·`text-muted-foreground` 등 기존 유틸리티가 그대로 새 값으로 해석되므로 클래스 교체가 필요 없다. `.dark .report-warm`에 다크 대응 값.
+* **팔레트 (레퍼런스 시안에서 추출):** paper `#f4f3ee` · card `#fbfaf6` · border `#e2e0d9` · ink `#1c1b15` · accent `#f55531` (`index.css`에는 파일 규칙대로 oklch로 기재)
+* **수정 및 추가 파일:**
+  * `src/index.css` — `.report-warm` / `.dark .report-warm` 토큰 블록
+  * `src/reports/ReportSurface.tsx` — 래퍼에 `report-warm`; eyebrow/섹션 라벨 주황 대문자, headline `text-4xl font-extrabold`, 하이라이트를 카드(`rounded-xl border bg-card`) + 주황 번호, Market reaction 카드, Takeaway는 반전 카드(`bg-foreground text-background`), 헤더 컨트롤 pill(`rounded-full`)
+* **확인:** `/daily-market-issues` 라이트·다크 모두 OK; `/` 채팅 쉘 중립 팔레트 회귀 없음
+* **의도적으로 안 함:** 전역 테마 웜 전환; Market 패널·채팅에 적용; 시리즈별 액센트 색 분기
+
+---
+

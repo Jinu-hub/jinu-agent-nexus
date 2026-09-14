@@ -54,6 +54,7 @@
 | Supabase | `worker/supabase.ts` |
 | Report series catalog | `worker/report-series.ts` — Settings Content toggles |
 | Market day reads | `worker/market-day.ts` — enabled `series_id` → mmi → item_contents |
+| Report pages | `src/lib/report-pages.ts`, `src/lib/brief-format.ts`, `src/reports/ReportSurface.tsx` — `/<slug>` 전용 리딩 화면 |
 | Market item resolve | `worker/market-item-resolve.ts`, `worker/market-settings.ts` — ingest/query resolve without brief |
 | Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts` (+ `item_content_i18n` localize), `worker/report-keywords.ts`, `worker/market-date.ts` |
 | Market vectors | `worker/market-vector.ts`, `worker/market-vector-routes.ts` |
@@ -89,7 +90,7 @@
 | `configure-session.ts` | `MARKET_SOUL_RULES` compose (`soul-market.ts`) |
 | `tools-registry.ts` | `...getMarketMemoryTools(agent, env)` merge |
 | `src/App.tsx` | Market + Settings 패널 탭 / Ask bridge / `hidden_panels` → tab strip filter |
-| `src/main.tsx` | `/live` → `LiveMarketRoom` 분기 |
+| `src/main.tsx` | `/live` → `LiveMarketRoom`, `matchReportPage()` → `ReportSurface` 분기 |
 | `src/chat/Chat.tsx` | 서버 툴은 `onToolCall`에서 가로채지 않기 |
 | `src/chat/Message.tsx` | Voice `playPath` `<audio>` |
 | `package.json` | `@supabase/supabase-js` 등 |
@@ -118,6 +119,7 @@
 3. UI: Market Brief / Voice / Topics / Report + Settings `content_lang`
 4. Chat: Latest 해석 (prefetch, hang 없음) · ★ interests · For you
 5. `/live` Market Pulse (토큰 있으면)
+6. `/daily-market-issues` Brief 아티클 (§26)
 
 상세 curl·Phase 맥락 → `WORK_NOTES.md` §7–§10, `WORK_NOTES_2.md` §11.
 
@@ -163,3 +165,4 @@
 | 2026-09-14 | Market day API + same-date series tabs — A + ROUTING ([`WORK_NOTES_2` §20](./WORK_NOTES_2.md)) |
 | 2026-09-14 | Vector ingest mmi batch (Settings ON) — A ([`WORK_NOTES_2` §21](./WORK_NOTES_2.md)) |
 | 2026-09-14 | Chat vector scope = Market tab (`market_focus_series_id`) — A + B settings ([`WORK_NOTES_2` §22](./WORK_NOTES_2.md)) |
+| 2026-09-14 | `/daily-market-issues` 리포트 전용 페이지 — A + B `main.tsx` + ROUTING ([`WORK_NOTES_2` §26](./WORK_NOTES_2.md)) |

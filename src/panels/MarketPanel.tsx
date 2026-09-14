@@ -851,7 +851,7 @@ export function MarketPanel({
                 aria-selected={selected}
                 onClick={() => setActiveSeriesId(slot.seriesId)}
                 className={cn(
-                  "max-w-[11rem] shrink-0 truncate rounded-md px-2 py-1 text-[11px] transition-colors",
+                  "max-w-44 shrink-0 truncate rounded-md px-2 py-1 text-[11px] transition-colors",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   selected
                     ? "bg-primary text-primary-foreground"

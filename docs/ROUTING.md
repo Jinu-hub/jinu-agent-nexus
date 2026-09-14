@@ -44,6 +44,10 @@ worker/index.ts (HTTP Gateway)
 
 ```text
 src/ (React Frontend)
- ├── /      → Chat 메인 쉘 + 패널 (Memory, Skills, Files, Tools, Sources, Browser, Schedules, Extensions, MCP, Settings, Market …)
- └── /live  → Market Pulse 실시간 투표방 (단독 전체 화면)
+ ├── /                      → Chat 메인 쉘 + 패널 (Memory, Skills, Files, Tools, Sources, Browser, Schedules, Extensions, MCP, Settings, Market …)
+ ├── /live                  → Market Pulse 실시간 투표방 (단독 전체 화면)
+ └── /daily-market-issues   → report_series 전용 리딩 페이지 (Brief 아티클; `?date=` `?lang=`) (§26)
 ```
+
+> `/<report_series.slug>` 경로는 `src/lib/report-pages.ts`의 `REPORT_PAGES`에 등록된 slug만 열린다.
+> 나머지 slug는 Market 패널에서만 본다.
