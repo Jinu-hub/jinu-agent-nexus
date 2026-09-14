@@ -30,6 +30,8 @@ worker/index.ts (HTTP Gateway)
  ├── POST /api/market-vector/clear                 → 해당 리포트 Vectorize 청크 삭제
  ├── POST /api/market-labels/resolve              → Tags/Keywords 본문 grounded 표시 라벨 (B안; body: force/skip_llm)
  ├── GET  /api/report-series                      → report_series 카탈로그 (Settings Content 토글)
+ ├── GET  /api/market/day                         → enabled series_id별 brief/voice/report (§20)
+ ├── GET  /api/market/latest-date                 → enabled series 최신 market_date (§20)
  ├── POST /api/upload                              → ChatAgent DO (PDF RAG 업로드)
  ├── GET  /screenshots/*                           → R2 Bucket (브라우저 스크린샷)
  ├── /agents/ChatAgent/default                     → ChatAgent (WebSocket + Think Chat)

@@ -313,6 +313,7 @@ export default function App() {
           <TabsContent value="market">
             <MarketPanel
               contentLang={settings?.content_lang ?? null}
+              disabledReportSeries={settings?.disabled_report_series ?? []}
               onAskInChat={askInChat}
             />
           </TabsContent>

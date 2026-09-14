@@ -35,6 +35,7 @@ import { handleAudioRequest } from "./content-audio";
 import { handleMarketVectorRequest } from "./market-vector-routes";
 import { handleMarketLabelsRequest } from "./market-labels-routes";
 import { handleReportSeriesRequest } from "./report-series";
+import { handleMarketDayRequest } from "./market-day";
 import {
   isVoiceAudioCron,
   runVoiceAudioCron,
@@ -92,6 +93,9 @@ export default {
 
     const reportSeries = await handleReportSeriesRequest(request, env);
     if (reportSeries) return reportSeries;
+
+    const marketDay = await handleMarketDayRequest(request, env);
+    if (marketDay) return marketDay;
 
     // ── PDF upload ─────────────────────────────────────────────────────
     // Why this is a top-level route (not a @callable on the agent):

@@ -27,6 +27,10 @@ import {
   Volume2,
 } from "lucide-react";
 import type { ContentLang } from "../../worker/chat-agent/settings";
+import {
+  enabledReportSeriesRows,
+  type ReportSeriesRow,
+} from "../../worker/report-series";
 import { MARKET_SUGGESTIONS } from "@/lib/market-suggestions";
 import { buildTagLexicon } from "@/lib/market-tag-lexicon";
 import {
@@ -100,37 +104,42 @@ type ReportItem = {
   metadata?: unknown;
 };
 
-type BriefResponse = {
+type MarketDaySlotResponse = {
+  seriesId: string;
+  seriesSlug: string;
+  seriesTitle: string;
+  seriesTabLabel: string;
+  marketMemoryItemId: string;
+  targetId: string;
+  brief: BriefItem | null;
+  voice: {
+    playPath: string;
+    item: VoiceItem;
+  } | null;
+  report: ReportItem | null;
+};
+
+type MarketDayResponse = {
   ok: boolean;
-  found?: boolean;
   marketDate?: string;
   lang?: string;
-  item?: BriefItem | null;
+  count?: number;
+  slots?: MarketDaySlotResponse[];
   message?: string;
 };
 
-type VoiceResponse = {
-  ok: boolean;
-  found?: boolean;
-  marketDate?: string;
-  lang?: string;
-  playPath?: string | null;
-  item?: VoiceItem | null;
-  message?: string;
-};
+function appendSeriesIds(qs: URLSearchParams, seriesIds: string[]): void {
+  for (const id of seriesIds) {
+    qs.append("series_id", id);
+  }
+}
 
-type ReportResponse = {
-  ok: boolean;
-  found?: boolean;
-  marketDate?: string;
-  lang?: string;
-  targetId?: string | null;
-  item?: ReportItem | null;
-  message?: string;
-};
-
-function cacheKey(marketDate: string, marketLang: string): string {
-  return `${marketDate}|${marketLang}`;
+function slotCacheKey(
+  marketDate: string,
+  marketLang: string,
+  seriesId: string,
+): string {
+  return `${marketDate}|${marketLang}|${seriesId}`;
 }
 
 function EmptyHint({
@@ -263,25 +272,25 @@ function MarketSection({
 
 export function MarketPanel({
   contentLang,
+  disabledReportSeries,
   onAskInChat,
 }: {
   contentLang: ContentLang | null;
+  disabledReportSeries: string[];
   /** Send a Market Memory example prompt into the left chat. */
   onAskInChat?: (prompt: string) => void;
 }) {
   const lang = contentLang ?? "ko";
   const calendarToday = seoulYmd();
   const calendarYesterday = calendarYesterdayYmd();
+  const [catalog, setCatalog] = useState<ReportSeriesRow[]>([]);
   const [latestDate, setLatestDate] = useState<string | null>(null);
   const [date, setDate] = useState<string | null>(null);
+  const [daySlots, setDaySlots] = useState<MarketDaySlotResponse[]>([]);
+  const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [latestLoading, setLatestLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [brief, setBrief] = useState<BriefResponse | null>(null);
-  const [voice, setVoice] = useState<VoiceResponse | null>(null);
-  const [report, setReport] = useState<ReportResponse | null>(null);
-  const [reportLoading, setReportLoading] = useState(false);
-  const [reportCacheKey, setReportCacheKey] = useState<string | null>(null);
   const [copied, setCopied] = useState<"brief" | "report" | null>(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [briefOpen, setBriefOpen] = useState(true);
@@ -300,12 +309,29 @@ export function MarketPanel({
   const reportScrollRef = useRef<HTMLDivElement>(null);
   const helpWrapRef = useRef<HTMLDivElement>(null);
 
-  const invalidateReport = useCallback(() => {
-    setReport(null);
-    setReportCacheKey(null);
-    setTopicsLoadKey(null);
-    setReportOpen(false);
-    setReportModalOpen(false);
+  const enabledSeriesIds = useMemo(
+    () =>
+      enabledReportSeriesRows(catalog, disabledReportSeries).map((row) => row.id),
+    [catalog, disabledReportSeries],
+  );
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/report-series")
+      .then(async (res) => {
+        const body = (await res.json()) as {
+          ok?: boolean;
+          items?: ReportSeriesRow[];
+        };
+        if (!active || !res.ok || !body.ok || !Array.isArray(body.items)) return;
+        setCatalog(body.items);
+      })
+      .catch(() => {
+        if (active) setCatalog([]);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const loadPreferences = useCallback(async () => {
@@ -393,107 +419,90 @@ export function MarketPanel({
     void loadPreferences();
   }, [loadPreferences]);
 
-  const loadReport = useCallback(
-    async (marketDate: string, marketLang: string) => {
-      const key = cacheKey(marketDate, marketLang);
-      setReportLoading(true);
-      setError(null);
+  const loadTopicLabels = useCallback(async (marketLang: string) => {
+    try {
+      setTopicLabelMap(await fetchTopicLabels(undefined, marketLang));
+    } catch {
+      setTopicLabelMap(null);
+    }
+  }, []);
+
+  const loadLatestDate = useCallback(
+    async (marketLang: string, seriesIds: string[]) => {
+      if (seriesIds.length === 0) {
+        setLatestLoading(false);
+        setLatestDate(null);
+        return;
+      }
+      setLatestLoading(true);
       try {
-        const qs = new URLSearchParams({
-          date: marketDate,
-          lang: marketLang,
-        });
-        const res = await fetch(`/api/reports/today?${qs}`);
-        const json = (await res.json()) as ReportResponse;
+        const qs = new URLSearchParams({ lang: marketLang });
+        appendSeriesIds(qs, seriesIds);
+        const res = await fetch(`/api/market/latest-date?${qs}`);
+        const json = (await res.json()) as {
+          ok?: boolean;
+          found?: boolean;
+          marketDate?: string | null;
+          seoulYesterday?: string;
+          message?: string;
+        };
         if (!res.ok && !json.ok) {
-          throw new Error(json.message || `reports HTTP ${res.status}`);
+          throw new Error(json.message || `latest-date HTTP ${res.status}`);
         }
-        setReport(json);
-        setReportCacheKey(key);
-        // Best-effort body-grounded labels (filled by ingest/resolve).
-        void fetchTopicLabels(undefined, marketLang)
-          .then((map) => setTopicLabelMap(map))
-          .catch(() => setTopicLabelMap(null));
-        return json;
+        const next =
+          json.found && typeof json.marketDate === "string"
+            ? json.marketDate
+            : (json.seoulYesterday ?? calendarYesterdayYmd());
+        setLatestDate(next);
+        setDate((prev) => prev ?? next);
       } catch (err) {
-        setReport(null);
-        setReportCacheKey(null);
-        setTopicLabelMap(null);
+        const fallback = calendarYesterdayYmd();
+        setLatestDate(fallback);
+        setDate((prev) => prev ?? fallback);
         setError(
-          err instanceof Error ? err.message : "Failed to load full report",
+          err instanceof Error
+            ? err.message
+            : "Failed to resolve latest market_date",
         );
-        return null;
       } finally {
-        setReportLoading(false);
+        setLatestLoading(false);
       }
     },
     [],
   );
 
-  const loadLatestDate = useCallback(async (marketLang: string) => {
-    setLatestLoading(true);
-    try {
-      const qs = new URLSearchParams({ lang: marketLang });
-      const res = await fetch(`/api/briefs/latest-date?${qs}`);
-      const json = (await res.json()) as {
-        ok?: boolean;
-        found?: boolean;
-        marketDate?: string | null;
-        seoulYesterday?: string;
-        message?: string;
-      };
-      if (!res.ok && !json.ok) {
-        throw new Error(json.message || `latest-date HTTP ${res.status}`);
+  const loadDay = useCallback(
+    async (marketDate: string, marketLang: string, seriesIds: string[]) => {
+      if (seriesIds.length === 0) {
+        setDaySlots([]);
+        setActiveSeriesId(null);
+        return;
       }
-      const next =
-        json.found && typeof json.marketDate === "string"
-          ? json.marketDate
-          : (json.seoulYesterday ?? calendarYesterdayYmd());
-      setLatestDate(next);
-      setDate((prev) => prev ?? next);
-    } catch (err) {
-      const fallback = calendarYesterdayYmd();
-      setLatestDate(fallback);
-      setDate((prev) => prev ?? fallback);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to resolve latest market_date",
-      );
-    } finally {
-      setLatestLoading(false);
-    }
-  }, []);
-
-  const load = useCallback(
-    async (marketDate: string, marketLang: string) => {
       setLoading(true);
       setError(null);
-      invalidateReport();
+      setReportOpen(false);
+      setReportModalOpen(false);
+      setTopicsLoadKey(null);
       try {
         const qs = new URLSearchParams({
           date: marketDate,
           lang: marketLang,
         });
-        const [briefRes, voiceRes] = await Promise.all([
-          fetch(`/api/briefs/today?${qs}`),
-          fetch(`/api/audio/today?${qs}`),
-        ]);
-        const briefJson = (await briefRes.json()) as BriefResponse;
-        const voiceJson = (await voiceRes.json()) as VoiceResponse;
-
-        if (!briefRes.ok && !briefJson.ok) {
-          throw new Error(briefJson.message || `briefs HTTP ${briefRes.status}`);
+        appendSeriesIds(qs, seriesIds);
+        const res = await fetch(`/api/market/day?${qs}`);
+        const json = (await res.json()) as MarketDayResponse;
+        if (!res.ok && !json.ok) {
+          throw new Error(json.message || `market/day HTTP ${res.status}`);
         }
-        if (!voiceRes.ok && !voiceJson.ok) {
-          throw new Error(voiceJson.message || `audio HTTP ${voiceRes.status}`);
-        }
-
-        setBrief(briefJson);
-        setVoice(voiceJson);
+        const slots = json.slots ?? [];
+        setDaySlots(slots);
+        setActiveSeriesId((prev) => {
+          if (prev && slots.some((s) => s.seriesId === prev)) return prev;
+          return slots[0]?.seriesId ?? null;
+        });
       } catch (err) {
-        setBrief(null);
-        setVoice(null);
+        setDaySlots([]);
+        setActiveSeriesId(null);
         setError(
           err instanceof Error ? err.message : "Failed to load Market Memory",
         );
@@ -501,28 +510,41 @@ export function MarketPanel({
         setLoading(false);
       }
     },
-    [invalidateReport],
+    [],
   );
+
+  const enabledSeriesKey = enabledSeriesIds.join(",");
 
   useEffect(() => {
     setDate(null);
-    void loadLatestDate(lang);
-  }, [lang, loadLatestDate]);
+    setDaySlots([]);
+    setActiveSeriesId(null);
+    if (enabledSeriesIds.length === 0) {
+      setLatestLoading(false);
+      return;
+    }
+    void loadLatestDate(lang, enabledSeriesIds);
+  }, [lang, enabledSeriesKey, loadLatestDate, enabledSeriesIds]);
 
   useEffect(() => {
-    if (!date) return;
-    void load(date, lang);
-  }, [date, lang, load]);
+    if (!date || enabledSeriesIds.length === 0) return;
+    void loadDay(date, lang, enabledSeriesIds);
+  }, [date, lang, enabledSeriesKey, loadDay, enabledSeriesIds]);
 
-  const briefItem = brief?.found ? brief.item : null;
-  const voiceItem = voice?.found ? voice.item : null;
-  const playPath =
-    voice?.found && typeof voice.playPath === "string" ? voice.playPath : null;
-  const reportCached =
-    date !== null && reportCacheKey === cacheKey(date, lang);
-  const reportItem =
-    reportCached && report?.found ? (report.item ?? null) : null;
-  const hasReportCandidate = Boolean(briefItem?.target_id);
+  const activeSlot = useMemo(() => {
+    if (daySlots.length === 0) return null;
+    if (activeSeriesId) {
+      const hit = daySlots.find((s) => s.seriesId === activeSeriesId);
+      if (hit) return hit;
+    }
+    return daySlots[0] ?? null;
+  }, [daySlots, activeSeriesId]);
+
+  const briefItem = activeSlot?.brief ?? null;
+  const voiceItem = activeSlot?.voice?.item ?? null;
+  const playPath = activeSlot?.voice?.playPath ?? null;
+  const reportItem = activeSlot?.report ?? null;
+  const hasReportCandidate = Boolean(activeSlot?.targetId);
   const hasReport = Boolean(reportItem?.content);
   const reportKeys =
     hasReport && reportItem
@@ -533,7 +555,7 @@ export function MarketPanel({
     [reportItem],
   );
   const reportCheckedMissing =
-    reportCached && report !== null && !report.found;
+    Boolean(activeSlot) && hasReportCandidate && !hasReport;
 
   const copyText = async (
     which: "brief" | "report",
@@ -559,46 +581,43 @@ export function MarketPanel({
   const hasVoice = Boolean(voiceItem && playPath);
   const hasBrief = Boolean(briefItem);
 
-  // New day → Brief starts expanded; Voice / Topics / Report stay collapsed.
+  // New day / series tab → Brief expanded; Voice / Topics / Report collapsed.
   useEffect(() => {
     setVoiceOpen(false);
     setTopicsOpen(false);
     setReportOpen(false);
     setInterestsOnly(false);
+    setTopicLabelMap(null);
     if (hasBrief) setBriefOpen(true);
-  }, [date, lang, hasBrief]);
+  }, [date, lang, activeSeriesId, hasBrief]);
 
-  // Topics reads tags from item_contents — reuse report fetch (no personalization yet).
   useEffect(() => {
     if (!SHOW_TOPICS_SECTION || !SHOW_REPORT_TOPIC_CHIPS) return;
-    if (!topicsOpen || !date || !hasReportCandidate) return;
-    const key = cacheKey(date, lang);
-    if (reportCacheKey === key || topicsLoadKey === key || reportLoading) return;
+    if (!topicsOpen || !date || !activeSeriesId || !hasReport) return;
+    const key = slotCacheKey(date, lang, activeSeriesId);
+    if (topicsLoadKey === key) return;
     setTopicsLoadKey(key);
-    void loadReport(date, lang);
+    void loadTopicLabels(lang);
   }, [
     topicsOpen,
     date,
     lang,
-    hasReportCandidate,
-    reportCacheKey,
+    activeSeriesId,
+    hasReport,
     topicsLoadKey,
-    reportLoading,
-    loadReport,
+    loadTopicLabels,
   ]);
 
   const toggleTopics = () => {
     if (!date) return;
     setTopicsOpen((wasOpen) => {
       const next = !wasOpen;
-      if (
-        next &&
-        hasReportCandidate &&
-        reportCacheKey !== cacheKey(date, lang) &&
-        !reportLoading
-      ) {
-        setTopicsLoadKey(cacheKey(date, lang));
-        void loadReport(date, lang);
+      if (next && activeSeriesId && hasReport) {
+        const key = slotCacheKey(date, lang, activeSeriesId);
+        if (topicsLoadKey !== key) {
+          setTopicsLoadKey(key);
+          void loadTopicLabels(lang);
+        }
       }
       return next;
     });
@@ -606,29 +625,15 @@ export function MarketPanel({
 
   const toggleReport = () => {
     if (!date) return;
-    setReportOpen((wasOpen) => {
-      const next = !wasOpen;
-      if (next && reportCacheKey !== cacheKey(date, lang) && !reportLoading) {
-        void loadReport(date, lang);
-      }
-      return next;
-    });
+    setReportOpen((wasOpen) => !wasOpen);
   };
 
-  /** Load report if needed, expand section, open wide reader. */
-  const openReportReader = useCallback(async () => {
-    if (!date) return;
+  /** Expand report section and open wide reader when content exists. */
+  const openReportReader = useCallback(() => {
+    if (!date || !reportItem?.content) return;
     setReportOpen(true);
-    let item =
-      reportCacheKey === cacheKey(date, lang) && report?.found
-        ? report.item
-        : null;
-    if (!item?.content) {
-      const json = await loadReport(date, lang);
-      item = json?.found ? (json.item ?? null) : null;
-    }
-    if (item?.content) setReportModalOpen(true);
-  }, [date, lang, loadReport, report, reportCacheKey]);
+    setReportModalOpen(true);
+  }, [date, reportItem?.content]);
 
   const reportCollapsedSummary =
     reportItem?.title ??
@@ -733,9 +738,9 @@ export function MarketPanel({
               type="button"
               disabled={loading || latestLoading}
               onClick={() => {
-                void loadLatestDate(lang);
+                void loadLatestDate(lang, enabledSeriesIds);
                 void loadPreferences();
-                if (date) void load(date, lang);
+                if (date) void loadDay(date, lang, enabledSeriesIds);
               }}
               className={cn(
                 "rounded-md p-1 text-muted-foreground transition-colors",
@@ -817,7 +822,42 @@ export function MarketPanel({
         </button>
       </div>
 
-      {(latestLoading && !date) || (loading && !brief && !voice) ? (
+      {daySlots.length > 1 ? (
+        <div
+          className="mb-2 flex gap-1 overflow-x-auto pb-0.5"
+          role="tablist"
+          aria-label="Reports for this day"
+        >
+          {daySlots.map((slot) => {
+            const selected = slot.seriesId === activeSeriesId;
+            return (
+              <button
+                key={slot.seriesId}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => setActiveSeriesId(slot.seriesId)}
+                className={cn(
+                  "max-w-[11rem] shrink-0 truncate rounded-md px-2 py-1 text-[11px] transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  selected
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80",
+                )}
+                title={slot.seriesTitle}
+              >
+                {slot.seriesTabLabel || slot.seriesTitle}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {enabledSeriesIds.length === 0 ? (
+        <p className="panel-empty px-3 py-6 text-center text-xs italic">
+          Turn on at least one series under Settings → Market → Content.
+        </p>
+      ) : (latestLoading && !date) || (loading && daySlots.length === 0) ? (
         <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted-foreground">
           <LoaderCircle className="size-3.5 animate-spin" />
           Loading…
@@ -844,7 +884,7 @@ export function MarketPanel({
                 {hasReportCandidate ? (
                   <button
                     type="button"
-                    disabled={reportLoading}
+                    disabled={loading || !hasReport}
                     onClick={() => void openReportReader()}
                     className={cn(
                       "rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px]",
@@ -966,7 +1006,7 @@ export function MarketPanel({
                     : null
               }
             >
-              {topicsOpen && reportLoading && !hasReport ? (
+              {topicsOpen && loading && !hasReport ? (
                 <div className="space-y-3">
                   {SHOW_MY_INTERESTS ? (
                     <MyInterestsFold
@@ -1081,7 +1121,7 @@ export function MarketPanel({
                 {hasReportCandidate || hasReport ? (
                   <button
                     type="button"
-                    disabled={reportLoading}
+                    disabled={loading || !hasReport}
                     onClick={() => void openReportReader()}
                     className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
                     title="Open wide reader"
@@ -1112,7 +1152,7 @@ export function MarketPanel({
               </div>
             }
           >
-            {reportOpen && reportLoading ? (
+            {reportOpen && loading && !hasReport ? (
               <div className="flex items-center gap-2 py-3 text-[11px] text-muted-foreground">
                 <LoaderCircle className="size-3.5 animate-spin" />
                 Loading full report…

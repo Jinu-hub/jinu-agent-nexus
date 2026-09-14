@@ -153,7 +153,8 @@ in `Message.tsx` → then server `execute` runs.
 | Market vectors | `POST /api/market-vector/ingest` · `/query` · `/clear` | `worker/market-vector.ts` + routes; chat `market-vector-search.ts` | Chunk+embed / 「keyword」 chat search / clear → `MARKET_VECTOR_DB` (§14) |
 | Topic labels | `POST /api/market-labels/resolve` · `/memory/topic-labels` | `worker/market-labels.ts` + MyMemory | Body-grounded Tags/Keywords display (B안); post-ingest |
 | Report series catalog | Settings → Market Content; `GET /api/report-series` | `worker/report-series.ts`; opt-out in ChatAgent `disabled_report_series` | Supabase `report_series` |
-| Market panel | Market tab | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `src/lib/market-suggestions.ts` | briefs + audio + reports (lazy) + wide reader modal + TOC |
+| Market day (multi-series) | `GET /api/market/day`, `/api/market/latest-date` | `worker/market-day.ts` — `market_memory_items` + enabled `series_id` | Same-day tabs in Market panel when 2+ slots |
+| Market panel | Market tab | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `src/lib/market-suggestions.ts` | `/api/market/day` + per-series tabs + wide reader modal + TOC |
 | Browser | Browser | `navigate.ts`, `screenshot.ts`, Puppeteer | Remote browser session + R2 screenshots |
 | Schedules | Schedules | `setReminder.ts`, DO alarms | DO schedule store |
 | Runtime tools | Extensions | `load_extension`, `worker_loaders` | Sandboxed worker per extension |
@@ -206,6 +207,8 @@ worker/index.ts          HTTP entry — routes only, thin
     ├── POST /api/market-vector/clear → delete report Vectorize chunks
     ├── POST /api/market-labels/resolve → body-grounded topic labels
     ├── GET  /api/report-series → report_series catalog (Settings Content)
+    ├── GET  /api/market/day → enabled series slots (brief/voice/report)
+    ├── GET  /api/market/latest-date → newest market_date for enabled series
     ├── /api/audio/* → content_audio Voice pipeline (+ GET /api/audio/today)
     ├── /agents/live-market-room-agent/market-pulse → poll room WS + RPC
     └── /agents/ChatAgent/default  → WebSocket + RPC

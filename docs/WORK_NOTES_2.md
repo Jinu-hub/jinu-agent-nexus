@@ -581,3 +581,32 @@ curl -s -X PATCH http://localhost:5173/settings \
 
 ---
 
+## 20. Market panel — enabled series + same-day tabs
+
+* **목적:** Settings ON인 `report_series`만 `market_memory_items.series_id`로 조회. 같은 `market_date`에 슬롯 2개 이상이면 날짜 아래 **탭**으로 brief/voice/report 전환.
+* **ROUTING 반영:** `GET /api/market/day`, `GET /api/market/latest-date` (`series_id` repeat)
+* **조회:** `mmi.status=done` + `current_content_id` → `item_contents`; brief/audio는 `target_id` 매칭
+
+### 20.1 Phase *(완료)*
+
+* **수정 및 추가 파일:**
+  * `worker/market-day.ts` *(신규)* — slots + latest-date
+  * `worker/report-series.ts` — `enabledReportSeriesRows`, `parseSeriesIdsFromUrl`
+  * `worker/index.ts` — 라우트
+  * `src/panels/MarketPanel.tsx` — `/api/market/day`, 탭 UI, `disabledReportSeries` prop
+  * `src/App.tsx` — settings → MarketPanel
+  * docs: `ROUTING.md`, `WORK_NOTES_2.md`, `ARCHITECTURE.md`, `CLAUDE.md`, `MERGE_STRATEGY.md`
+* **확인:**
+
+```bash
+curl -s "http://localhost:5173/api/market/day?date=2026-09-12&lang=ko\
+&series_id=71754888-892c-4e88-9f3d-9d061940440d\
+&series_id=54b3fc4c-3c64-4b63-b526-67d85344213a" | jq '.count, [.slots[].seriesSlug]'
+# → 2 tabs: weekly-ai-issues, weekly-market-issues
+```
+
+* UI: 슬롯 1개 → 탭 없음; 2개+ → 날짜 바로 아래 탭
+* **의도적으로 안 함:** chat prefetch/tools 필터; settings에 `series_id` 영구 저장 (slug opt-out + catalog uuid)
+
+---
+

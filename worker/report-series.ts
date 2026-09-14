@@ -62,6 +62,52 @@ const SERIES_TITLE_OVERRIDES: Record<string, string> = {
   "daily-market-issues-kr": "Market Issues Report (KR)",
 };
 
+/** Short labels for Market panel same-day tabs (avoid truncation). */
+const SERIES_TAB_LABELS: Record<string, string> = {
+  "weekly-ai-issues": "Weekly AI",
+  "weekly-market-issues": "Weekly Market",
+  "daily-market-issues": "Daily",
+  "daily-market-issues-kr": "Market (KR)",
+};
+
+/** UI / API label for a catalog row (Settings Content rows). */
+export function reportSeriesDisplayTitle(row: ReportSeriesRow): string {
+  return SERIES_TITLE_OVERRIDES[row.slug] ?? row.title;
+}
+
+/** Compact tab label for Market panel day switcher. */
+export function reportSeriesTabLabel(row: ReportSeriesRow): string {
+  if (SERIES_TAB_LABELS[row.slug]) return SERIES_TAB_LABELS[row.slug];
+  const display = reportSeriesDisplayTitle(row);
+  const trimmed = display.replace(/\s+Report$/i, "").trim();
+  return trimmed || row.slug;
+}
+
+/** Catalog rows the user has left ON (active catalog + not in disabled slugs). */
+export function enabledReportSeriesRows(
+  items: ReportSeriesRow[],
+  disabledSlugs: string[],
+): ReportSeriesRow[] {
+  const disabled = new Set(disabledSlugs);
+  return items.filter((row) => row.is_active && !disabled.has(row.slug));
+}
+
+/** Parse `series_id` (repeat) or `series_ids` (comma) from a request URL. */
+export function parseSeriesIdsFromUrl(url: URL): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of [
+    ...url.searchParams.getAll("series_id"),
+    ...(url.searchParams.get("series_ids")?.split(",") ?? []),
+  ]) {
+    const id = raw.trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
 /**
  * Collapse catalog rows into Settings Content groups.
  * Unknown slugs stay as one-row groups keyed by slug.
