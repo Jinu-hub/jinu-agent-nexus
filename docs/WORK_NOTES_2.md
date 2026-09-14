@@ -482,7 +482,7 @@ curl -sS 'http://localhost:5173/api/reports/today?date=2026-09-11&lang=en' \
 * **ROUTING 반영:** `POST /api/market-labels/resolve` · `GET/POST /memory/topic-labels`
 * **배치:** (예정) market-vector ingest cron **후속**. 지금은 ingest 끝에서 동일 코어 호출 + 수동 resolve API.
 * **파이프라인:** `topic_labels` 캐시(긴 라벨은 polish로 단축·재저장) → exact/loose → **body hint**(슬러그별 짧은 본문 후보) → LLM grounded span → upsert
-* **규칙:** Tags 탈락 없음 (실패 시 key). Keywords 본문 스팬 없으면 탈락. My interests는 star 시 `display` 고정(EN 보기에서 한글 freeze는 표시만 스킵). 칩은 짧은 명사구. Ask 「」는 **표시어**; 저장/`target`은 slug. `topic_labels`는 **`(key, lang)`** — KO/EN 분리.
+* **규칙:** Tags 탈락 없음 (실패 시 key). Keywords 본문 스팬 없으면 탈락. Tags는 본문에 없는 짧은 KO 칩(`soft` / LLM soft) 허용 — 예: `on-device-ai`→온디바이스. My interests는 star 시 `display` 고정(EN 보기에서 한글 freeze는 표시만 스킵). Ask 「」는 **표시어**; 저장/`target`은 slug. `topic_labels`는 **`(key, lang)`**.
 
 **수정 및 추가 파일**
 
@@ -520,14 +520,14 @@ curl -s 'http://localhost:5173/memory/topic-labels' | head
 **품질 (2026-09-12):** 헤드라인 통째 픽 → 칩 부적합.  
 **보완:** 프롬프트(짧은 명사구) + `polishLabel`(쉼표/%/토큰 절단, 본문 grounding 유지) + `LABEL_BODY_HINTS`(본문에 있을 때만) + 캐시 soft-refresh + `force`. 기대 예: `10y-treasury-yield`→「미 10년물 금리」, `energy-supply-shortfall`→「원유 공급」, `bonds`→「국채」, `policy-tightening`→「긴축」.  
 **챗 표시:** 칩 Ask는 slug 대신 display를 「」에 넣고, 답 제목도 사용자 인용구 사용. expand는 `keysForTopicLabelDisplay`로 slug 유지.  
-**lang (2026-09-12):** `topic_labels` PK `(key, lang)`. EN 패널이 KO 캐시를 쓰지 않음. `GET /memory/topic-labels?lang=en`. My interests는 contentLang=en이면 한글 preference.display 스킵.
+**lang (2026-09-12):** `topic_labels` PK `(key, lang)`. EN 패널이 KO 캐시를 쓰지 않음. `GET /memory/topic-labels?lang=en`. My interests는 contentLang=en이면 한글 preference.display 스킵.  
+**Tags soft KO (2026-09-14):** 본문에 없는 slug(예: `on-device-ai`)는 임베딩 Ask는 「온디바이스」로 되는데 칩만 EN fallback이던 문제. `TAG_SOFT_DISPLAY_KO`를 Tags에 한해 exact 다음·hint 앞에 적용 (`resolvedBy: soft`). Keywords는 본문 스팬 없으면 탈락 유지.
 
 **의도적으로 안 함**
 
 * ingest cron 신규 스케줄 (훅만)
 * 패널 오픈 시 동기 LLM
-* 본문에 없는 번역어 허용 (`정책 긴축`은 본문에 없으면 불가 → `긴축`)
-* Keywords 10개 강제
+* Keywords에 soft 번역 허용 / Keywords 10개 강제
 * chat 전역 thinking off (`createModel`은 그대로; label pick만 끔)
 
 ---

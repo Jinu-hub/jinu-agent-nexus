@@ -46,6 +46,7 @@ export type LabelResolvedBy =
   | "hint"
   | "english"
   | "llm"
+  | "soft"
   | "fallback";
 
 export type ResolveMarketLabelsResult = {
@@ -94,6 +95,23 @@ const LABEL_BODY_HINTS: Record<string, string[]> = {
   us: ["미국"],
   "saudi arabia": ["사우디"],
   global: ["글로벌"],
+  nvidia: ["엔비디아"],
+  "ai-infra": ["인프라", "AI 인프라", "컴퓨팅"],
+  // on-device-ai: body often says 소비자 기기 / 애플 — chip uses TAG_SOFT_DISPLAY_KO
+  "platform-consolidation": ["플랫폼"],
+  "production-scale": ["프로덕션"],
+};
+
+/**
+ * Tag-only soft KO chips when the natural Korean form is not a body substring
+ * (e.g. on-device-ai → 온디바이스) but still useful for UI / Ask.
+ */
+const TAG_SOFT_DISPLAY_KO: Record<string, string> = {
+  "on-device-ai": "온디바이스",
+  "ai-infra": "인프라",
+  nvidia: "엔비디아",
+  "platform-consolidation": "플랫폼",
+  "production-scale": "프로덕션",
 };
 
 function memoryStub(env: Env): DurableObjectStub<MyMemory> {
@@ -375,6 +393,13 @@ function hintsForKey(key: string, aliases: string[], lang: string): string[] {
   return out;
 }
 
+function softTagDisplay(key: string, lang: string): string | null {
+  if (!(lang === "ko" || lang.startsWith("ko"))) return null;
+  const soft = TAG_SOFT_DISPLAY_KO[key.toLowerCase()]?.trim();
+  if (!soft || !isChipLike(soft)) return null;
+  return soft;
+}
+
 function pickHintSpan(
   body: string,
   key: string,
@@ -404,14 +429,14 @@ async function llmPickSpans(
     `You pick display labels for market report topic chips.\n` +
     `Report language: ${lang}\n` +
     `Rules:\n` +
-    `- For each key, return a SHORT noun phrase that ALREADY APPEARS in the report body ` +
-    `(same language as the report when possible).\n` +
+    `- Prefer a SHORT noun phrase that ALREADY APPEARS in the report body.\n` +
     `- Chip style: 1–4 words / about ≤${MAX_CHIP_CHARS} characters. ` +
     `No section headlines, no commas, no percentages, no trailing clauses.\n` +
-    `- Good: "미 10년물 금리", "원유 공급", "긴축", "연준".\n` +
+    `- Good: "미 10년물 금리", "원유 공급", "긴축", "연준", "온디바이스", "인프라".\n` +
     `- Bad: "미 10년물 금리 5% 근접", "원유 탱커 운임, 사상 최고치 경신".\n` +
-    `- Do NOT invent translations that are not in the body.\n` +
-    `- If no suitable short span exists in the body, return null for that key.\n` +
+    `- role=keyword: if no body span, return null (do not invent).\n` +
+    `- role=tag: if no body span, return a short natural ${lang} chip for the slug ` +
+    `(e.g. on-device-ai → 온디바이스). Still keep it chip-short.\n` +
     `- Prefer the most natural surface form (e.g. "OpenAI" not "openai").\n` +
     `Return ONLY a JSON object mapping each key string to a string or null.\n\n` +
     `Keys:\n${JSON.stringify(catalog)}\n\n` +
@@ -445,6 +470,7 @@ async function llmPickSpans(
 
   const parsed = parseLlmLabelMap(rawText);
   const out: Record<string, string | null> = {};
+  const ko = lang === "ko" || lang.startsWith("ko");
   for (const p of slice) {
     const raw = parsed[p.key] ?? null;
     if (!raw) {
@@ -452,11 +478,17 @@ async function llmPickSpans(
       continue;
     }
     const grounded = groundInBody(body, raw);
-    if (!grounded) {
-      out[p.key] = null;
+    if (grounded) {
+      out[p.key] = polishLabel(body, grounded) ?? grounded;
       continue;
     }
-    out[p.key] = polishLabel(body, grounded) ?? grounded;
+    // Tags may use a short KO chip even when the exact phrase is absent
+    // (abstract EN slugs like on-device-ai → 온디바이스).
+    if (p.role === "tag" && ko && isChipLike(raw) && /[가-힣]/.test(raw)) {
+      out[p.key] = raw.trim();
+      continue;
+    }
+    out[p.key] = null;
   }
   return out;
 }
@@ -529,6 +561,15 @@ export async function resolveMarketLabels(
       continue;
     }
 
+    // Tags: preferred KO chip before weak body paraphrases (on-device-ai → 온디바이스).
+    if (input.role === "tag") {
+      const soft = softTagDisplay(key, lang);
+      if (soft) {
+        accept(key, soft, "soft", true);
+        continue;
+      }
+    }
+
     const hinted = pickHintSpan(body, key, aliases, lang);
     if (hinted) {
       accept(key, hinted, "hint", true);
@@ -559,6 +600,11 @@ export async function resolveMarketLabels(
         continue;
       }
       if (input.role === "tag") {
+        const soft = softTagDisplay(key, lang);
+        if (soft) {
+          accept(key, soft, "soft", true);
+          continue;
+        }
         accept(key, key, "fallback", false);
       } else {
         droppedKeywords.push(key);
@@ -568,6 +614,11 @@ export async function resolveMarketLabels(
   } else {
     for (const input of needLlm) {
       if (input.role === "tag") {
+        const soft = softTagDisplay(input.key, lang);
+        if (soft) {
+          accept(input.key, soft, "soft", true);
+          continue;
+        }
         accept(input.key, input.key, "fallback", false);
       } else {
         droppedKeywords.push(input.key);
