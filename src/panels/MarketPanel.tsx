@@ -274,11 +274,14 @@ export function MarketPanel({
   contentLang,
   disabledReportSeries,
   onAskInChat,
+  onMarketFocusSeriesChange,
 }: {
   contentLang: ContentLang | null;
   disabledReportSeries: string[];
   /** Send a Market Memory example prompt into the left chat. */
   onAskInChat?: (prompt: string) => void;
+  /** Persist Market tab selection for chat vector / report prefetch scope. */
+  onMarketFocusSeriesChange?: (seriesId: string) => void;
 }) {
   const lang = contentLang ?? "ko";
   const calendarToday = seoulYmd();
@@ -513,23 +516,35 @@ export function MarketPanel({
     [],
   );
 
+  useEffect(() => {
+    if (!activeSeriesId) return;
+    onMarketFocusSeriesChange?.(activeSeriesId);
+  }, [activeSeriesId, onMarketFocusSeriesChange]);
+
+  // Content key only — array identity of enabledSeriesIds changes when App
+  // refreshes settings (e.g. market_focus_series_id), which must NOT reset date.
   const enabledSeriesKey = enabledSeriesIds.join(",");
 
   useEffect(() => {
     setDate(null);
     setDaySlots([]);
     setActiveSeriesId(null);
-    if (enabledSeriesIds.length === 0) {
+    const seriesIds = enabledSeriesKey
+      ? enabledSeriesKey.split(",").filter(Boolean)
+      : [];
+    if (seriesIds.length === 0) {
       setLatestLoading(false);
       return;
     }
-    void loadLatestDate(lang, enabledSeriesIds);
-  }, [lang, enabledSeriesKey, loadLatestDate, enabledSeriesIds]);
+    void loadLatestDate(lang, seriesIds);
+  }, [lang, enabledSeriesKey, loadLatestDate]);
 
   useEffect(() => {
-    if (!date || enabledSeriesIds.length === 0) return;
-    void loadDay(date, lang, enabledSeriesIds);
-  }, [date, lang, enabledSeriesKey, loadDay, enabledSeriesIds]);
+    if (!date || !enabledSeriesKey) return;
+    const seriesIds = enabledSeriesKey.split(",").filter(Boolean);
+    if (seriesIds.length === 0) return;
+    void loadDay(date, lang, seriesIds);
+  }, [date, lang, enabledSeriesKey, loadDay]);
 
   const activeSlot = useMemo(() => {
     if (daySlots.length === 0) return null;

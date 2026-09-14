@@ -639,3 +639,22 @@ curl -s -X POST http://localhost:5173/api/market-vector/ingest \
 
 ---
 
+## 22. Chat keyword search — Market panel series focus
+
+* **목적:** 같은 `market_date`에 시리즈가 여러 개일 때, 채팅 `vectorSearch`가 catalog **첫 슬롯(Weekly AI)** 만 보던 문제 수정. Market 패널 **선택 탭** = chat 리포트·Vectorize scope.
+* **설정:** ChatAgent SQLite `market_focus_series_id` (`report_series.id`). 탭 전환 시 `updateSettings` (Settings UI 노출 없음).
+
+### 22.1 Phase *(완료)*
+
+* **수정 및 추가 파일:**
+  * `worker/chat-agent/settings.ts` — `market_focus_series_id` 컬럼 + patch
+  * `src/panels/MarketPanel.tsx` — `onMarketFocusSeriesChange`
+  * `src/App.tsx` — 탭 → settings 동기화
+  * `worker/chat-agent/market-prefetch.ts` — focus 시 `listReportsForMarketDay`로 `loadReport`; vector에 `seriesId`/`itemId`
+  * `worker/chat-agent/market-vector-search.ts` — `queryMarketVectors`에 scope 전달
+* **확인:** Market → **Weekly Market** 탭 → `2026-09-12` → 채팅에서 `「Qualcomm」` 리포트 질문 → vector hits·답변에 해당 시리즈 본문 반영 (Weekly AI만 ingest/search 하던 경우와 대비).
+* **버그픽스:** `enabledSeriesIds` 배열 identity가 settings 갱신(focus sync)마다 바뀌며 `setDate(null)` → latest로 되감김 → effect deps를 `enabledSeriesKey` 문자열만 쓰도록 수정.
+* **의도적으로 안 함:** 멀티 시리즈 vector merge; getTodayMarketReport tool mmi 전환; focus 없을 때 query fan-out
+
+---
+

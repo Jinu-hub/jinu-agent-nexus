@@ -162,3 +162,4 @@
 | 2026-09-14 | Settings Market Content (`report_series` + `disabled_report_series`) — A + ROUTING ([`WORK_NOTES_2` §19](./WORK_NOTES_2.md)) |
 | 2026-09-14 | Market day API + same-date series tabs — A + ROUTING ([`WORK_NOTES_2` §20](./WORK_NOTES_2.md)) |
 | 2026-09-14 | Vector ingest mmi batch (Settings ON) — A ([`WORK_NOTES_2` §21](./WORK_NOTES_2.md)) |
+| 2026-09-14 | Chat vector scope = Market tab (`market_focus_series_id`) — A + B settings ([`WORK_NOTES_2` §22](./WORK_NOTES_2.md)) |

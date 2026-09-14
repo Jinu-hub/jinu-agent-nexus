@@ -91,6 +91,11 @@ export type ChatSettings = {
    * Active catalog rows default ON; inactive ("soon") rows are never usable.
    */
   disabled_report_series: string[];
+  /**
+   * report_series.id for the Market panel tab the user is viewing.
+   * Drives chat keyword vector search + report prefetch scope.
+   */
+  market_focus_series_id: string;
   updated_at: string;
 };
 
@@ -104,6 +109,7 @@ export type ChatSettingsPatch = Partial<
     | "content_lang"
     | "hidden_panels"
     | "disabled_report_series"
+    | "market_focus_series_id"
   >
 >;
 
@@ -125,6 +131,7 @@ type StoredSettings = {
   content_lang: string;
   hidden_panels: string;
   disabled_report_series: string;
+  market_focus_series_id: string;
   updated_at: string;
 };
 
@@ -136,6 +143,7 @@ export const DEFAULT_CHAT_SETTINGS: ChatSettings = {
   content_lang: DEFAULT_CONTENT_LANG,
   hidden_panels: [],
   disabled_report_series: [],
+  market_focus_series_id: "",
   updated_at: "",
 };
 
@@ -209,6 +217,12 @@ export function ensureSettings(agent: SqlAgentHost): void {
       ADD COLUMN disabled_report_series TEXT NOT NULL DEFAULT '[]'
     `;
   }
+  if (!columns.some((col) => col.name === "market_focus_series_id")) {
+    void agent.sql`
+      ALTER TABLE settings
+      ADD COLUMN market_focus_series_id TEXT NOT NULL DEFAULT ''
+    `;
+  }
   void agent.sql`
     INSERT OR IGNORE INTO settings (
       id,
@@ -219,6 +233,7 @@ export function ensureSettings(agent: SqlAgentHost): void {
       content_lang,
       hidden_panels,
       disabled_report_series,
+      market_focus_series_id,
       updated_at
     )
     VALUES (
@@ -230,6 +245,7 @@ export function ensureSettings(agent: SqlAgentHost): void {
       ${DEFAULT_CONTENT_LANG},
       '[]',
       '[]',
+      '',
       ${new Date().toISOString()}
     )
   `;
@@ -247,6 +263,7 @@ export function getSettings(agent: SqlAgentHost): ChatSettings {
       content_lang,
       hidden_panels,
       disabled_report_series,
+      market_focus_series_id,
       updated_at
     FROM settings
     WHERE id = 1
@@ -257,6 +274,7 @@ export function getSettings(agent: SqlAgentHost): ChatSettings {
       ...DEFAULT_CHAT_SETTINGS,
       hidden_panels: [],
       disabled_report_series: [],
+      market_focus_series_id: "",
     };
   }
   return fromStored(row);
@@ -275,6 +293,7 @@ export function updateSettings(
     "content_lang",
     "hidden_panels",
     "disabled_report_series",
+    "market_focus_series_id",
   ]);
   for (const name of Object.keys(patch)) {
     if (!allowedNames.has(name as keyof ChatSettingsPatch)) {
@@ -294,6 +313,10 @@ export function updateSettings(
       patch.disabled_report_series !== undefined
         ? normalizeDisabledReportSeries(patch.disabled_report_series)
         : current.disabled_report_series,
+    market_focus_series_id:
+      patch.market_focus_series_id !== undefined
+        ? normalizeMarketFocusSeriesId(patch.market_focus_series_id)
+        : current.market_focus_series_id,
     updated_at: new Date().toISOString(),
   };
 
@@ -307,6 +330,7 @@ export function updateSettings(
     "content_lang",
     "hidden_panels",
     "disabled_report_series",
+    "market_focus_series_id",
   ];
   const changed = settingNames.filter((name) => {
     if (name === "hidden_panels") {
@@ -333,6 +357,7 @@ export function updateSettings(
       content_lang = ${next.content_lang},
       hidden_panels = ${JSON.stringify(next.hidden_panels)},
       disabled_report_series = ${JSON.stringify(next.disabled_report_series)},
+      market_focus_series_id = ${next.market_focus_series_id},
       updated_at = ${next.updated_at}
     WHERE id = 1
   `;
@@ -396,8 +421,17 @@ function fromStored(row: StoredSettings): ChatSettings {
       : DEFAULT_CONTENT_LANG,
     hidden_panels: normalizeHiddenPanels(parsedPanels),
     disabled_report_series: normalizeDisabledReportSeries(parsedSeries),
+    market_focus_series_id: normalizeMarketFocusSeriesId(
+      row.market_focus_series_id ?? "",
+    ),
     updated_at: row.updated_at,
   };
+}
+
+/** Trim; empty clears Market panel focus (chat uses first enabled series). */
+export function normalizeMarketFocusSeriesId(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.trim();
 }
 
 function validateSettings(settings: ChatSettings): void {
@@ -437,5 +471,8 @@ function validateSettings(settings: ChatSettings): void {
     if (typeof slug !== "string" || !slug.trim()) {
       throw new Error("disabled_report_series must contain non-empty strings");
     }
+  }
+  if (typeof settings.market_focus_series_id !== "string") {
+    throw new Error("market_focus_series_id must be a string");
   }
 }

@@ -19,7 +19,7 @@
 //      PANELS array below.
 // ─────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgent } from "agents/react";
 import type { MCPServersState } from "agents";
 import { DEFAULT_INSTANCE_NAME } from "@/lib/agent-identity";
@@ -272,6 +272,19 @@ export default function App() {
     [settings?.disabled_report_series, updateSettings],
   );
 
+  const marketFocusSeriesRef = useRef(settings?.market_focus_series_id ?? "");
+  marketFocusSeriesRef.current = settings?.market_focus_series_id ?? "";
+
+  const onMarketFocusSeriesChange = useCallback(
+    (seriesId: string) => {
+      const id = seriesId.trim();
+      if (!id || marketFocusSeriesRef.current === id) return;
+      marketFocusSeriesRef.current = id;
+      void updateSettings({ market_focus_series_id: id });
+    },
+    [updateSettings],
+  );
+
   // ─── Render ────────────────────────────────────────────────────────────
   return (
     <div className="relative isolate flex h-full overflow-hidden">
@@ -315,6 +328,7 @@ export default function App() {
               contentLang={settings?.content_lang ?? null}
               disabledReportSeries={settings?.disabled_report_series ?? []}
               onAskInChat={askInChat}
+              onMarketFocusSeriesChange={onMarketFocusSeriesChange}
             />
           </TabsContent>
 

@@ -100,6 +100,9 @@ export async function runChatVectorSearch(
     queries: string[];
     marketDate?: string;
     lang?: string;
+    /** Market panel tab → report_series.id (scopes Vectorize to that report). */
+    seriesId?: string;
+    itemId?: string;
     /** From item_contents.metadata.tags.core (+ label_ko when present). */
     tagLexicon?: TagLexeme[] | null;
   },
@@ -145,6 +148,8 @@ export async function runChatVectorSearch(
       queries: expanded,
       marketDate: opts.marketDate,
       lang: opts.lang,
+      seriesId: opts.seriesId,
+      itemId: opts.itemId,
       topKPerQuery: 2,
       hitLimit: 3,
       minScore: CHAT_VECTOR_MIN_SCORE,

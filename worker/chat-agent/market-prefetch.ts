@@ -7,6 +7,7 @@ import { getSettings } from "./settings";
 import { getTodayContentAudio } from "../content-audio";
 import { getTodayContentBrief } from "../content-briefs";
 import { getTodayItemContent } from "../item-contents";
+import { listReportsForMarketDay } from "../market-item-resolve";
 import { metaString, withResolvedMarketDate } from "../market-memory-load";
 import { isMarketDateYmd, shiftMarketDateYmd } from "../market-date";
 import { isSupabaseConfigured } from "../supabase";
@@ -84,6 +85,8 @@ async function withVectorSearch<T extends Record<string, unknown>>(
     userText: string;
     marketDate?: string;
     lang?: string;
+    seriesId?: string;
+    itemId?: string;
     tagLexicon?: TagLexeme[] | null;
   },
 ): Promise<T & { vectorSearch?: ChatVectorSearchResult }> {
@@ -94,6 +97,8 @@ async function withVectorSearch<T extends Record<string, unknown>>(
     queries,
     marketDate: opts.marketDate,
     lang: opts.lang,
+    seriesId: opts.seriesId,
+    itemId: opts.itemId,
     tagLexicon: opts.tagLexicon,
   });
   const instruction =
@@ -228,12 +233,120 @@ async function loadVoice(
   };
 }
 
+function marketFocusSeriesId(agent: ChatAgent): string | undefined {
+  const id = getSettings(agent).market_focus_series_id.trim();
+  return id || undefined;
+}
+
+function prefetchReportFromItem(
+  item: NonNullable<Awaited<ReturnType<typeof getTodayItemContent>>["item"]>,
+  ctx: {
+    marketDate: string;
+    lang: string;
+    seriesId?: string;
+    seriesSlug?: string;
+    itemId?: string;
+    requestedDate?: string;
+    correctedFrom?: string;
+    usedExpectedLatest?: boolean;
+    usedDataBackedLatest?: boolean;
+    briefId?: string | null;
+    targetId?: string | null;
+  },
+) {
+  return {
+    ok: true as const,
+    found: true as const,
+    marketDate: ctx.marketDate,
+    lang: ctx.lang,
+    seriesId: ctx.seriesId,
+    seriesSlug: ctx.seriesSlug,
+    itemId: ctx.itemId ?? item.id,
+    title: item.title,
+    summary: item.summary,
+    excerpt: reportChatExcerpt(item.content, item.summary),
+    highlights: reportHighlightHeadings(item.content),
+    keywords: reportChatKeywords(item),
+    tagLexicon: serializeTagLexicon(buildTagLexicon(item.metadata)),
+    reportType: item.report_type,
+    briefId: ctx.briefId ?? null,
+    targetId: ctx.targetId ?? item.id,
+    requestedDate: ctx.requestedDate,
+    correctedFrom: ctx.correctedFrom,
+    usedExpectedLatest: ctx.usedExpectedLatest,
+    usedDataBackedLatest: ctx.usedDataBackedLatest,
+  };
+}
+
 async function loadReport(
   agent: ChatAgent,
   env: Env,
   date: string | undefined,
 ) {
   const { content_lang: lang } = getSettings(agent);
+  const focusSeriesId = marketFocusSeriesId(agent);
+
+  if (focusSeriesId) {
+    const resolved = await resolveToolMarketDate(env, date, { lang });
+    if (resolved.marketDate && !isMarketDateYmd(resolved.marketDate)) {
+      return {
+        ok: false as const,
+        reason: "invalid_date" as const,
+        requestedDate: resolved.requestedDate,
+      };
+    }
+
+    const fetchHit = async (marketDate: string | undefined) => {
+      if (!marketDate || !isMarketDateYmd(marketDate)) return null;
+      const reports = await listReportsForMarketDay(env, {
+        marketDate,
+        lang,
+        seriesIds: [focusSeriesId],
+      });
+      return reports[0] ?? null;
+    };
+
+    let hit = await fetchHit(resolved.marketDate);
+    let correctedFrom: string | undefined;
+    if (
+      !hit &&
+      resolved.fallbackMarketDate &&
+      resolved.fallbackMarketDate !== resolved.marketDate
+    ) {
+      const retry = await fetchHit(resolved.fallbackMarketDate);
+      if (retry) {
+        correctedFrom = resolved.marketDate;
+        hit = retry;
+      }
+    }
+
+    if (!hit) {
+      return {
+        ok: true as const,
+        found: false as const,
+        marketDate: resolved.marketDate ?? "",
+        lang,
+        seriesId: focusSeriesId,
+        briefId: null,
+        targetId: null,
+        requestedDate: resolved.requestedDate,
+        usedExpectedLatest: resolved.usedExpectedLatest,
+        usedDataBackedLatest: resolved.usedDataBackedLatest,
+      };
+    }
+    return prefetchReportFromItem(hit.item, {
+      marketDate: hit.marketDate,
+      lang: hit.lang,
+      seriesId: hit.seriesId,
+      seriesSlug: hit.seriesSlug,
+      itemId: hit.item.id,
+      requestedDate: resolved.requestedDate,
+      correctedFrom,
+      usedExpectedLatest: resolved.usedExpectedLatest,
+      usedDataBackedLatest: resolved.usedDataBackedLatest,
+    });
+  }
+
   const loaded = await withResolvedMarketDate(env, date, lang, (marketDate) =>
     getTodayItemContent(env, { marketDate, lang }),
   );
@@ -261,25 +374,16 @@ async function loadReport(
     };
   }
 
-  const item = result.item;
-  return {
-    ok: true as const,
-    found: true as const,
+  return prefetchReportFromItem(result.item, {
     marketDate: result.marketDate,
     lang: result.lang,
-    title: item.title,
-    summary: item.summary,
-    excerpt: reportChatExcerpt(item.content, item.summary),
-    highlights: reportHighlightHeadings(item.content),
-    keywords: reportChatKeywords(item),
-    /** Compact lexicon for vector expand / UI — not for model dump. */
-    tagLexicon: serializeTagLexicon(buildTagLexicon(item.metadata)),
-    reportType: item.report_type,
+    briefId: result.briefId,
+    targetId: result.targetId,
     requestedDate: resolved.requestedDate,
     correctedFrom,
     usedExpectedLatest: resolved.usedExpectedLatest,
     usedDataBackedLatest: resolved.usedDataBackedLatest,
-  };
+  });
 }
 
 function tagLexiconFromReport(report: unknown): TagLexeme[] | undefined {
@@ -342,6 +446,22 @@ export async function buildMarketPrefetchBlock(
 
   const hints = seoulDateHints();
   const userInterests = await loadUserInterests(env);
+  const focusSeriesId = marketFocusSeriesId(agent);
+
+  const vectorScope = (report: unknown) => {
+    const scope: { seriesId?: string; itemId?: string } = {};
+    if (focusSeriesId) scope.seriesId = focusSeriesId;
+    if (report && typeof report === "object") {
+      const r = report as { seriesId?: unknown; itemId?: unknown };
+      if (typeof r.seriesId === "string" && r.seriesId.trim()) {
+        scope.seriesId = r.seriesId.trim();
+      }
+      if (typeof r.itemId === "string" && r.itemId.trim()) {
+        scope.itemId = r.itemId.trim();
+      }
+    }
+    return scope;
+  };
 
   try {
     if (intent.kind === "voice") {
@@ -433,6 +553,7 @@ export async function buildMarketPrefetchBlock(
             {
               intent: "reportVsBrief",
               seoulHints: hints,
+              marketFocusSeriesId: focusSeriesId ?? null,
               brief,
               report: reportWithoutLexicon(
                 report as Record<string, unknown>,
@@ -447,6 +568,7 @@ export async function buildMarketPrefetchBlock(
             userText,
             marketDate,
             lang,
+            ...vectorScope(report),
             tagLexicon: tagLexiconFromReport(report),
           },
         ),
@@ -487,6 +609,7 @@ export async function buildMarketPrefetchBlock(
               fullTextAsk: Boolean(intent.fullText),
               keywordsOnly,
               seoulHints: hints,
+              marketFocusSeriesId: focusSeriesId ?? null,
               report: reportWithoutLexicon(
                 report as Record<string, unknown>,
               ),
@@ -499,6 +622,7 @@ export async function buildMarketPrefetchBlock(
             userText,
             marketDate,
             lang,
+            ...vectorScope(report),
             tagLexicon: tagLexiconFromReport(report),
           },
         ),
@@ -540,6 +664,7 @@ export async function buildMarketPrefetchBlock(
           userText,
           marketDate,
           lang,
+          ...vectorScope(reportForLexicon),
           tagLexicon: tagLexiconFromReport(reportForLexicon),
         },
       ),
