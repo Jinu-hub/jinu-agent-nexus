@@ -62,6 +62,39 @@ export const MARKET_SUGGESTIONS: MarketSuggestion[] = [
   },
 ];
 
+/**
+ * Report page chat — prompts pinned to the day being read.
+ *
+ * The standalone page always shows one `market_date`, so the prompts name
+ * it instead of relying on "Latest" / "어제" resolution.
+ */
+export function reportPageSuggestions(
+  marketDate: string,
+): MarketSuggestion[] {
+  return [
+    {
+      id: "risk",
+      label: "리스크",
+      prompt: `${marketDate} 브리핑에서 가장 큰 리스크만 정리해줘`,
+    },
+    {
+      id: "reportCore",
+      label: "풀리포트 핵심",
+      prompt: `${marketDate} 풀리포트 핵심만 정리해줘`,
+    },
+    {
+      id: "briefVsReport",
+      label: "리포트가 더 담은 것",
+      prompt: `${marketDate} 브리프에 없는 풀리포트 내용만 짚어줘`,
+    },
+    {
+      id: "keywords",
+      label: "키워드만",
+      prompt: `${marketDate} 풀리포트 키워드만 말해줘`,
+    },
+  ];
+}
+
 /** T4 — Topics / entity chip → chat ask (panel date when known). */
 export type TopicChipAskKind = "tag" | "place" | "entity";
 

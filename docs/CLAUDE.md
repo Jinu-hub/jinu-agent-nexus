@@ -203,7 +203,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts`; `topic_labels` + preferences.`display`; panel interests UI `src/lib/topic-preference.ts` + `MyInterestsFold.tsx`; chat prefetch `user-interests.ts` (P3) |
 | Market topic labels | `worker/market-labels.ts` + routes — body-grounded resolve (exact→LLM); post-ingest hook; UI/vector expand consume cache |
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
-| Report page (`/<slug>`) | `src/reports/ReportSurface.tsx` + `src/lib/report-pages.ts` (`REPORT_PAGES` registry) + `src/lib/brief-format.ts` (`parseBriefParts` from `metadata`, `parseBriefBody` text fallback); routed by pathname in `src/main.tsx`; reads `/settings` + `/api/report-series` + `/api/market/{latest-date,day}`; warm palette via `.report-warm` in `src/index.css` (shell stays neutral) |
+| Report page (`/<slug>`) | `src/reports/ReportSurface.tsx` + `src/lib/report-pages.ts` (`REPORT_PAGES` registry) + `src/lib/brief-format.ts` (`parseBriefParts` from `metadata`, `parseBriefBody` text fallback); routed by pathname in `src/main.tsx`; reads `/settings` + `/api/report-series` + `/api/market/{latest-date,day}`; warm palette via `.report-warm` in `src/index.css` (shell stays neutral); side chat `src/reports/ReportChat.tsx` — page pins `market_focus_series_id` to its series so chat cites the report on screen |
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
 | Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today` + `GET /api/briefs/latest-date`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`; omit date = data-backed latest) |
 | Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today`; primary `item_contents` + `item_content_i18n` overlay when `lang` ≠ primary `lang_code`; chat tool `getTodayMarketReport.ts` (excerpt + compact `keywords` via `report-keywords.ts`; lang = Settings `content_lang`) |
@@ -216,6 +216,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
 | UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` — empty state shares Market Memory suggestions |
+| Chat transcript / input (shared) | `src/chat/ChatParts.tsx` (`ChatMessageList` + `ChatComposer`) + `src/chat/use-client-tools.ts`; each surface supplies its own header + `empty` state (shell = `Chat.tsx`, report page = `ReportChat.tsx`) |
 | Voice in-chat player | `src/chat/Message.tsx` — `<audio>` when `getTodayMarketVoice` returns `playPath` |
 
 ## Extension patterns

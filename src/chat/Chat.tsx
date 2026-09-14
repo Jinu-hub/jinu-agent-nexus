@@ -14,27 +14,19 @@
 //   3. Nothing else — chat owns its own input state, scroll, etc.
 // ─────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useRef, useState } from "react";
-// `agents/ai-react` re-exports this and prints a deprecation banner —
-// the canonical home is `@cloudflare/ai-chat/react`, so import there
-// directly to keep the console clean.
+import { useEffect, useRef } from "react";
 import { useAgentChat } from "@cloudflare/ai-chat/react";
-import { Send, Square, Trash2, RotateCcw, Moon, Sun } from "lucide-react";
+import { Trash2, RotateCcw, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import { MARKET_SUGGESTIONS } from "@/lib/market-suggestions";
-import { Message } from "./Message";
-
-// useAgentChat returns a value whose shape includes `messages`,
-// `status`, `sendMessage`, etc. The SDK doesn't export the type
-// directly, but `ReturnType<typeof useAgentChat>` works the same way.
-type ChatHelpers = ReturnType<typeof useAgentChat>;
-
-// `useAgentChat` accepts both typed and untyped agent connections via
-// its option type. We grab that exact type from the options surface
-// so the App's typed `useAgent<ChatAgent, State>(...)` flows through.
-type AgentForChat = Parameters<typeof useAgentChat>[0]["agent"];
+import {
+  ChatComposer,
+  ChatMessageList,
+  type AgentForChat,
+  type ChatHelpers,
+} from "./ChatParts";
+import { useClientToolCall } from "./use-client-tools";
 
 export function Chat({
   agent,
@@ -52,26 +44,7 @@ export function Chat({
   pendingAsk?: { text: string; nonce: number } | null;
   onPendingAskConsumed?: () => void;
 }) {
-  // Stable identity for onToolCall — without useCallback a fresh
-  // closure is created on every render, and the chat hook treats
-  // that as a new options object and can re-init internals.
-  const onToolCall = useCallback<
-    NonNullable<Parameters<typeof useAgentChat>[0]["onToolCall"]>
-  >(async ({ toolCall, addToolOutput }) => {
-    if (toolCall.toolName === "getUserTimezone") {
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      addToolOutput({
-        toolCallId: toolCall.toolCallId,
-        output: { timezone: tz },
-      });
-      return;
-    }
-    // Server-side tools (getWeather, getTodayMarketBrief, …) also may
-    // surface here via useAgentChat. Do NOT addToolOutput — that would
-    // short-circuit the real server execute with a fake client error
-    // ("No client handler…") and make the model retry once.
-  }, []);
-
+  const onToolCall = useClientToolCall();
   const chat = useAgentChat({ agent, onToolCall });
   const sendRef = useRef(chat.sendMessage);
   sendRef.current = chat.sendMessage;
@@ -93,8 +66,12 @@ export function Chat({
         onToggleTheme={onToggleTheme}
         onReset={onReset}
       />
-      <MessageList chat={chat} />
-      <ChatInput chat={chat} />
+      <ChatMessageList
+        chat={chat}
+        className="flex-1 overflow-y-auto px-4 py-6"
+        empty={<EmptyState onPick={(text) => chat.sendMessage({ text })} />}
+      />
+      <ChatComposer chat={chat} />
     </div>
   );
 }
@@ -188,48 +165,6 @@ function Header({
   );
 }
 
-// ─── Message list with auto-scroll ───────────────────────────────────────
-function MessageList({ chat }: { chat: ChatHelpers }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to the bottom on every new message. We pin to the
-  // bottom unless the user has manually scrolled up — track that via
-  // a "near bottom" check before scrolling.
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const nearBottom =
-      el.scrollHeight - el.scrollTop - el.clientHeight < 200;
-    if (nearBottom) {
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [chat.messages]);
-
-  const handleApprove = (toolCallId: string, approved: boolean) => {
-    chat.addToolApprovalResponse({
-      id: toolCallId,
-      approved,
-      reason: approved ? undefined : "Rejected by user",
-    });
-  };
-
-  const isEmpty = chat.messages.length === 0;
-
-  return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
-      {isEmpty ? (
-        <EmptyState onPick={(text) => chat.sendMessage({ text })} />
-      ) : (
-        <div className="space-y-4">
-          {chat.messages.map((m) => (
-            <Message key={m.id} message={m} onApprove={handleApprove} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Empty state — shown before the first message ───────────────────────
 // Monochrome mark + a blinking terminal caret after the prompt. The
 // caret is the only animated element, and it's calm enough to fade
@@ -270,50 +205,3 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
   );
 }
 
-// ─── Input box ───────────────────────────────────────────────────────────
-function ChatInput({ chat }: { chat: ChatHelpers }) {
-  const [value, setValue] = useState("");
-  const isStreaming = chat.status === "streaming";
-  const isBusy = isStreaming || chat.status === "submitted";
-
-  const send = () => {
-    const text = value.trim();
-    if (!text || isBusy) return;
-    chat.sendMessage({ text });
-    setValue("");
-  };
-
-  return (
-    <div className="border-t border-border bg-card/40 p-3">
-      <div className="flex items-end gap-2">
-        <Textarea
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Send a message…"
-          rows={1}
-          className="min-h-11 resize-none"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-        />
-        {isStreaming ? (
-          // Abort the active turn. `stop()` sends an abort signal to
-          // the server; the agent's onChatMessage sees abortSignal
-          // and bails out of its streamText loop.
-          <Button onClick={() => void chat.stop()} variant="outline">
-            <Square className="size-4 fill-current" />
-            Stop
-          </Button>
-        ) : (
-          <Button onClick={send} disabled={!value.trim() || isBusy}>
-            <Send className="size-4" />
-            Send
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}

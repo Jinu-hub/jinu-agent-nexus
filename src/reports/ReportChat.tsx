@@ -1,0 +1,112 @@
+// ─────────────────────────────────────────────────────────────────────────
+// ReportChat — side chat on a standalone report page
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Same agent and transcript as the shell's chat (`ChatParts`), minus the
+// brand header, theme toggle and session reset — the report is the main
+// surface here, chat is the sidekick.
+//
+// Scope: ReportSurface pins `market_focus_series_id` to this page's series
+// before the user asks anything, so Market prefetch / vector search read
+// the report they are looking at.
+// ─────────────────────────────────────────────────────────────────────────
+
+import { useAgentChat } from "@cloudflare/ai-chat/react";
+import { MessageSquare, Trash2, X } from "lucide-react";
+
+import {
+  ChatComposer,
+  ChatMessageList,
+  type AgentForChat,
+} from "@/chat/ChatParts";
+import { useClientToolCall } from "@/chat/use-client-tools";
+import { reportPageSuggestions } from "@/lib/market-suggestions";
+import { cn } from "@/lib/utils";
+
+export function ReportChat({
+  agent,
+  marketDate,
+  onClose,
+}: {
+  agent: AgentForChat;
+  /** Day on screen — suggestion prompts name it instead of "Latest". */
+  marketDate: string | null;
+  onClose: () => void;
+}) {
+  const onToolCall = useClientToolCall();
+  const chat = useAgentChat({ agent, onToolCall });
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-2 border-b border-border px-3 py-3">
+        <MessageSquare className="h-3.5 w-3.5 shrink-0 text-primary" />
+        <p className="min-w-0 flex-1 truncate text-xs font-semibold tracking-tight">
+          Ask about this report
+        </p>
+        <button
+          type="button"
+          onClick={() => chat.clearHistory()}
+          className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          title="Clear chat history"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          title="Hide chat"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <ChatMessageList
+        chat={chat}
+        className="min-h-0 flex-1 overflow-y-auto px-3 py-4"
+        empty={
+          <Suggestions
+            marketDate={marketDate}
+            onPick={(text) => chat.sendMessage({ text })}
+          />
+        }
+      />
+
+      <ChatComposer chat={chat} />
+    </div>
+  );
+}
+
+function Suggestions({
+  marketDate,
+  onPick,
+}: {
+  marketDate: string | null;
+  onPick: (text: string) => void;
+}) {
+  if (!marketDate) return null;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
+        이렇게 물어보세요
+      </p>
+      {reportPageSuggestions(marketDate).map((s) => (
+        <button
+          key={s.id}
+          type="button"
+          onClick={() => onPick(s.prompt)}
+          className={cn(
+            "group flex w-full items-center gap-2 rounded-lg border border-border bg-card",
+            "px-3 py-2 text-left text-xs hover:border-primary/50",
+          )}
+        >
+          <span className="font-mono text-muted-foreground group-hover:text-primary">
+            ›
+          </span>
+          <span>{s.prompt}</span>
+        </button>
+      ))}
+    </div>
+  );
+}

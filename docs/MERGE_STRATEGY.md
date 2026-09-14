@@ -54,7 +54,8 @@
 | Supabase | `worker/supabase.ts` |
 | Report series catalog | `worker/report-series.ts` — Settings Content toggles |
 | Market day reads | `worker/market-day.ts` — enabled `series_id` → mmi → item_contents |
-| Report pages | `src/lib/report-pages.ts`, `src/lib/brief-format.ts`, `src/reports/ReportSurface.tsx` — `/<slug>` 전용 리딩 화면 |
+| Report pages | `src/lib/report-pages.ts`, `src/lib/brief-format.ts`, `src/reports/ReportSurface.tsx`, `src/reports/ReportChat.tsx` — `/<slug>` 전용 리딩 화면 + 사이드 채팅 |
+| Chat parts | `src/chat/ChatParts.tsx`, `src/chat/use-client-tools.ts` — transcript/입력부 공용 (쉘·리포트 페이지) |
 | Market item resolve | `worker/market-item-resolve.ts`, `worker/market-settings.ts` — ingest/query resolve without brief |
 | Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts` (+ `item_content_i18n` localize), `worker/report-keywords.ts`, `worker/market-date.ts` |
 | Market vectors | `worker/market-vector.ts`, `worker/market-vector-routes.ts` |
@@ -166,3 +167,4 @@
 | 2026-09-14 | Vector ingest mmi batch (Settings ON) — A ([`WORK_NOTES_2` §21](./WORK_NOTES_2.md)) |
 | 2026-09-14 | Chat vector scope = Market tab (`market_focus_series_id`) — A + B settings ([`WORK_NOTES_2` §22](./WORK_NOTES_2.md)) |
 | 2026-09-14 | `/daily-market-issues` 리포트 전용 페이지 — A + B `main.tsx` + ROUTING ([`WORK_NOTES_2` §26](./WORK_NOTES_2.md)) |
+| 2026-09-14 | 리포트 페이지 사이드 채팅 + `ChatParts` 분리 — A ([`WORK_NOTES_2` §26.3](./WORK_NOTES_2.md)) |

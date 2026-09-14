@@ -736,5 +736,30 @@ curl -s "http://localhost:5173/api/market/day?date=2026-09-11&lang=ko\
 * **확인:** `/daily-market-issues` 라이트·다크 모두 OK; `/` 채팅 쉘 중립 팔레트 회귀 없음
 * **의도적으로 안 함:** 전역 테마 웜 전환; Market 패널·채팅에 적용; 시리즈별 액센트 색 분기
 
+### 26.3 Phase 2 — 사이드 채팅 *(완료)*
+
+* **목적:** 리포트를 읽으면서 같은 화면에서 물어보기. 리포트가 메인, 채팅은 오른쪽 보조 컬럼.
+* **스코프 고정 (핵심):** 채팅의 Market 범위는 ChatAgent 설정 `market_focus_series_id` 하나이고, 원래는 Market 패널 탭이 바꾼다. 리포트 페이지는 series 해석 직후 이 값을 **자기 시리즈로 PATCH**한다. 안 하면 패널에서 마지막에 고른 시리즈를 답한다.
+* **채팅 파트 분리:** `Chat.tsx`는 쉘 전용 크롬(브랜드 헤더 / 테마 토글 / Reset session)을 갖고 있어 400px 컬럼에 그대로 넣을 수 없다. transcript·입력부만 `ChatParts.tsx`로 빼고 각 surface가 헤더·empty state를 직접 조립한다.
+* **수정 및 추가 파일:**
+  * `src/chat/ChatParts.tsx` *(신규)* — `ChatMessageList`(`empty` prop) + `ChatComposer` + `ChatHelpers`/`AgentForChat` 타입
+  * `src/chat/use-client-tools.ts` *(신규)* — `useClientToolCall` (`getUserTimezone`); 컴포넌트 파일과 분리해 fast-refresh 경고 회피
+  * `src/chat/Chat.tsx` — 위 파트 사용으로 축소 (동작 변경 없음)
+  * `src/reports/ReportChat.tsx` *(신규)* — 슬림 채팅 (헤더 + 날짜 고정 제안 + Clear/Hide)
+  * `src/reports/ReportSurface.tsx` — `useAgent`, `market_focus_series_id` PATCH, 2컬럼 레이아웃, 헤더 `Ask` 버튼
+  * `src/lib/market-suggestions.ts` — `reportPageSuggestions(marketDate)` (화면의 날짜를 프롬프트에 박아 "Latest"/"어제" 해석에 의존하지 않음)
+* **레이아웃:** `lg` 이상 → 오른쪽 인플로우 컬럼 `26rem`; 그 아래 → 오른쪽에서 덮는 오버레이(`max-lg:fixed`). 기본은 닫힘, 헤더 `Ask`로 연다.
+* **확인:**
+
+```bash
+# 페이지 진입 후 — 채팅 스코프가 이 시리즈로 고정됐는지
+curl -s http://localhost:5173/settings | jq -r .market_focus_series_id
+# → 596797cb-3007-43b4-9c47-d19ee8991a78 (daily-market-issues)
+```
+
+  * `Ask` → 제안 4개가 `2026-09-11`로 박혀서 표시; 1440px 2컬럼(1024 + 416), 좁은 창은 오버레이
+  * `/` 채팅 쉘 회귀 없음 (ChatParts 분리 후)
+* **의도적으로 안 함:** 리포트 본문에서 드래그 → 질문; 페이지 이탈 시 `market_focus_series_id` 복원; 채팅 열림 상태 기억; Voice / 풀리포트 섹션
+
 ---
 
