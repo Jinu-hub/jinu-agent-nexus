@@ -52,6 +52,7 @@
 | Identity | `src/lib/agent-identity.ts` |
 | Settings domain | `worker/chat-agent/settings.ts`, `worker/settings-routes.ts`, `src/panels/SettingsPanel.tsx` |
 | Supabase | `worker/supabase.ts` |
+| Report series catalog | `worker/report-series.ts` — Settings Content toggles |
 | Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts` (+ `item_content_i18n` localize), `worker/report-keywords.ts`, `worker/market-date.ts` |
 | Market vectors | `worker/market-vector.ts`, `worker/market-vector-routes.ts` |
 | Market topic labels | `worker/market-labels.ts`, `worker/market-labels-routes.ts` |
@@ -156,3 +157,4 @@
 | 2026-09-12 | Tag lexicon from report metadata ([`WORK_NOTES_2` §14.4](./WORK_NOTES_2.md)) |
 | 2026-09-12 | Docs → `docs/` + [`ROUTING.md`](./ROUTING.md) 단일 소스 ([`WORK_NOTES_2` §17](./WORK_NOTES_2.md)) |
 | 2026-09-12 | Topic body labels B안 — A + B index ([`WORK_NOTES_2` §18](./WORK_NOTES_2.md)) |
+| 2026-09-14 | Settings Market Content (`report_series` + `disabled_report_series`) — A + ROUTING ([`WORK_NOTES_2` §19](./WORK_NOTES_2.md)) |

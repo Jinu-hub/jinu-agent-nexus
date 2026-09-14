@@ -29,6 +29,7 @@ worker/index.ts (HTTP Gateway)
  ├── POST /api/market-vector/query                 → 관심사 유사도 검색 (+ 필터) (§14.2)
  ├── POST /api/market-vector/clear                 → 해당 리포트 Vectorize 청크 삭제
  ├── POST /api/market-labels/resolve              → Tags/Keywords 본문 grounded 표시 라벨 (B안; body: force/skip_llm)
+ ├── GET  /api/report-series                      → report_series 카탈로그 (Settings Content 토글)
  ├── POST /api/upload                              → ChatAgent DO (PDF RAG 업로드)
  ├── GET  /screenshots/*                           → R2 Bucket (브라우저 스크린샷)
  ├── /agents/ChatAgent/default                     → ChatAgent (WebSocket + Think Chat)

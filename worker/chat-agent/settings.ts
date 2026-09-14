@@ -86,6 +86,11 @@ export type ChatSettings = {
   content_lang: ContentLang;
   /** Panel tab values omitted from the App tab strip (Settings always shown). */
   hidden_panels: ToggleablePanel[];
+  /**
+   * report_series.slug values the user opted out of.
+   * Active catalog rows default ON; inactive ("soon") rows are never usable.
+   */
+  disabled_report_series: string[];
   updated_at: string;
 };
 
@@ -98,6 +103,7 @@ export type ChatSettingsPatch = Partial<
     | "alarm_interval_seconds"
     | "content_lang"
     | "hidden_panels"
+    | "disabled_report_series"
   >
 >;
 
@@ -118,6 +124,7 @@ type StoredSettings = {
   alarm_interval_seconds: number;
   content_lang: string;
   hidden_panels: string;
+  disabled_report_series: string;
   updated_at: string;
 };
 
@@ -128,8 +135,30 @@ export const DEFAULT_CHAT_SETTINGS: ChatSettings = {
   alarm_interval_seconds: 60,
   content_lang: DEFAULT_CONTENT_LANG,
   hidden_panels: [],
+  disabled_report_series: [],
   updated_at: "",
 };
+
+/** Normalize slug list for disabled_report_series (unique, non-empty strings). */
+export function normalizeDisabledReportSeries(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const slug = item.trim();
+    if (!slug || seen.has(slug)) continue;
+    seen.add(slug);
+    out.push(slug);
+  }
+  out.sort((a, b) => a.localeCompare(b));
+  return out;
+}
+
+function sameStringList(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((id, i) => id === b[i]);
+}
 
 export function ensureSettings(agent: SqlAgentHost): void {
   void agent.sql`
@@ -146,6 +175,7 @@ export function ensureSettings(agent: SqlAgentHost): void {
       content_lang TEXT NOT NULL DEFAULT 'ko'
         CHECK (content_lang IN ('ko', 'en')),
       hidden_panels TEXT NOT NULL DEFAULT '[]',
+      disabled_report_series TEXT NOT NULL DEFAULT '[]',
       updated_at TEXT NOT NULL
     )
   `;
@@ -173,6 +203,12 @@ export function ensureSettings(agent: SqlAgentHost): void {
       ADD COLUMN hidden_panels TEXT NOT NULL DEFAULT '[]'
     `;
   }
+  if (!columns.some((col) => col.name === "disabled_report_series")) {
+    void agent.sql`
+      ALTER TABLE settings
+      ADD COLUMN disabled_report_series TEXT NOT NULL DEFAULT '[]'
+    `;
+  }
   void agent.sql`
     INSERT OR IGNORE INTO settings (
       id,
@@ -182,6 +218,7 @@ export function ensureSettings(agent: SqlAgentHost): void {
       alarm_interval_seconds,
       content_lang,
       hidden_panels,
+      disabled_report_series,
       updated_at
     )
     VALUES (
@@ -191,6 +228,7 @@ export function ensureSettings(agent: SqlAgentHost): void {
       300,
       60,
       ${DEFAULT_CONTENT_LANG},
+      '[]',
       '[]',
       ${new Date().toISOString()}
     )
@@ -208,12 +246,19 @@ export function getSettings(agent: SqlAgentHost): ChatSettings {
       alarm_interval_seconds,
       content_lang,
       hidden_panels,
+      disabled_report_series,
       updated_at
     FROM settings
     WHERE id = 1
   `[0];
 
-  if (!row) return { ...DEFAULT_CHAT_SETTINGS, hidden_panels: [] };
+  if (!row) {
+    return {
+      ...DEFAULT_CHAT_SETTINGS,
+      hidden_panels: [],
+      disabled_report_series: [],
+    };
+  }
   return fromStored(row);
 }
 
@@ -229,6 +274,7 @@ export function updateSettings(
     "alarm_interval_seconds",
     "content_lang",
     "hidden_panels",
+    "disabled_report_series",
   ]);
   for (const name of Object.keys(patch)) {
     if (!allowedNames.has(name as keyof ChatSettingsPatch)) {
@@ -244,6 +290,10 @@ export function updateSettings(
       patch.hidden_panels !== undefined
         ? normalizeHiddenPanels(patch.hidden_panels)
         : current.hidden_panels,
+    disabled_report_series:
+      patch.disabled_report_series !== undefined
+        ? normalizeDisabledReportSeries(patch.disabled_report_series)
+        : current.disabled_report_series,
     updated_at: new Date().toISOString(),
   };
 
@@ -256,10 +306,17 @@ export function updateSettings(
     "alarm_interval_seconds",
     "content_lang",
     "hidden_panels",
+    "disabled_report_series",
   ];
   const changed = settingNames.filter((name) => {
     if (name === "hidden_panels") {
       return !sameHiddenPanels(current.hidden_panels, next.hidden_panels);
+    }
+    if (name === "disabled_report_series") {
+      return !sameStringList(
+        current.disabled_report_series,
+        next.disabled_report_series,
+      );
     }
     return current[name] !== next[name];
   });
@@ -275,6 +332,7 @@ export function updateSettings(
       alarm_interval_seconds = ${next.alarm_interval_seconds},
       content_lang = ${next.content_lang},
       hidden_panels = ${JSON.stringify(next.hidden_panels)},
+      disabled_report_series = ${JSON.stringify(next.disabled_report_series)},
       updated_at = ${next.updated_at}
     WHERE id = 1
   `;
@@ -316,11 +374,17 @@ export function listSettingEvents(
 }
 
 function fromStored(row: StoredSettings): ChatSettings {
-  let parsed: unknown = [];
+  let parsedPanels: unknown = [];
   try {
-    parsed = JSON.parse(row.hidden_panels || "[]");
+    parsedPanels = JSON.parse(row.hidden_panels || "[]");
   } catch {
-    parsed = [];
+    parsedPanels = [];
+  }
+  let parsedSeries: unknown = [];
+  try {
+    parsedSeries = JSON.parse(row.disabled_report_series || "[]");
+  } catch {
+    parsedSeries = [];
   }
   return {
     alarm_enabled: row.alarm_enabled === 1,
@@ -330,7 +394,8 @@ function fromStored(row: StoredSettings): ChatSettings {
     content_lang: isContentLang(row.content_lang)
       ? row.content_lang
       : DEFAULT_CONTENT_LANG,
-    hidden_panels: normalizeHiddenPanels(parsed),
+    hidden_panels: normalizeHiddenPanels(parsedPanels),
+    disabled_report_series: normalizeDisabledReportSeries(parsedSeries),
     updated_at: row.updated_at,
   };
 }
@@ -363,6 +428,14 @@ function validateSettings(settings: ChatSettings): void {
   for (const id of settings.hidden_panels) {
     if (!isToggleablePanel(id)) {
       throw new Error(`hidden_panels contains unknown panel: ${String(id)}`);
+    }
+  }
+  if (!Array.isArray(settings.disabled_report_series)) {
+    throw new Error("disabled_report_series must be an array");
+  }
+  for (const slug of settings.disabled_report_series) {
+    if (typeof slug !== "string" || !slug.trim()) {
+      throw new Error("disabled_report_series must contain non-empty strings");
     }
   }
 }

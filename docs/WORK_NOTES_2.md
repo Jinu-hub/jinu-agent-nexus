@@ -532,3 +532,52 @@ curl -s 'http://localhost:5173/memory/topic-labels' | head
 
 ---
 
+## 19. Settings — Market Content (`report_series` + `disabled_report_series`)
+
+* **목적:** Settings에 **Market** 블록을 두고, Supabase `report_series` 카탈로그로 **쓸 콘텐츠 on/off**를 고른다. 기존 `content_lang`은 같은 블록의 **Language**로 이동. `is_active=false` 시리즈는 토글 불가 + `soon` 뱃지.
+* **ROUTING 반영:** `GET /api/report-series`
+* **저장:** ChatAgent DO SQLite `disabled_report_series` (JSON slug 배열, opt-out; 활성 카탈로그 기본 ON)
+
+| 소절 | 내용 |
+|------|------|
+| **19.1** | 카탈로그 API + settings 컬럼 + Settings UI |
+| **19.2** | weekly + daily market issues → 하나의 Content 토글 |
+
+### 19.1 Phase *(완료)*
+
+* **수정 및 추가 파일:**
+  * `worker/report-series.ts` *(신규)* — `listReportSeries` + `GET /api/report-series` (service_role)
+  * `worker/index.ts` — 라우트 체인
+  * `worker/chat-agent/settings.ts` — `disabled_report_series` 컬럼·patch·validate (PRAGMA migrate)
+  * `src/panels/SettingsPanel.tsx` — Market → Content / Language UI
+  * `src/App.tsx` — `toggleReportSeries` → `updateSettings`
+  * docs: `ROUTING.md`, `WORK_NOTES_2.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `MERGE_STRATEGY.md`
+* **확인:**
+
+```bash
+curl -s http://localhost:5173/api/report-series | jq .
+# items: weekly-ai-issues, weekly-market-issues (active) + daily-* (is_active false)
+
+# opt-out one active series
+curl -s -X PATCH http://localhost:5173/settings \
+  -H 'content-type: application/json' \
+  -d '{"disabled_report_series":["weekly-ai-issues"]}'
+```
+
+* UI: Settings → Market → Content 토글; daily 행은 `soon` + switch disabled
+* **의도적으로 안 함:** prefetch/tools가 `disabled_report_series`를 아직 필터하지 않음 (후속 지시용 설정만)
+
+### 19.2 Market issues 그룹 *(완료)*
+
+* **목적:** `weekly-market-issues` + `daily-market-issues`를 Settings Content에서 **한 스위치**로 취급
+* **수정 및 추가 파일:**
+  * `worker/report-series.ts` — `groupReportSeriesForSettings` / `groups` 응답 필드
+  * `src/panels/SettingsPanel.tsx` — groups 렌더; 토글 시 slug 배열
+  * `src/App.tsx` — `toggleReportSeries(slugs[])`
+* **표시:** 제목 `Market Issues Report`, detail에 두 slug; KR은 `Market Issues Report (KR)` (soon)
+* **저장:** off 시 두 slug 모두 `disabled_report_series`에 추가, on 시 둘 다 제거
+* **확인:** `curl -s http://localhost:5173/api/report-series | jq '.groups'`
+* **의도적으로 안 함:** DB 스키마 병합 / prefetch 필터
+
+---
+

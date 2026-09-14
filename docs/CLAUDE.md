@@ -136,6 +136,7 @@ worker/
   memory-routes.ts     HTTP routes → MyMemory
   live-market-room.ts  Market Pulse poll room Agent — state + vote log
   supabase.ts          Supabase client factory + `/api/supabase/health`
+  report-series.ts     report_series catalog (`/api/report-series`) for Settings Content
   content-briefs.ts    content_briefs today read (`/api/briefs/today`)
   item-contents.ts     item_contents full report (`/api/reports/today` via brief.target_id; `item_content_i18n` by lang)
   market-vector.ts     Market report → MARKET_VECTOR_DB ingest (§14)
@@ -201,7 +202,8 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today` + `GET /api/briefs/latest-date`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`; omit date = data-backed latest) |
 | Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today`; primary `item_contents` + `item_content_i18n` overlay when `lang` ≠ primary `lang_code`; chat tool `getTodayMarketReport.ts` (excerpt + compact `keywords` via `report-keywords.ts`; lang = Settings `content_lang`) |
 | Market panel (sidebar) | `MarketPanel.tsx` + `ReportReader.tsx` + `report-topics.tsx` + `MyInterestsFold.tsx` + `BriefForYou.tsx` + `src/lib/market-date.ts` + `src/lib/market-tag-lexicon.ts` (display/expand from `metadata.tags.core` + `metadata.entities` + `topic_labels`; Ask 「」 uses display, save/target stays slug/name); Topics chips/Keywords in `report-topics.tsx` (re-exported by ReportReader); off-switches unchanged; wired in `App.tsx` |
-| ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) + `hidden_panels` (tab strip); UI `src/panels/SettingsPanel.tsx`; App filters `PANELS` |
+| ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) + `hidden_panels` (tab strip) + `disabled_report_series` (Market content opt-out); UI `src/panels/SettingsPanel.tsx` (Market → Content / Language); App filters `PANELS` |
+| report_series catalog | `worker/report-series.ts` → `GET /api/report-series` (+ `groups`: weekly+daily market issues 한 토글; service_role) |
 | Market Memory intent | `market-turn-hooks.ts` + `market-intent.ts` + `market-prefetch.ts` + `market-vector-search.ts` + `soul-market.ts` + `market-memory-load.ts` — prefetch (`toolChoice: none`); 「keyword」 → `vectorSearch` (expand via report tag lexicon); ★ `interestHits` string match; beforeStep fallback for weather / no prefetch |
 | Voice audio pipeline | `content-audio.ts` barrel + `content-audio-domain.ts` / `content-audio-routes.ts` + `voice-audio-cron.ts` (UTC `0 0` + catch-up `0 1`) → `/api/audio/*`; today play + tool `getTodayMarketVoice.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |

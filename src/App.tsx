@@ -259,6 +259,19 @@ export default function App() {
     [settings?.hidden_panels, updateSettings],
   );
 
+  const toggleReportSeries = useCallback(
+    async (slugs: string[], enabled: boolean) => {
+      if (slugs.length === 0) return;
+      const current = settings?.disabled_report_series ?? [];
+      const slugSet = new Set(slugs);
+      const nextDisabled = enabled
+        ? current.filter((id) => !slugSet.has(id))
+        : Array.from(new Set([...current, ...slugs]));
+      await updateSettings({ disabled_report_series: nextDisabled });
+    },
+    [settings?.disabled_report_series, updateSettings],
+  );
+
   // ─── Render ────────────────────────────────────────────────────────────
   return (
     <div className="relative isolate flex h-full overflow-hidden">
@@ -396,6 +409,7 @@ export default function App() {
                 updateSettings({ content_lang: lang })
               }
               onTogglePanelVisibility={togglePanelVisibility}
+              onToggleReportSeries={toggleReportSeries}
             />
           </TabsContent>
         </Tabs>
