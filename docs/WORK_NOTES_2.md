@@ -880,6 +880,12 @@ curl -sS -X POST http://localhost:5173/api/market/for-you \
   * `docs/CLAUDE.md` · `docs/ARCHITECTURE.md` — empty state 설명
 * **의도적으로 안 함:** Market 패널 칩 목록 축소; 랜딩 페이지 분리; DO Alarms 줄을 스택에 추가(요청 목록에 없음)
 
+### 28.1 BrandMark — A → L *(완료)*
+
+* **목적:** boilerplate `A` 글리프를 LYRA 이니셜 **L** stroke로 교체. 리라 실루엣은 헤더 크기에서 A처럼 보여 폐기.
+* **수정 파일:** `src/chat/Chat.tsx` — `BrandMark` SVG (L + Vega 크로스); `index.html` favicon 동일 글리프
+* **의도적으로 안 함:** 별도 로고 에셋; 리라 마크 재시도 (헤더에서 A처럼 보임)
+
 ## 29. Market vector ingest Cron *(완료)*
 
 * **목적:** Settings ON 시리즈의 **전날 UTC** 리포트를 매일 `MARKET_VECTOR_DB`에 배치 ingest. Voice(00:00/01:00) 직후 5분.

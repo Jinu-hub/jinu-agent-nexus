@@ -80,9 +80,11 @@ export function Chat({
 // Monochrome bordered square, no gradients. Same glyph reused at small
 // (header) and large (empty-state) sizes — purely a current-color
 // stroke so it inverts cleanly between light/dark.
+// Glyph: geometric L (LYRA) — readable at header size; lyre was too vague.
 function BrandMark({ size = "sm" }: { size?: "sm" | "lg" }) {
   const box = size === "lg" ? "size-12" : "size-7";
   const stroke = size === "lg" ? 2.2 : 2.4;
+
   return (
     <div
       className={`${box} grid place-items-center rounded-md border border-border bg-card text-foreground`}
@@ -94,10 +96,15 @@ function BrandMark({ size = "sm" }: { size?: "sm" | "lg" }) {
         strokeWidth={stroke}
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="size-[58%]"
+        className="size-[62%]"
         aria-hidden="true"
       >
-        <path d="M10 22 L16 8 L22 22 M12.5 17 H19.5" />
+        {/* L */}
+        <path d="M10 8 V23 H21" />
+
+        {/* Vega / star */}
+        <path d="M22 7 V11" />
+        <path d="M20 9 H24" />
       </svg>
     </div>
   );
