@@ -24,6 +24,7 @@ import {
   RefreshCw,
   TrendingDown,
   TrendingUp,
+  Volume2,
 } from "lucide-react";
 
 import type { ChatAgent } from "../../worker/chat-agent";
@@ -52,9 +53,22 @@ type BriefItem = {
   metadata: unknown;
 };
 
+type VoiceSlot = {
+  playPath: string;
+  item: {
+    title: string | null;
+    duration_seconds: number | null;
+    lang_code: string;
+  };
+};
+
 type MarketDayResponse = {
   ok?: boolean;
-  slots?: Array<{ seriesId: string; brief: BriefItem | null }>;
+  slots?: Array<{
+    seriesId: string;
+    brief: BriefItem | null;
+    voice: VoiceSlot | null;
+  }>;
   message?: string;
 };
 
@@ -73,6 +87,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
   );
   const [latestDate, setLatestDate] = useState<string | null>(null);
   const [brief, setBrief] = useState<BriefItem | null>(null);
+  const [voice, setVoice] = useState<VoiceSlot | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -146,8 +161,10 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
           throw new Error(json.message || `market/day HTTP ${res.status}`);
         }
         setBrief(json.slots?.[0]?.brief ?? null);
+        setVoice(json.slots?.[0]?.voice ?? null);
       } catch (err) {
         setBrief(null);
+        setVoice(null);
         setError(err instanceof Error ? err.message : "Failed to load brief");
       } finally {
         setLoading(false);
@@ -380,6 +397,9 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                     .join(" · ")}
                 </p>
 
+                {/* Voice lags the brief — the daily TTS cron fills it in later. */}
+                {voice ? <VoicePlayer voice={voice} /> : null}
+
                 {lead.map((paragraph, i) => (
                   <p
                     key={i}
@@ -470,6 +490,31 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
           />
         </aside>
       ) : null}
+    </div>
+  );
+}
+
+function VoicePlayer({ voice }: { voice: VoiceSlot }) {
+  const { playPath, item } = voice;
+  const duration =
+    item.duration_seconds != null ? `${item.duration_seconds}s` : null;
+
+  return (
+    <div className="mt-6 rounded-xl border border-border bg-card px-4 py-3">
+      <div className="flex items-center gap-2">
+        <Volume2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+        <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
+          Listen
+        </span>
+        <span className="ml-auto shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
+          {[duration, item.lang_code].filter(Boolean).join(" · ")}
+        </span>
+      </div>
+      <audio className="mt-2.5 w-full" controls preload="metadata" src={playPath}>
+        <a href={playPath} target="_blank" rel="noreferrer">
+          Download MP3
+        </a>
+      </audio>
     </div>
   );
 }

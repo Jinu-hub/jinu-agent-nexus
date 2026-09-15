@@ -155,7 +155,7 @@ in `Message.tsx` → then server `execute` runs.
 | Report series catalog | Settings → Market Content; `GET /api/report-series` | `worker/report-series.ts`; opt-out in ChatAgent `disabled_report_series` | Supabase `report_series` |
 | Market day (multi-series) | `GET /api/market/day`, `/api/market/latest-date` | `worker/market-day.ts` — `market_memory_items` + enabled `series_id` | Same-day tabs in Market panel when 2+ slots |
 | Market panel | Market tab | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `src/lib/market-suggestions.ts` | `/api/market/day` + per-series tabs + wide reader modal + TOC |
-| Report page | `/<report_series.slug>` page | `src/reports/ReportSurface.tsx`, `ReportChat.tsx`, `src/lib/report-pages.ts`, `src/lib/brief-format.ts` | Full-frame Brief article from `/api/market/day`; template reads `metadata` (`pulse` / `highlights` / `market_reaction` / `takeaway`); side chat scoped via `market_focus_series_id` |
+| Report page | `/<report_series.slug>` page | `src/reports/ReportSurface.tsx`, `ReportChat.tsx`, `src/lib/report-pages.ts`, `src/lib/brief-format.ts` | Full-frame Brief article from `/api/market/day`; template reads `metadata` (`pulse` / `highlights` / `market_reaction` / `takeaway`); voice player when the slot has one; side chat scoped via `market_focus_series_id` |
 | Browser | Browser | `navigate.ts`, `screenshot.ts`, Puppeteer | Remote browser session + R2 screenshots |
 | Schedules | Schedules | `setReminder.ts`, DO alarms | DO schedule store |
 | Runtime tools | Extensions | `load_extension`, `worker_loaders` | Sandboxed worker per extension |
@@ -287,7 +287,7 @@ previous-day `market_date` drain — empty pending is a no-op).
 | Path | Role |
 |------|------|
 | `src/main.tsx` | React entry — pathname switch (`/live`, `/<report-series-slug>`, else shell) |
-| `src/reports/ReportSurface.tsx` | Standalone report reading page (Brief article) |
+| `src/reports/ReportSurface.tsx` | Standalone report reading page (Brief article + voice player) |
 | `src/App.tsx` | Layout, `useAgent`, panel tabs (`hidden_panels` filter), Settings Market content toggles, theme |
 | `src/chat/Chat.tsx` | Shell chat — header, empty state, composes `ChatParts` |
 | `src/chat/ChatParts.tsx` | Transcript + composer shared by shell and report pages |

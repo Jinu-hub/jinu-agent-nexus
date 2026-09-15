@@ -761,5 +761,26 @@ curl -s http://localhost:5173/settings | jq -r .market_focus_series_id
   * `/` 채팅 쉘 회귀 없음 (ChatParts 분리 후)
 * **의도적으로 안 함:** 리포트 본문에서 드래그 → 질문; 페이지 이탈 시 `market_focus_series_id` 복원; 채팅 열림 상태 기억; Voice / 풀리포트 섹션
 
+### 26.4 Phase 3 — Voice 재생 UI *(완료)*
+
+* **목적:** 그 날짜에 보이스가 있으면 아티클 안에서 바로 듣기. **있을 때만** 표시하고, 없으면 자리 표시자·안내 없이 아무것도 그리지 않는다 (Market 패널의 `EmptyHint`와 다른 선택 — 리딩 화면은 빈 섹션을 두지 않는다).
+* **데이터 소스:** 추가 요청 없음. Brief를 가져오는 `GET /api/market/day`의 같은 slot에 `voice: { playPath, item { title, duration_seconds, lang_code } }`가 이미 들어온다. `slots[0].voice`를 brief와 함께 상태에 담는다.
+* **위치:** 메타 라인(`날짜 · brief_type · lang`) 바로 아래, 리드 문단 위. Brief가 있을 때만 그리는 블록 안이라 "Nothing published" 상태에서는 자연히 안 보인다.
+* **플레이어:** Market 패널·채팅 말풍선과 같은 네이티브 `<audio controls preload="metadata">` (fallback `Download MP3` 링크). 감싸는 카드만 warm 톤 — `rounded-xl border bg-card`, 주황 `LISTEN` 라벨, 우측에 `54s · ko`.
+* **수정 및 추가 파일:**
+  * `src/reports/ReportSurface.tsx` — `VoiceSlot` 타입, `voice` 상태(브리프 로드/에러 시 동시 갱신), `VoicePlayer` 컴포넌트
+
+* **확인:**
+
+```bash
+curl -s "http://localhost:5173/api/market/day?date=2026-09-11&lang=ko\
+&series_id=596797cb-3007-43b4-9c47-d19ee8991a78" | jq '.slots[0].voice.item'
+# → { "title": "글로벌 시장 이슈 (260911)", "duration_seconds": 54, "lang_code": "ko" }
+```
+
+  * `/daily-market-issues?date=2026-09-11` → `LISTEN` 카드 + `0:00 / 0:54` 렌더, 재생 OK
+  * 날짜 이동(← `2026-09-10`) → `audio[src]`가 해당 날짜 파일로 교체됨 (48767178-… )
+* **의도적으로 안 함:** 커스텀 트랜스포트(배속/스크럽/파형); 자동 재생; 보이스 없을 때 "Voice pending" 안내; 하이라이트별 구간 점프; 채팅 답변의 보이스와 상태 공유
+
 ---
 
