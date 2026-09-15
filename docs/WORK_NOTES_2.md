@@ -843,5 +843,21 @@ curl -sS -X POST http://localhost:5173/api/market/for-you \
 
 * **의도적으로 안 함:** 스트리밍 생성(현재 blocking + 캐시); 요약 문장 → 본문 위치 점프; 관심사 가중치/정렬 UI; `no-match`일 때 웹 검색으로 보강; 미인덱스 날짜 자동 ingest; 시리즈 간 관심사 분리
 
+### 26.6 전문 섹션 점프 *(완료)*
+
+* **목적:** 풀리포트 `##` 섹션(하이라이트 · 주요 항목 · …)이 길어서, 전문 탭 상단에 칩으로 바로 이동.
+* **재사용:** 패널 `ReportReader`의 `extractReportSections` / `ReportToc` / `jumpToSection`. 스크롤 컨테이너는 페이지 `main`이고, `scrollIntoView`가 조상 overflow를 따라가므로 TOC 래퍼 ref만 넘기면 된다. sticky 헤더용 `scroll-mt-28`.
+* **표시 조건:** 섹션 ≥2개일 때만 (1개면 칩이 거추장스러움).
+* **수정 파일:** `src/reports/ReportFullText.tsx`
+* **의도적으로 안 함:** sticky TOC; URL hash (`#하이라이트`) 동기화
+
+### 26.7 전문 ↑ 플로팅 *(완료)*
+
+* **목적:** 전문 탭에서 본문을 내려 읽다 보면 다시 올라가려면 오래 스크롤해야 해서, 일정 거리(`scrollTop > 480`) 이후 ↑ 버튼을 띄운다.
+* **범위:** `activeTab === "full"`일 때만. 브리프·나를 위한 요약은 짧아서 숨김.
+* **위치:** 리딩 컬럼(`relative`) 안 `absolute bottom-5 right-5` — 채팅 사이드가 열려도 뷰포트 fixed가 채팅 아래로 깔리지 않게.
+* **수정 파일:** `src/reports/ReportSurface.tsx`
+* **의도적으로 안 함:** 진행률 링; 채팅 오버레이와 위치 충돌 회피 애니메이션
+
 ---
 

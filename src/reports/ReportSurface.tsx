@@ -17,10 +17,11 @@
 //   POST /api/market/for-you     → personalized summary (ReportForYou)
 // ─────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgent } from "agents/react";
 import {
   ArrowLeft,
+  ArrowUp,
   ChevronLeft,
   ChevronRight,
   LoaderCircle,
@@ -51,6 +52,7 @@ import {
   shiftYmd,
 } from "@/lib/market-date";
 import type { ReportPage } from "@/lib/report-pages";
+import { fetchTopicLabels } from "@/lib/topic-preference";
 import { cn } from "@/lib/utils";
 
 type BriefItem = {
@@ -77,6 +79,9 @@ type ReportItem = {
   title: string | null;
   content: string | null;
   summary: string | null;
+  report_type: string | null;
+  lang_code: string | null;
+  market_date: string | null;
   tags: unknown;
   countries: unknown;
   regions: unknown;
@@ -128,10 +133,16 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
   const [error, setError] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [tab, setTab] = useState<TabId>(isTabId(tabParam) ? tabParam : "brief");
+  const [topicLabelMap, setTopicLabelMap] = useState<Record<
+    string,
+    string
+  > | null>(null);
   const [pendingAsk, setPendingAsk] = useState<{
     text: string;
     nonce: number;
   } | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
 
   // Topic chip → chat. Opening the panel is part of the action; a prompt
   // sent into a hidden column would look like nothing happened.
@@ -286,6 +297,23 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
       });
   }, [series, agent.stub]);
 
+  // Same body-grounded map Topics uses — metadata.tags.core often has no
+  // label_ko, so the header would otherwise show raw slugs.
+  useEffect(() => {
+    if (!lang) return;
+    let active = true;
+    void fetchTopicLabels(undefined, lang)
+      .then((map) => {
+        if (active) setTopicLabelMap(map);
+      })
+      .catch(() => {
+        if (active) setTopicLabelMap(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [lang]);
+
   const parts = parseBriefParts(brief?.metadata);
   // Rows published before the structured metadata landed — read the prose.
   const fallback =
@@ -315,10 +343,40 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
     : [];
   // Tabs are depths of the same day; without a report only the brief exists.
   const activeTab: TabId = hasReport ? tab : "brief";
+  const metaKind =
+    activeTab === "full"
+      ? (report?.report_type ?? "full-report")
+      : activeTab === "for-you"
+        ? "for-you"
+        : (brief?.brief_type ?? null);
+  const metaDate =
+    activeTab === "full"
+      ? (report?.market_date ?? brief?.market_date ?? date)
+      : (brief?.market_date ?? date);
+  const metaLang =
+    activeTab === "full"
+      ? (report?.lang_code ?? brief?.lang_code ?? lang)
+      : (brief?.lang_code ?? lang);
+
+  // Full report is long — surface a back-to-top once the reader has scrolled
+  // past the voice/tabs chrome. Other tabs stay short enough without it.
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el || activeTab !== "full") {
+      setShowScrollTop(false);
+      return;
+    }
+    const onScroll = () => {
+      setShowScrollTop(el.scrollTop > 480);
+    };
+    onScroll();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [activeTab, date]);
 
   return (
     <div className="report-warm flex h-full bg-background text-foreground">
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 border-b border-border bg-background/90 backdrop-blur">
           <div className="mx-auto flex w-full max-w-3xl items-center gap-2.5 px-6 py-3">
             <a
@@ -430,7 +488,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto">
+        <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto">
           <article className="mx-auto w-full max-w-3xl px-6 py-12">
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-primary">
               {page.eyebrow}
@@ -463,13 +521,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                 </h1>
 
                 <p className="mt-4 font-mono text-[11px] tracking-wide text-muted-foreground">
-                  {[
-                    brief?.market_date ?? date,
-                    brief?.brief_type,
-                    brief?.lang_code ?? lang,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {[metaDate, metaKind, metaLang].filter(Boolean).join(" · ")}
                 </p>
 
                 {/* What the day is about, at a glance. The starrable chips
@@ -478,7 +530,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                   <p className="mt-3 flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
                     {tags.map((tag) => (
                       <span key={tag} className="whitespace-nowrap">
-                        #{topicDisplayLabel(tag, tagLexicon)}
+                        #{topicDisplayLabel(tag, tagLexicon, topicLabelMap)}
                       </span>
                     ))}
                   </p>
@@ -495,10 +547,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                 />
 
                 {activeTab === "full" ? (
-                  <ReportFullText
-                    content={report?.content ?? ""}
-                    className="mt-8"
-                  />
+                  <ReportFullText content={report?.content ?? ""} />
                 ) : activeTab === "for-you" ? (
                   series && date && lang ? (
                     <ReportForYou
@@ -527,6 +576,32 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
             ) : null}
           </article>
         </main>
+
+        {showScrollTop ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-6">
+            <div className="relative w-full max-w-3xl">
+              <button
+                type="button"
+                onClick={() => {
+                  mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className={cn(
+                  // Sit in the gutter just past the article — not on the glyphs,
+                  // and not against the far column edge.
+                  "pointer-events-auto absolute bottom-0 left-full ml-3",
+                  "flex h-10 w-10 items-center justify-center",
+                  "rounded-full border border-border bg-card text-foreground shadow-md",
+                  "hover:border-primary/40 hover:text-primary",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                )}
+                title="맨 위로"
+                aria-label="맨 위로"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {chatOpen ? (

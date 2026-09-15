@@ -290,7 +290,7 @@ previous-day `market_date` drain — empty pending is a no-op).
 | `src/main.tsx` | React entry — pathname switch (`/live`, `/<report-series-slug>`, else shell) |
 | `src/reports/ReportSurface.tsx` | Standalone report reading page — voice player + three depth tabs |
 | `src/reports/ReportForYou.tsx` | "나를 위한 요약" tab — personalized summary + star chips that retune it |
-| `src/reports/ReportFullText.tsx` | Full report markdown at article typography (panel's `ReportArticle` is sidebar-sized) |
+| `src/reports/ReportFullText.tsx` | Full report markdown at article typography + section jump chips (`ReportToc`) |
 | `src/App.tsx` | Layout, `useAgent`, panel tabs (`hidden_panels` filter), Settings Market content toggles, theme |
 | `src/chat/Chat.tsx` | Shell chat — header, empty state, composes `ChatParts` |
 | `src/chat/ChatParts.tsx` | Transcript + composer shared by shell and report pages |
