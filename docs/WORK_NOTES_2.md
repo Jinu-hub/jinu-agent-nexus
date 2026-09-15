@@ -869,7 +869,16 @@ curl -sS -X POST http://localhost:5173/api/market/for-you \
   * `src/reports/ReportSurface.tsx` — `/` 백링크는 목적지 명확히 `Home` (브랜드명만 두면 모호)
   * `docs/CLAUDE.md` — Product brand vs Worker/package 구분
   * `docs/ARCHITECTURE.md` — UI layout 다이어그램 헤더
-* **의도적으로 안 함:** `wrangler.jsonc` / `package.json` / GitHub remote rename; 빈 상태 카피 전면 리라이트; Market Pulse 룸 이름 변경
+* **의도적으로 안 함:** `wrangler.jsonc` / `package.json` / GitHub remote rename; Market Pulse 룸 이름 변경
+
+## 28. 홈 빈 화면 — LYRA 소개 + 스택 *(완료)*
+
+* **목적:** 첫 채팅 화면에 제품 소개·Cloudflare 스택·짧은 질문 예시를 두어 “무엇하는 앱인지”가 바로 보이게.
+* **수정 파일:**
+  * `src/chat/Chat.tsx` — EmptyState: 소개 4문단 + 기술 스택 **표**(기술/용도) + `HOME_CHAT_SUGGESTIONS`
+  * `src/lib/market-suggestions.ts` — `HOME_CHAT_SUGGESTIONS` (risk / reportCore / keywords / voice)
+  * `docs/CLAUDE.md` · `docs/ARCHITECTURE.md` — empty state 설명
+* **의도적으로 안 함:** Market 패널 칩 목록 축소; 랜딩 페이지 분리; DO Alarms 줄을 스택에 추가(요청 목록에 없음)
 
 ---
 

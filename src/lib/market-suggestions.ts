@@ -62,6 +62,17 @@ export const MARKET_SUGGESTIONS: MarketSuggestion[] = [
   },
 ];
 
+/** Chat home empty state — a short subset so the intro stays scannable. */
+const HOME_CHAT_IDS = new Set([
+  "risk",
+  "reportCore",
+  "keywords",
+  "voice",
+]);
+
+export const HOME_CHAT_SUGGESTIONS: MarketSuggestion[] =
+  MARKET_SUGGESTIONS.filter((s) => HOME_CHAT_IDS.has(s.id));
+
 /**
  * Report page chat — prompts pinned to the day being read.
  *

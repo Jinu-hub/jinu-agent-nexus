@@ -19,7 +19,7 @@ import { useAgentChat } from "@cloudflare/ai-chat/react";
 import { Trash2, RotateCcw, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { MARKET_SUGGESTIONS } from "@/lib/market-suggestions";
+import { HOME_CHAT_SUGGESTIONS } from "@/lib/market-suggestions";
 import {
   ChatComposer,
   ChatMessageList,
@@ -166,28 +166,90 @@ function Header({
 }
 
 // ─── Empty state — shown before the first message ───────────────────────
-// Monochrome mark + a blinking terminal caret after the prompt. The
-// caret is the only animated element, and it's calm enough to fade
-// out of attention once the user starts reading.
+// Product intro + Cloudflare stack notes + a few starter prompts. Longer
+// than the old one-liner, so the list stays short and the column is wider.
+const INTRO_PARAS = [
+  "LYRA는 매일 쏟아지는 많은 정보 속에서 자신에게 필요한 내용을 일일이 찾아보기 어려운 사람을 위한 개인화 정보 서비스입니다.",
+  "현재는 글로벌 시장과 AI 관련 주요 이슈를 짧고 쉽게 정리해 보여주고, 사용자가 등록한 관심 키워드와 태그를 기준으로 관련 내용을 따로 요약해 제공합니다.",
+  "앞으로는 국내 이슈, 스포츠, 엔터테인먼트 등 보다 대중적인 분야로 콘텐츠를 확장하고, 사용자의 관심 키워드와 연결되는 심층 리포트가 발행될 경우 이를 추천하고 이어서 볼 수 있도록 하는 기능도 추가할 계획입니다.",
+  "궁극적으로는 사용자가 여러 뉴스와 콘텐츠를 직접 찾아다니지 않아도, 나에게 중요한 정보를 빠르게 발견하고 필요할 때 더 깊이 탐색할 수 있도록 하는 것이 LYRA의 목적입니다.",
+] as const;
+
+const TECH_STACK = [
+  {
+    name: "Workers AI",
+    detail: "임베딩 / For you 요약 LLM / Voice TTS / topic label 보강",
+  },
+  {
+    name: "Vectorize",
+    detail: "마켓 리포트 청크 검색 (ingest · keyword · For you 근거)",
+  },
+  {
+    name: "R2",
+    detail: "Voice 오디오 저장·재생 (AUDIO_BUCKET)",
+  },
+  {
+    name: "Cron Triggers",
+    detail:
+      "일일 Voice TTS + Market vector ingest (각 catch-up 포함)",
+  },
+  {
+    name: "Durable Objects (SQLite)",
+    detail: "ChatAgent 설정 · MyMemory(관심사/라벨/for-you 캐시)",
+  },
+  {
+    name: "Workers RPC / HTTP routes",
+    detail: "settings RPC · /api/market/* · /api/audio/* · /memory/*",
+  },
+] as const;
+
 function EmptyState({ onPick }: { onPick: (text: string) => void }) {
   return (
-    <div className="mx-auto flex max-w-md flex-col items-start gap-6 py-16 animate-fade-up [animation-delay:280ms]">
+    <div className="mx-auto flex w-full max-w-xl flex-col items-start gap-8 py-10 animate-fade-up [animation-delay:280ms]">
       <BrandMark size="lg" />
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold tracking-tight">
-          Ready when you are
-          <span className="ml-1 inline-block h-[1em] w-[0.5em] translate-y-[0.15em] bg-foreground animate-caret" />
+
+      <section className="space-y-3 self-stretch">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+          소개
         </h2>
-        <p className="text-sm text-muted-foreground">
-          Chat interprets Market Memory. Full brief text and voice live in
-          the Market tab.
-        </p>
-      </div>
+        <div className="space-y-3 text-sm leading-relaxed text-foreground/80">
+          {INTRO_PARAS.map((p) => (
+            <p key={p.slice(0, 24)}>{p}</p>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-3 self-stretch">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+          기술 스택
+        </h2>
+        <div className="overflow-x-auto self-stretch">
+          <table className="w-full border-collapse text-left text-[11px] leading-snug">
+            <thead>
+              <tr className="border-b border-border text-muted-foreground">
+                <th className="py-2 pr-4 font-semibold tracking-wide">기술</th>
+                <th className="py-2 font-semibold tracking-wide">용도</th>
+              </tr>
+            </thead>
+            <tbody className="font-mono text-muted-foreground">
+              {TECH_STACK.map((row) => (
+                <tr key={row.name} className="border-b border-border/70 align-top">
+                  <td className="whitespace-nowrap py-2.5 pr-4 text-foreground/85">
+                    {row.name}
+                  </td>
+                  <td className="py-2.5">{row.detail}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <div className="flex flex-col items-stretch gap-2 self-stretch">
-        <p className="text-[11px] font-medium tracking-wide text-muted-foreground">
-          Market Memory · 이렇게 물어보세요
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+          이렇게 물어보세요
         </p>
-        {MARKET_SUGGESTIONS.map((s) => (
+        {HOME_CHAT_SUGGESTIONS.map((s) => (
           <button
             key={s.id}
             type="button"

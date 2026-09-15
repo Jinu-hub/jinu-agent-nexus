@@ -292,7 +292,7 @@ previous-day `market_date` drain — empty pending is a no-op).
 | `src/reports/ReportForYou.tsx` | "나를 위한 요약" tab — personalized summary + star chips that retune it |
 | `src/reports/ReportFullText.tsx` | Full report markdown at article typography + section jump chips (`ReportToc`) |
 | `src/App.tsx` | Layout, `useAgent`, panel tabs (`hidden_panels` filter), Settings Market content toggles, theme |
-| `src/chat/Chat.tsx` | Shell chat — header, empty state, composes `ChatParts` |
+| `src/chat/Chat.tsx` | Shell chat — header, LYRA intro empty state, composes `ChatParts` |
 | `src/chat/ChatParts.tsx` | Transcript + composer shared by shell and report pages |
 | `src/chat/Message.tsx` | Message rendering, tool UI, approvals |
 | `src/chat/Markdown.tsx` | Markdown in replies |
