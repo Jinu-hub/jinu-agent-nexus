@@ -155,7 +155,8 @@ in `Message.tsx` → then server `execute` runs.
 | Report series catalog | Settings → Market Content; `GET /api/report-series` | `worker/report-series.ts`; opt-out in ChatAgent `disabled_report_series` | Supabase `report_series` |
 | Market day (multi-series) | `GET /api/market/day`, `/api/market/latest-date` | `worker/market-day.ts` — `market_memory_items` + enabled `series_id` | Same-day tabs in Market panel when 2+ slots |
 | Market panel | Market tab | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `src/lib/market-suggestions.ts` | `/api/market/day` + per-series tabs + wide reader modal + TOC |
-| Report page | `/<report_series.slug>` page | `src/reports/ReportSurface.tsx`, `ReportChat.tsx`, `src/lib/report-pages.ts`, `src/lib/brief-format.ts` | Full-frame Brief article from `/api/market/day`; template reads `metadata` (`pulse` / `highlights` / `market_reaction` / `takeaway`); voice player when the slot has one; side chat scoped via `market_focus_series_id` |
+| Report page | `/<report_series.slug>` page | `src/reports/ReportSurface.tsx`, `ReportForYou.tsx`, `ReportFullText.tsx`, `ReportChat.tsx`, `src/lib/report-pages.ts`, `src/lib/brief-format.ts` | Full-frame reader on `/api/market/day`; three depth tabs (`?tab=` brief / `for-you` / `full`) with the voice player above them; brief template reads `metadata` (`pulse` / `highlights` / `market_reaction` / `takeaway`); side chat scoped via `market_focus_series_id` |
+| Report "For you" | `POST /api/market/for-you` | `worker/market-for-you.ts` + `for_you_summaries` in `worker/my-memory.ts` | Saved interests ∩ report keys → `queryMarketVectors` passages → one grounded LLM call per interest; cached on (item, lang, interest-set hash); replaces the Brief `includes()` taste in `src/lib/brief-for-you.ts` |
 | Browser | Browser | `navigate.ts`, `screenshot.ts`, Puppeteer | Remote browser session + R2 screenshots |
 | Schedules | Schedules | `setReminder.ts`, DO alarms | DO schedule store |
 | Runtime tools | Extensions | `load_extension`, `worker_loaders` | Sandboxed worker per extension |
@@ -287,7 +288,9 @@ previous-day `market_date` drain — empty pending is a no-op).
 | Path | Role |
 |------|------|
 | `src/main.tsx` | React entry — pathname switch (`/live`, `/<report-series-slug>`, else shell) |
-| `src/reports/ReportSurface.tsx` | Standalone report reading page (Brief article + voice player) |
+| `src/reports/ReportSurface.tsx` | Standalone report reading page — voice player + three depth tabs |
+| `src/reports/ReportForYou.tsx` | "나를 위한 요약" tab — personalized summary + star chips that retune it |
+| `src/reports/ReportFullText.tsx` | Full report markdown at article typography (panel's `ReportArticle` is sidebar-sized) |
 | `src/App.tsx` | Layout, `useAgent`, panel tabs (`hidden_panels` filter), Settings Market content toggles, theme |
 | `src/chat/Chat.tsx` | Shell chat — header, empty state, composes `ChatParts` |
 | `src/chat/ChatParts.tsx` | Transcript + composer shared by shell and report pages |

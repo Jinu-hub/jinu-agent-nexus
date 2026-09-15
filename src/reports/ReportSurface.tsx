@@ -3,14 +3,18 @@
 // ─────────────────────────────────────────────────────────────────────────
 //
 // Full-frame surface rendered instead of the chat shell (see src/main.tsx).
-// First pass: Brief only, laid out as an article. Voice, full report and
-// chat come later.
 //
-// No agent connection — it reads the same HTTP APIs as the Market panel:
-//   GET /settings               → content_lang (unless `?lang=` overrides)
-//   GET /api/report-series      → slug → series row
-//   GET /api/market/latest-date → newest market_date for that series
-//   GET /api/market/day         → brief for one market_date
+// Three tabs, one axis — how deeply you want to read the same day:
+//   30초 브리프 → 나를 위한 요약 (interests × report) → 전문
+// Voice sits *above* the tabs: it is the day's asset, not a depth, and a
+// player inside a tab panel would unmount (and stop playing) on switch.
+//
+// It reads the same HTTP APIs as the Market panel:
+//   GET  /settings               → content_lang (unless `?lang=` overrides)
+//   GET  /api/report-series      → slug → series row
+//   GET  /api/market/latest-date → newest market_date for that series
+//   GET  /api/market/day         → brief + voice + full report for one day
+//   POST /api/market/for-you     → personalized summary (ReportForYou)
 // ─────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from "react";
@@ -33,7 +37,13 @@ import { isContentLang } from "../../worker/chat-agent/settings";
 import type { ReportSeriesRow } from "../../worker/report-series";
 import { DEFAULT_INSTANCE_NAME } from "@/lib/agent-identity";
 import { ReportChat } from "./ReportChat";
+import { ReportForYou } from "./ReportForYou";
+import { ReportFullText } from "./ReportFullText";
 import { parseBriefBody, parseBriefParts } from "@/lib/brief-format";
+import {
+  buildTagLexicon,
+  topicDisplayLabel,
+} from "@/lib/market-tag-lexicon";
 import {
   calendarYesterdayYmd,
   isMarketDateYmd,
@@ -62,20 +72,45 @@ type VoiceSlot = {
   };
 };
 
+type ReportItem = {
+  id: string;
+  title: string | null;
+  content: string | null;
+  summary: string | null;
+  tags: unknown;
+  countries: unknown;
+  regions: unknown;
+  metadata: unknown;
+};
+
 type MarketDayResponse = {
   ok?: boolean;
   slots?: Array<{
     seriesId: string;
     brief: BriefItem | null;
     voice: VoiceSlot | null;
+    report: ReportItem | null;
   }>;
   message?: string;
 };
+
+const TABS = [
+  { id: "brief", label: "30초 브리프" },
+  { id: "for-you", label: "나를 위한 요약" },
+  { id: "full", label: "전문" },
+] as const;
+
+type TabId = (typeof TABS)[number]["id"];
+
+function isTabId(value: string | null): value is TabId {
+  return TABS.some((t) => t.id === value);
+}
 
 export default function ReportSurface({ page }: { page: ReportPage }) {
   const params = new URLSearchParams(window.location.search);
   const langOverride = params.get("lang");
   const dateParam = params.get("date")?.trim();
+  const tabParam = params.get("tab");
 
   const [lang, setLang] = useState<ContentLang | null>(
     isContentLang(langOverride) ? langOverride : null,
@@ -88,9 +123,30 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
   const [latestDate, setLatestDate] = useState<string | null>(null);
   const [brief, setBrief] = useState<BriefItem | null>(null);
   const [voice, setVoice] = useState<VoiceSlot | null>(null);
+  const [report, setReport] = useState<ReportItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [tab, setTab] = useState<TabId>(isTabId(tabParam) ? tabParam : "brief");
+  const [pendingAsk, setPendingAsk] = useState<{
+    text: string;
+    nonce: number;
+  } | null>(null);
+
+  // Topic chip → chat. Opening the panel is part of the action; a prompt
+  // sent into a hidden column would look like nothing happened.
+  const askInChat = (text: string) => {
+    setChatOpen(true);
+    setPendingAsk({ text, nonce: Date.now() });
+  };
+
+  // Shareable tab — and the depth survives date navigation.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (tab === "brief") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", tab);
+    window.history.replaceState(null, "", url);
+  }, [tab]);
 
   const calendarToday = seoulYmd();
 
@@ -145,6 +201,9 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
     };
   }, [page.slug]);
 
+  // The setters are listed because React Compiler infers them as deps and
+  // refuses to compile the component otherwise; they are stable, so this is
+  // still the `[]` callback the load effect below needs.
   const loadBrief = useCallback(
     async (seriesId: string, marketDate: string, marketLang: string) => {
       setLoading(true);
@@ -162,15 +221,17 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
         }
         setBrief(json.slots?.[0]?.brief ?? null);
         setVoice(json.slots?.[0]?.voice ?? null);
+        setReport(json.slots?.[0]?.report ?? null);
       } catch (err) {
         setBrief(null);
         setVoice(null);
+        setReport(null);
         setError(err instanceof Error ? err.message : "Failed to load brief");
       } finally {
         setLoading(false);
       }
     },
-    [],
+    [setLoading, setError, setBrief, setVoice, setReport],
   );
 
   // Newest published day for this series — also the initial date.
@@ -244,6 +305,16 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
         })) ?? []);
   const effectiveLatest = latestDate ?? calendarYesterdayYmd();
   const title = series?.title ?? page.fallbackTitle;
+  const hasReport = Boolean(report?.content?.trim());
+  const headline = brief?.title ?? report?.title ?? title;
+  const tagLexicon = report ? buildTagLexicon(report.metadata) : null;
+  const tags = Array.isArray(report?.tags)
+    ? report.tags.filter(
+        (t): t is string => typeof t === "string" && t.trim().length > 0,
+      )
+    : [];
+  // Tabs are depths of the same day; without a report only the brief exists.
+  const activeTab: TabId = hasReport ? tab : "brief";
 
   return (
     <div className="report-warm flex h-full bg-background text-foreground">
@@ -376,7 +447,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                 <code className="font-mono">report_series</code>. Check Supabase
                 or the slug in <code className="font-mono">report-pages.ts</code>.
               </Notice>
-            ) : !brief ? (
+            ) : !brief && !hasReport ? (
               <Notice title="Nothing published for this day">
                 No final brief for{" "}
                 <span className="font-mono text-foreground">{date}</span> /{" "}
@@ -388,78 +459,64 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
             ) : (
               <>
                 <h1 className="mt-3 text-4xl font-extrabold leading-[1.15] tracking-[-0.02em] text-balance">
-                  {brief.title ?? title}
+                  {headline}
                 </h1>
 
                 <p className="mt-4 font-mono text-[11px] tracking-wide text-muted-foreground">
-                  {[brief.market_date, brief.brief_type, brief.lang_code]
+                  {[
+                    brief?.market_date ?? date,
+                    brief?.brief_type,
+                    brief?.lang_code ?? lang,
+                  ]
                     .filter(Boolean)
                     .join(" · ")}
                 </p>
 
-                {/* Voice lags the brief — the daily TTS cron fills it in later. */}
+                {/* What the day is about, at a glance. The starrable chips
+                    live in the For-you tab where they change something. */}
+                {tags.length > 0 ? (
+                  <p className="mt-3 flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                    {tags.map((tag) => (
+                      <span key={tag} className="whitespace-nowrap">
+                        #{topicDisplayLabel(tag, tagLexicon)}
+                      </span>
+                    ))}
+                  </p>
+                ) : null}
+
+                {/* Above the tabs on purpose — voice belongs to the day, not
+                    to one depth, and switching tabs would stop playback. */}
                 {voice ? <VoicePlayer voice={voice} /> : null}
 
-                {lead.map((paragraph, i) => (
-                  <p
-                    key={i}
-                    className="mt-6 whitespace-pre-wrap text-[17px] leading-8 text-foreground/80"
-                  >
-                    {paragraph}
-                  </p>
-                ))}
+                <TabBar
+                  active={activeTab}
+                  onSelect={setTab}
+                  disabled={hasReport ? null : "full report not published"}
+                />
 
-                {highlights.length > 0 ? (
-                  <div className="mt-10 space-y-4">
-                    {highlights.map((highlight, i) => (
-                      <Highlight
-                        key={i}
-                        index={i + 1}
-                        headline={highlight.headline}
-                        body={highlight.body}
-                      />
-                    ))}
-                  </div>
-                ) : null}
-
-                {parts.reactions.length > 0 ? (
-                  <div className="mt-10 rounded-xl border border-border bg-card px-5 py-4">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-                      Market reaction
-                    </p>
-                    <dl className="mt-3 divide-y divide-border">
-                      {parts.reactions.map((reaction, i) => (
-                        <div
-                          key={i}
-                          className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2.5 first:pt-0 last:pb-0"
-                        >
-                          <dt className="flex items-center gap-1.5 text-[13px] font-semibold">
-                            {reaction.direction === "up" ? (
-                              <TrendingUp className="h-3.5 w-3.5 text-primary" />
-                            ) : reaction.direction === "down" ? (
-                              <TrendingDown className="h-3.5 w-3.5 text-primary" />
-                            ) : null}
-                            {reaction.label}
-                          </dt>
-                          <dd className="text-[13px] tabular-nums text-muted-foreground">
-                            {reaction.value}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
-                ) : null}
-
-                {parts.takeaway ? (
-                  <div className="mt-4 rounded-xl bg-foreground px-5 py-5 text-background">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-                      Takeaway
-                    </p>
-                    <p className="mt-2 whitespace-pre-wrap text-[15px] leading-7">
-                      {parts.takeaway}
-                    </p>
-                  </div>
-                ) : null}
+                {activeTab === "full" ? (
+                  <ReportFullText
+                    content={report?.content ?? ""}
+                    className="mt-8"
+                  />
+                ) : activeTab === "for-you" ? (
+                  series && date && lang ? (
+                    <ReportForYou
+                      seriesId={series.id}
+                      marketDate={date}
+                      lang={lang}
+                      report={report}
+                      onAsk={askInChat}
+                    />
+                  ) : null
+                ) : (
+                  <BriefBody
+                    lead={lead}
+                    highlights={highlights}
+                    reactions={parts.reactions}
+                    takeaway={parts.takeaway}
+                  />
+                )}
               </>
             )}
 
@@ -486,11 +543,131 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
           <ReportChat
             agent={agent}
             marketDate={date}
+            pendingAsk={pendingAsk}
+            onPendingAskConsumed={() => setPendingAsk(null)}
             onClose={() => setChatOpen(false)}
           />
         </aside>
       ) : null}
     </div>
+  );
+}
+
+function TabBar({
+  active,
+  onSelect,
+  disabled,
+}: {
+  active: TabId;
+  onSelect: (tab: TabId) => void;
+  /** Reason the report-backed tabs are off, or null when they work. */
+  disabled: string | null;
+}) {
+  return (
+    <div className="mt-8 flex gap-5 border-b border-border">
+      {TABS.map((t) => {
+        const off = disabled != null && t.id !== "brief";
+        return (
+          <button
+            key={t.id}
+            type="button"
+            disabled={off}
+            title={off ? disabled : undefined}
+            onClick={() => onSelect(t.id)}
+            className={cn(
+              "-mb-px border-b-2 pb-2.5 text-[13px] font-semibold tracking-tight",
+              active === t.id
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+              off && "cursor-not-allowed opacity-40 hover:text-muted-foreground",
+            )}
+          >
+            {t.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function BriefBody({
+  lead,
+  highlights,
+  reactions,
+  takeaway,
+}: {
+  lead: string[];
+  highlights: Array<{ headline: string; body: string[] }>;
+  reactions: Array<{
+    label: string;
+    value: string;
+    direction: "up" | "down" | null;
+  }>;
+  takeaway: string | null;
+}) {
+  return (
+    <>
+      {lead.map((paragraph, i) => (
+        <p
+          key={i}
+          className="mt-6 whitespace-pre-wrap text-[17px] leading-8 text-foreground/80"
+        >
+          {paragraph}
+        </p>
+      ))}
+
+      {highlights.length > 0 ? (
+        <div className="mt-10 space-y-4">
+          {highlights.map((highlight, i) => (
+            <Highlight
+              key={i}
+              index={i + 1}
+              headline={highlight.headline}
+              body={highlight.body}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {reactions.length > 0 ? (
+        <div className="mt-10 rounded-xl border border-border bg-card px-5 py-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
+            Market reaction
+          </p>
+          <dl className="mt-3 divide-y divide-border">
+            {reactions.map((reaction, i) => (
+              <div
+                key={i}
+                className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2.5 first:pt-0 last:pb-0"
+              >
+                <dt className="flex items-center gap-1.5 text-[13px] font-semibold">
+                  {reaction.direction === "up" ? (
+                    <TrendingUp className="h-3.5 w-3.5 text-primary" />
+                  ) : reaction.direction === "down" ? (
+                    <TrendingDown className="h-3.5 w-3.5 text-primary" />
+                  ) : null}
+                  {reaction.label}
+                </dt>
+                <dd className="text-[13px] tabular-nums text-muted-foreground">
+                  {reaction.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ) : null}
+
+      {takeaway ? (
+        <div className="mt-4 rounded-xl bg-foreground px-5 py-5 text-background">
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
+            Takeaway
+          </p>
+          <p className="mt-2 whitespace-pre-wrap text-[15px] leading-7">
+            {takeaway}
+          </p>
+        </div>
+      ) : null}
+    </>
   );
 }
 

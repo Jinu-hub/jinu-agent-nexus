@@ -54,7 +54,8 @@
 | Supabase | `worker/supabase.ts` |
 | Report series catalog | `worker/report-series.ts` — Settings Content toggles |
 | Market day reads | `worker/market-day.ts` — enabled `series_id` → mmi → item_contents |
-| Report pages | `src/lib/report-pages.ts`, `src/lib/brief-format.ts`, `src/reports/ReportSurface.tsx`, `src/reports/ReportChat.tsx` — `/<slug>` 전용 리딩 화면 + 사이드 채팅 |
+| Report pages | `src/lib/report-pages.ts`, `src/lib/brief-format.ts`, `src/reports/ReportSurface.tsx`, `ReportChat.tsx`, `ReportForYou.tsx`, `ReportFullText.tsx` — `/<slug>` 리딩 화면 (브리프 / 나를 위한 요약 / 전문 + 사이드 채팅) |
+| Report For you | `worker/market-for-you.ts` — 관심사 ∩ 리포트 → 벡터 문단 → LLM 요약; 캐시는 MyMemory `for_you_summaries` |
 | Chat parts | `src/chat/ChatParts.tsx`, `src/chat/use-client-tools.ts` — transcript/입력부 공용 (쉘·리포트 페이지) |
 | Market item resolve | `worker/market-item-resolve.ts`, `worker/market-settings.ts` — ingest/query resolve without brief |
 | Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts` (+ `item_content_i18n` localize), `worker/report-keywords.ts`, `worker/market-date.ts` |
@@ -85,7 +86,7 @@
 
 | 파일 | 넣을 것 (요약) |
 |------|----------------|
-| `worker/index.ts` | `handleNotes` / `Memory` / `Settings` / `Supabase` / `Briefs` / `Reports` / `Audio` / `MarketVector` 체인; DO re-export (`ChatAgent`, `MyMemory`, `LiveMarketRoomAgent`); `scheduled` → voice cron |
+| `worker/index.ts` | `handleNotes` / `Memory` / `Settings` / `Supabase` / `Briefs` / `Reports` / `Audio` / `MarketVector` / `MarketForYou` 체인; DO re-export (`ChatAgent`, `MyMemory`, `LiveMarketRoomAgent`); `scheduled` → voice cron |
 | `wrangler.jsonc` | NOTES KV, MyMemory + Live DO, AUDIO_BUCKET, `PDF_VECTOR_DB` + `MARKET_VECTOR_DB`, crons, `run_worker_first` paths, vars |
 | `worker/chat-agent/ChatAgent.ts` | `marketBeforeTurn` / `marketBeforeStep` 위임; settings cleanup (이미 있으면 유지) |
 | `configure-session.ts` | `MARKET_SOUL_RULES` compose (`soul-market.ts`) |
@@ -120,7 +121,7 @@
 3. UI: Market Brief / Voice / Topics / Report + Settings `content_lang`
 4. Chat: Latest 해석 (prefetch, hang 없음) · ★ interests · For you
 5. `/live` Market Pulse (토큰 있으면)
-6. `/daily-market-issues` Brief 아티클 (§26)
+6. `/daily-market-issues` 3탭 (브리프 / 나를 위한 요약 / 전문) + `POST /api/market/for-you` (§26.5)
 
 상세 curl·Phase 맥락 → `WORK_NOTES.md` §7–§10, `WORK_NOTES_2.md` §11.
 
@@ -142,7 +143,7 @@
 
 - 바인딩/경로/툴 키 rename (예외: §14.0 Vectorize PDF rename + Market index — Sources 미사용 시점에 완료)
 - baseline `ChatAgent` 대수술
-- §14 벡터 **For you / ★ prefetch 교체** (나중; 챗 「keyword」 검색은 §14.3 완료)
+- §14 벡터 **챗 prefetch `interestHits` 교체** (리포트 페이지 For you는 §26.5 완료; 챗 ★ prefetch는 아직 문자열 매칭)
 - soul RULE **문구** 변경 (파일 위치만 Wave 1에서 분리)
 - PDF+Market **통합 검색** (나중 fan-out)
 
@@ -168,3 +169,4 @@
 | 2026-09-14 | Chat vector scope = Market tab (`market_focus_series_id`) — A + B settings ([`WORK_NOTES_2` §22](./WORK_NOTES_2.md)) |
 | 2026-09-14 | `/daily-market-issues` 리포트 전용 페이지 — A + B `main.tsx` + ROUTING ([`WORK_NOTES_2` §26](./WORK_NOTES_2.md)) |
 | 2026-09-14 | 리포트 페이지 사이드 채팅 + `ChatParts` 분리 — A ([`WORK_NOTES_2` §26.3](./WORK_NOTES_2.md)) |
+| 2026-09-14 | 리포트 3탭 + For you 요약 — A + B `index.ts` + ROUTING ([`WORK_NOTES_2` §26.5](./WORK_NOTES_2.md)) |

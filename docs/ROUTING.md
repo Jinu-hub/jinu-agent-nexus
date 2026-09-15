@@ -32,6 +32,7 @@ worker/index.ts (HTTP Gateway)
  ├── GET  /api/report-series                      → report_series 카탈로그 (Settings Content 토글)
  ├── GET  /api/market/day                         → enabled series_id별 brief/voice/report (§20)
  ├── GET  /api/market/latest-date                 → enabled series 최신 market_date (§20)
+ ├── POST /api/market/for-you                     → 관심사 ∩ 리포트 → 개인화 요약 (§26.5)
  ├── POST /api/upload                              → ChatAgent DO (PDF RAG 업로드)
  ├── GET  /screenshots/*                           → R2 Bucket (브라우저 스크린샷)
  ├── /agents/ChatAgent/default                     → ChatAgent (WebSocket + Think Chat)
@@ -46,7 +47,8 @@ worker/index.ts (HTTP Gateway)
 src/ (React Frontend)
  ├── /                      → Chat 메인 쉘 + 패널 (Memory, Skills, Files, Tools, Sources, Browser, Schedules, Extensions, MCP, Settings, Market …)
  ├── /live                  → Market Pulse 실시간 투표방 (단독 전체 화면)
- └── /daily-market-issues   → report_series 전용 리딩 페이지 (Brief 아티클; `?date=` `?lang=`) (§26)
+ └── /daily-market-issues   → report_series 전용 리딩 페이지 (`?date=` `?lang=` `?tab=`) (§26)
+                             `?tab=` 생략/`for-you`/`full` → 30초 브리프 / 나를 위한 요약 / 전문
 ```
 
 > `/<report_series.slug>` 경로는 `src/lib/report-pages.ts`의 `REPORT_PAGES`에 등록된 slug만 열린다.

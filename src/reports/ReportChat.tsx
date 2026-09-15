@@ -11,6 +11,7 @@
 // the report they are looking at.
 // ─────────────────────────────────────────────────────────────────────────
 
+import { useEffect, useRef } from "react";
 import { useAgentChat } from "@cloudflare/ai-chat/react";
 import { MessageSquare, Trash2, X } from "lucide-react";
 
@@ -26,15 +27,31 @@ import { cn } from "@/lib/utils";
 export function ReportChat({
   agent,
   marketDate,
+  pendingAsk = null,
+  onPendingAskConsumed,
   onClose,
 }: {
   agent: AgentForChat;
   /** Day on screen — suggestion prompts name it instead of "Latest". */
   marketDate: string | null;
+  /** Set by a topic chip "ask" — same nonce handshake as the shell's Chat. */
+  pendingAsk?: { text: string; nonce: number } | null;
+  onPendingAskConsumed?: () => void;
   onClose: () => void;
 }) {
   const onToolCall = useClientToolCall();
   const chat = useAgentChat({ agent, onToolCall });
+  const sendRef = useRef(chat.sendMessage);
+  sendRef.current = chat.sendMessage;
+  const consumedRef = useRef(onPendingAskConsumed);
+  consumedRef.current = onPendingAskConsumed;
+
+  useEffect(() => {
+    const text = pendingAsk?.text?.trim();
+    if (!text) return;
+    void sendRef.current({ text });
+    consumedRef.current?.();
+  }, [pendingAsk]);
 
   return (
     <div className="flex h-full flex-col">

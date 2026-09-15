@@ -122,6 +122,19 @@ export class MyMemory extends DurableObject<Env> {
         CREATE INDEX IF NOT EXISTS idx_preference_events_created
         ON preference_events (created_at DESC)
       `);
+      // "For you" report summaries. Output is a pure function of
+      // (report, language, interest set), so the interest hash is part of
+      // the key — starring something invalidates it without a delete.
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS for_you_summaries (
+          item_id TEXT NOT NULL,
+          lang TEXT NOT NULL,
+          interest_hash TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (item_id, lang, interest_hash)
+        )
+      `);
       this.migrateTopicLabelsTable();
       // Prefer display label for My interests (first star). Ignore if column exists.
       try {
@@ -330,6 +343,49 @@ export class MyMemory extends DurableObject<Env> {
       if (row) out[row.key] = row.display;
     }
     return out;
+  }
+
+  getForYouSummary(
+    itemId: string,
+    lang: string,
+    interestHash: string,
+  ): string | null {
+    const row = this.ctx.storage.sql
+      .exec<{ payload: string }>(
+        `SELECT payload FROM for_you_summaries
+         WHERE item_id = ? AND lang = ? AND interest_hash = ?`,
+        itemId,
+        lang,
+        interestHash,
+      )
+      .toArray()[0];
+    return row?.payload ?? null;
+  }
+
+  putForYouSummary(
+    itemId: string,
+    lang: string,
+    interestHash: string,
+    payload: string,
+  ): void {
+    this.ctx.storage.sql.exec(
+      `INSERT INTO for_you_summaries (item_id, lang, interest_hash, payload, created_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(item_id, lang, interest_hash) DO UPDATE SET
+         payload = excluded.payload,
+         created_at = excluded.created_at`,
+      itemId,
+      lang,
+      interestHash,
+      payload,
+      nowIso(),
+    );
+    // Rewriting a report drifts stale rows in; keep the newest few hundred.
+    this.ctx.storage.sql.exec(
+      `DELETE FROM for_you_summaries WHERE rowid NOT IN (
+         SELECT rowid FROM for_you_summaries ORDER BY created_at DESC LIMIT 200
+       )`,
+    );
   }
 
   deletePreference(kind: PreferenceKind, target: string): { deleted: boolean } {

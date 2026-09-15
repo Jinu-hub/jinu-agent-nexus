@@ -13,7 +13,8 @@
 //   8. Full reports — item_contents via brief.target_id (`/api/reports/today`).
 //   9. Voice audio — pending, claim, R2, TTS, generate, Cron (`/api/audio/*`).
 //  10. Market vector ingest — report chunks → MARKET_VECTOR_DB (`/api/market-vector/*`).
-//  11. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
+//  11. Report "For you" — interests × report → summary (`/api/market/for-you`).
+//  12. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
 //      which dispatches to the ChatAgent / LiveMarketRoomAgent DOs.
 //
 // The DO class MUST be re-exported from this file. Wrangler's runtime
@@ -36,6 +37,7 @@ import { handleMarketVectorRequest } from "./market-vector-routes";
 import { handleMarketLabelsRequest } from "./market-labels-routes";
 import { handleReportSeriesRequest } from "./report-series";
 import { handleMarketDayRequest } from "./market-day";
+import { handleMarketForYouRequest } from "./market-for-you";
 import {
   isVoiceAudioCron,
   runVoiceAudioCron,
@@ -96,6 +98,9 @@ export default {
 
     const marketDay = await handleMarketDayRequest(request, env);
     if (marketDay) return marketDay;
+
+    const marketForYou = await handleMarketForYouRequest(request, env);
+    if (marketForYou) return marketForYou;
 
     // ── PDF upload ─────────────────────────────────────────────────────
     // Why this is a top-level route (not a @callable on the agent):

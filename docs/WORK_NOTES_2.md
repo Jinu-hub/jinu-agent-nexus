@@ -782,5 +782,66 @@ curl -s "http://localhost:5173/api/market/day?date=2026-09-11&lang=ko\
   * 날짜 이동(← `2026-09-10`) → `audio[src]`가 해당 날짜 파일로 교체됨 (48767178-… )
 * **의도적으로 안 함:** 커스텀 트랜스포트(배속/스크럽/파형); 자동 재생; 보이스 없을 때 "Voice pending" 안내; 하이라이트별 구간 점프; 채팅 답변의 보이스와 상태 공유
 
+### 26.5 Phase 4 — 3탭 구조 + "나를 위한 요약" *(완료)*
+
+* **ROUTING 반영:** `POST /api/market/for-you`; FE `/daily-market-issues?tab=`
+* **탭이 한 축인 이유:** Brief(605자)와 풀리포트(2,650자)는 **같은 글의 두 가지 길이**다. Brief의 `01~03`은 리포트 `## 하이라이트`에서 뽑은 것이라(§14 prefetch instruction의 "Brief is distilled FROM Report highlights") 한 페이지에 쌓으면 같은 헤드라인을 두 번 읽게 된다. 그래서 **깊이 선택**을 탭으로 만든다.
+* **Topics를 탭으로 올린 판단:** 칩 15개만 옮기면 화면이 빈다. 대신 **관심사 ∩ 이 리포트**를 LLM으로 요약한 *생성 콘텐츠*를 넣어, 셋이 `공통 요약 / 나를 위한 요약 / 전문`이라는 **한 축의 세 깊이**가 되게 했다.
+
+| 탭 | `?tab=` | 내용 |
+|----|---------|------|
+| 30초 브리프 | *(생략)* | 기존 §26.1 템플릿 (pulse / 01~03 / reaction / takeaway) |
+| 나를 위한 요약 | `for-you` | `POST /api/market/for-you` 결과 + 요약 조정 칩 |
+| 전문 | `full` | `slots[0].report.content` 마크다운 |
+
+* **보이스는 탭 밖 위쪽:** 보이스는 그 날의 자산이지 깊이가 아니고(나중에 전문 낭독이 추가되면 더 그렇다), 탭 패널 안에 두면 탭 전환 시 `<audio>`가 언마운트되며 **재생이 끊긴다**. 검증: 재생 중 `전문` 탭으로 이동 → 같은 노드 유지, `currentTime` 1.1s → 2.6s 계속 진행.
+* **풀리포트 없는 날:** `for-you` / `full` 탭 비활성(툴팁) — 눌러서 "없음"을 보는 것보다 낫다.
+
+#### "나를 위한 요약" 파이프라인 (§10.14 TODO의 Phase 3 소비처)
+
+`src/lib/brief-for-you.ts`(Brief 문장 `includes` 맛보기)를 대체한다. 소스가 **확정 풀리포트**로 바뀐다.
+
+```
+저장된 관심사 (MyMemory preferences)
+  ∩ collectReportPreferenceKeys(report)     ← tags · countries/regions · metadata.entities
+  → queryMarketVectors(itemId, display+target 두 쿼리)   ← 본문은 "OpenAI", 저장 display는 "오픈AI"
+  → 관심사별 문단 ≤3
+  → 관심사별 LLM 1콜 (Promise.all, temperature 0)
+```
+
+* **관심사별 1콜인 이유:** 번호 매긴 JSON 한 번으로 묶으면 flash 모델이 번호를 흘려서 **에너지 문단을 오픈AI 요약으로** 돌려준다(2026-09-09에서 실제 발생). 오귀속이 추가 요청보다 나쁘다. 병렬이라 지연도 거의 같다.
+* **날조 방지 (§10.12 규칙 승계):** 검색된 문단만 사용, 문단이 관심사와 무관하면 `NONE`. 숫자는 문단에서 붙어 있던 주어에 그대로 붙이고 귀속이 불분명하면 생략 — 초기 버전이 10년물 금리 4.99%를 유가로 옮겨 적었다.
+* **상태 4종:** `no-interest`(별표 0개 → 기능 소개) / `no-match`(모델이 답했고 커버 안 함) / `failed`(모델이 답을 못 줌) / `ready`. **`failed`를 `no-match`로 뭉개지 않는 게 핵심** — "이 리포트에 없습니다"는 데이터에 대한 주장이라 생성 실패로 말하면 거짓말이 된다.
+* **벡터 미인덱스 폴백:** `queryMarketVectors` 히트 0 → 본문 문단 문자열 매칭(`degraded: true`, UI에 "문단 검색 사용"). 2026-09-08~10은 아직 ingest 전이라 이 경로로 동작한다.
+* **캐시:** MyMemory DO `for_you_summaries (item_id, lang, interest_hash)`. 출력이 (리포트 × 언어 × **관심사 집합**)의 함수라 해시가 키에 들어간다 → 별표 토글이 곧 무효화(삭제 불필요). 최근 200행 유지.
+* **요약 조정 칩:** 별 = 관심사 저장 → 캐시 미스 → 재생성. 패널과 달리 **라벨 미해결 키워드도 남긴다**(조정 도구라 모든 후보가 별표 가능해야 함). 표시 라벨 기준 중복 제거(`bonds`/`fixed income` → 둘 다 `국채`). 칩 본문 클릭 → `pendingAsk` nonce로 사이드 채팅 전송(+ 패널 자동 오픈).
+
+* **수정 및 추가 파일:**
+  * `worker/market-for-you.ts` *(신규)* — `buildForYou()` + `POST /api/market/for-you`
+  * `worker/my-memory.ts` — `for_you_summaries` 테이블 + `getForYouSummary` / `putForYouSummary`
+  * `worker/index.ts` — 라우트 등록 (헤더 주석 11번)
+  * `src/reports/ReportForYou.tsx` *(신규)* — 4개 상태 + 요약 조정 칩
+  * `src/reports/ReportFullText.tsx` *(신규)* — warm 타이포 마크다운 (패널 `ReportArticle`은 300px용 11~12px라 재사용 불가)
+  * `src/reports/ReportSurface.tsx` — `report` 상태, 탭 바, `?tab=` 동기화, 태그 줄, 보이스 위치, `askInChat`
+  * `src/reports/ReportChat.tsx` — `pendingAsk` / `onPendingAskConsumed` (쉘 `Chat.tsx`와 같은 핸드셰이크)
+  * docs: `ROUTING.md`, `WORK_NOTES_2.md`, `ARCHITECTURE.md`, `CLAUDE.md`, `MERGE_STRATEGY.md`
+
+* **확인:**
+
+```bash
+curl -sS -X POST http://localhost:5173/api/market/for-you \
+  -H 'content-type: application/json' \
+  -d '{"date":"2026-09-11","lang":"ko","series_id":"596797cb-3007-43b4-9c47-d19ee8991a78"}' \
+  | jq '{state, cached, degraded, sections: [.sections[].interest.display]}'
+# 1회차 → state "ready", cached false (14.7s) / 2회차 → cached true (1.4s)
+```
+
+  * `?tab=for-you` → 에너지 섹션 + 조정 칩; `근원 CPI` 별표 → 캐시 미스 → 2섹션 재생성(5.3s); 해제 → 1섹션 복귀
+  * `temperature 0` 3회 재생성 → 동일 문장; 숫자가 리포트 본문(`사우디 원유 공급 … 230만 bpd 줄어 약 600만 bpd`)과 일치
+  * `2026-09-12`(미발행) → `no-report`; 칩 `연준` 클릭 → 채팅 열리며 「연준」 프롬프트 전송
+  * `/` 에이전트 쉘 회귀 없음
+
+* **의도적으로 안 함:** 스트리밍 생성(현재 blocking + 캐시); 요약 문장 → 본문 위치 점프; 관심사 가중치/정렬 UI; `no-match`일 때 웹 검색으로 보강; 미인덱스 날짜 자동 ingest; 시리즈 간 관심사 분리
+
 ---
 
