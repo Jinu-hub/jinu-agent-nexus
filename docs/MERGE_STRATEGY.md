@@ -59,7 +59,7 @@
 | Chat parts | `src/chat/ChatParts.tsx`, `src/chat/use-client-tools.ts` — transcript/입력부 공용 (쉘·리포트 페이지) |
 | Market item resolve | `worker/market-item-resolve.ts`, `worker/market-settings.ts` — ingest/query resolve without brief |
 | Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts` (+ `item_content_i18n` localize), `worker/report-keywords.ts`, `worker/market-date.ts` |
-| Market vectors | `worker/market-vector.ts`, `worker/market-vector-routes.ts` |
+| Market vectors | `worker/market-vector.ts`, `worker/market-vector-routes.ts`, `worker/market-vector-cron.ts` |
 | Market topic labels | `worker/market-labels.ts`, `worker/market-labels-routes.ts` |
 | Voice | `worker/content-audio.ts` (barrel), `content-audio-domain.ts`, `content-audio-routes.ts`, `audio-r2.ts`, `tts.ts`, `voice-lang-filter.ts`, `voice-audio-cron.ts` |
 | Shared load | `worker/market-memory-load.ts`, `worker/tools/market-date-resolve.ts` |
@@ -86,7 +86,7 @@
 
 | 파일 | 넣을 것 (요약) |
 |------|----------------|
-| `worker/index.ts` | `handleNotes` / `Memory` / `Settings` / `Supabase` / `Briefs` / `Reports` / `Audio` / `MarketVector` / `MarketForYou` 체인; DO re-export (`ChatAgent`, `MyMemory`, `LiveMarketRoomAgent`); `scheduled` → voice cron |
+| `worker/index.ts` | `handleNotes` / `Memory` / `Settings` / `Supabase` / `Briefs` / `Reports` / `Audio` / `MarketVector` / `MarketForYou` 체인; DO re-export (`ChatAgent`, `MyMemory`, `LiveMarketRoomAgent`); `scheduled` → voice cron + market-vector cron |
 | `wrangler.jsonc` | NOTES KV, MyMemory + Live DO, AUDIO_BUCKET, `PDF_VECTOR_DB` + `MARKET_VECTOR_DB`, crons, `run_worker_first` paths, vars |
 | `worker/chat-agent/ChatAgent.ts` | `marketBeforeTurn` / `marketBeforeStep` 위임; settings cleanup (이미 있으면 유지) |
 | `configure-session.ts` | `MARKET_SOUL_RULES` compose (`soul-market.ts`) |
@@ -110,6 +110,7 @@
 - [ ] Vectorize `PDF_VECTOR_DB` → `pdf-vectorstore` (768) + `MARKET_VECTOR_DB` → `market-memory-vectorstore` (768); same `EMBEDDING_MODEL`; market **metadata indexes** (`market_date`,`lang`,`item_id`) then re-ingest
 - [ ] DO migrations (MyMemory / Live / ChatAgent tags)
 - [ ] Voice cron schedule (`wrangler.jsonc` `triggers.crons` — `0 0` + `0 1` UTC)
+- [ ] Market vector cron (`5 0` + `5 1` UTC = 00:05 / 01:05; vars `MARKET_VECTOR_CRON_LANGS`)
 - [ ] `npm run seed:skills:*` if skills changed
 
 ---
@@ -170,3 +171,4 @@
 | 2026-09-14 | `/daily-market-issues` 리포트 전용 페이지 — A + B `main.tsx` + ROUTING ([`WORK_NOTES_2` §26](./WORK_NOTES_2.md)) |
 | 2026-09-14 | 리포트 페이지 사이드 채팅 + `ChatParts` 분리 — A ([`WORK_NOTES_2` §26.3](./WORK_NOTES_2.md)) |
 | 2026-09-14 | 리포트 3탭 + For you 요약 — A + B `index.ts` + ROUTING ([`WORK_NOTES_2` §26.5](./WORK_NOTES_2.md)) |
+| 2026-09-15 | Market vector ingest cron `5 0`/`5 1` — A + B scheduled + C ([`WORK_NOTES_2` §29](./WORK_NOTES_2.md)) |

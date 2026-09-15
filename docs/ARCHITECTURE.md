@@ -150,7 +150,7 @@ in `Message.tsx` → then server `execute` runs.
 | Supabase (prep) | `GET /api/supabase/health` | `worker/supabase.ts` | External Postgres (Market Memory) |
 | Content briefs | `GET /api/briefs/today`, `GET /api/briefs/latest-date` | `worker/content-briefs.ts`, `market-date.ts` | Supabase `content_briefs` |
 | Full reports | `GET /api/reports/today` | `worker/item-contents.ts` | Supabase `item_contents` via `content_briefs.target_id`; localize via `item_content_i18n` when `lang` ≠ primary |
-| Market vectors | `POST /api/market-vector/ingest` · `/query` · `/clear` | `worker/market-vector.ts` + `market-item-resolve.ts`; ingest batch = Settings ON series → mmi → item_contents (§21) | Chunk+embed / chat search / clear → `MARKET_VECTOR_DB` (§14) |
+| Market vectors | `POST /api/market-vector/ingest` · `/query` · `/clear` · `/cron/run` | `worker/market-vector.ts` + `market-vector-cron.ts` + `market-item-resolve.ts`; ingest batch = Settings ON series → mmi → item_contents (§21); Cron UTC 00:05/01:05 ko,en (§29) | Chunk+embed / chat search / clear → `MARKET_VECTOR_DB` (§14) |
 | Topic labels | `POST /api/market-labels/resolve` · `/memory/topic-labels` | `worker/market-labels.ts` + MyMemory | Body-grounded Tags/Keywords display (B안); post-ingest |
 | Report series catalog | Settings → Market Content; `GET /api/report-series` | `worker/report-series.ts`; opt-out in ChatAgent `disabled_report_series` | Supabase `report_series` |
 | Market day (multi-series) | `GET /api/market/day`, `/api/market/latest-date` | `worker/market-day.ts` — `market_memory_items` + enabled `series_id` | Same-day tabs in Market panel when 2+ slots |
@@ -207,6 +207,7 @@ worker/index.ts          HTTP entry — routes only, thin
     ├── POST /api/market-vector/ingest → item_contents → MARKET_VECTOR_DB
     ├── POST /api/market-vector/query → interest search (+ filters)
     ├── POST /api/market-vector/clear → delete report Vectorize chunks
+    ├── POST /api/market-vector/cron/run → daily ingest Cron once
     ├── POST /api/market-labels/resolve → body-grounded topic labels
     ├── GET  /api/report-series → report_series catalog (Settings Content)
     ├── GET  /api/market/day → enabled series slots (brief/voice/report)

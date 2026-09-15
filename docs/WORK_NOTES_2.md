@@ -875,10 +875,36 @@ curl -sS -X POST http://localhost:5173/api/market/for-you \
 
 * **목적:** 첫 채팅 화면에 제품 소개·Cloudflare 스택·짧은 질문 예시를 두어 “무엇하는 앱인지”가 바로 보이게.
 * **수정 파일:**
-  * `src/chat/Chat.tsx` — EmptyState: 소개 4문단 + 기술 스택 **표**(기술/용도) + `HOME_CHAT_SUGGESTIONS`
+  * `src/chat/Chat.tsx` — EmptyState: 소개 4문단 + 기술 스택 **표**(기술/용도) + `HOME_CHAT_SUGGESTIONS`; Cron 행에 vector ingest 포함
   * `src/lib/market-suggestions.ts` — `HOME_CHAT_SUGGESTIONS` (risk / reportCore / keywords / voice)
   * `docs/CLAUDE.md` · `docs/ARCHITECTURE.md` — empty state 설명
 * **의도적으로 안 함:** Market 패널 칩 목록 축소; 랜딩 페이지 분리; DO Alarms 줄을 스택에 추가(요청 목록에 없음)
+
+## 29. Market vector ingest Cron *(완료)*
+
+* **목적:** Settings ON 시리즈의 **전날 UTC** 리포트를 매일 `MARKET_VECTOR_DB`에 배치 ingest. Voice(00:00/01:00) 직후 5분.
+* **스케줄:** UTC `5 0 * * *` (00:05) + catch-up `5 1 * * *` (01:05) (= KST 09:05 / 10:05)
+* **언어:** vars `MARKET_VECTOR_CRON_LANGS` 기본 `ko,en` (순차)
+* **ROUTING 반영:** `POST /api/market-vector/cron/run`
+* **수정 및 추가 파일:**
+  * `worker/market-vector-cron.ts` *(신규)* — `runMarketVectorCron` / `isMarketVectorCron`; empty day → soft skip
+  * `worker/market-vector-routes.ts` — `POST /api/market-vector/cron/run`
+  * `worker/index.ts` — `scheduled`에 voice / market-vector 분기
+  * `wrangler.jsonc` — crons `5 0`/`5 1` + `MARKET_VECTOR_CRON_LANGS`
+  * `worker-configuration.d.ts` — `npm run cf-typegen`
+  * docs: `ROUTING.md` / `MERGE_STRATEGY.md` / `CLAUDE.md` / `ARCHITECTURE.md`
+* **확인:**
+
+```bash
+# 수동 (전날 UTC date × ko,en)
+curl -s -X POST http://localhost:5173/api/market-vector/cron/run | jq .
+
+# scheduled 시뮬 (dev 재시작 후)
+curl -s "http://localhost:5173/cdn-cgi/handler/scheduled?cron=5+0+*+*+*"
+```
+
+* **프로덕션:** redeploy 후 Cloudflare triggers에 `5 0` / `5 1` 등록 확인
+* **의도적으로 안 함:** ingest idempotency 변경; query/clear 멀티 fan-out; DO schedule/Workflow; voice cron 시각 변경
 
 ---
 

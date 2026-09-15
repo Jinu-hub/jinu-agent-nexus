@@ -148,6 +148,8 @@
   // AUDIO_CRON_LANG_EXCLUDE / AUDIO_CRON_LANG_INCLUDE — Phase 6 Cron lang
   // filter (comma-separated). INCLUDE set → allowlist only; else EXCLUDE.
   // AUDIO_CRON_BATCH_LIMIT — max rows per Cron tick (default 10, cap 50).
+  // MARKET_VECTOR_CRON_LANGS — daily vector ingest langs (comma-separated;
+  // default ko,en). Cron ticks UTC 00:05 / 01:05 (5 min after voice).
   // Requires API_TOKEN with AI Gateway → Run and Unified Billing (or
   // a stored OpenAI key on the gateway). Native Workers AI TTS models
   // (MeloTTS / Aura) are not used here — they don't cover Korean well.
@@ -172,13 +174,21 @@
     "AUDIO_CRON_LANG_EXCLUDE": "ja",
     "AUDIO_CRON_LANG_INCLUDE": "",
     "AUDIO_CRON_BATCH_LIMIT": "10",
+    "MARKET_VECTOR_CRON_LANGS": "ko,en",
   },
 
-  // Voice generation Cron — UTC 00:00 + 01:00 catch-up (= KST 09:00 / 10:00).
-  // Change here and redeploy; must stay in sync with VOICE_AUDIO_CRONS in
-  // voice-audio-cron.ts. Empty pending → no TTS / R2.
+  // Cron triggers — change here and redeploy; keep in sync with
+  // VOICE_AUDIO_CRONS / MARKET_VECTOR_CRONS constants.
+  // Voice: UTC 00:00 + 01:00 catch-up (= KST 09:00 / 10:00). Empty → no TTS.
+  // Market vector: UTC 00:05 + 01:05 catch-up (= KST 09:05 / 10:05).
+  // Empty day/lang → soft skip (no throw).
   "triggers": {
-    "crons": ["0 0 * * *", "0 1 * * *"],
+    "crons": [
+      "0 0 * * *",
+      "0 1 * * *",
+      "5 0 * * *",
+      "5 1 * * *",
+    ],
   },
 
   // Secrets go in `.dev.vars` for local dev and via

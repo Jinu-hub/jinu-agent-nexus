@@ -45,6 +45,7 @@
 | Default embed model | `@cf/baai/bge-base-en-v1.5` (768-dim, must match Vectorize) |
 | AI Gateway name | `agent-boilerplate` (unused until non-`@cf/` models) |
 | Voice Cron | UTC `0 0 * * *` + catch-up `0 1 * * *` (`voice-audio-cron.ts`) |
+| Market vector Cron | UTC `5 0 * * *` (00:05) + catch-up `5 1 * * *` (01:05) — ko,en day ingest (`market-vector-cron.ts`) |
 | Live poll room DO | `LiveMarketRoomAgent` (binding + class), room `market-pulse` |
 | Secrets | `API_TOKEN`, `LIVE_ROOM_TOKEN` (optional), `SUPABASE_*` (optional) in `.dev.vars` / `wrangler secret put` |
 
@@ -102,6 +103,7 @@ flowchart LR
 - `POST /api/market-vector/ingest` — chunk+embed report → `MARKET_VECTOR_DB`
 - `POST /api/market-vector/query` — interest similarity search (+ date/item filters; `lang` filter via `MARKET_VECTOR_QUERY_FILTER_BY_LANG`, currently off)
 - `POST /api/market-vector/clear` — delete Vectorize chunks for one report (no re-ingest)
+- `POST /api/market-vector/cron/run` — daily ingest Cron once (prev UTC day × `MARKET_VECTOR_CRON_LANGS`)
 - `POST /api/market-labels/resolve` — body-grounded Tags/Keywords display labels (B안; also post-ingest)
 - `POST /api/upload` — PDF upload (not RPC; large FormData)
 - `/screenshots/*` — R2 screenshot proxy
@@ -147,7 +149,8 @@ worker/
   content-briefs.ts    content_briefs today read (`/api/briefs/today`)
   item-contents.ts     item_contents full report (`/api/reports/today` via brief.target_id; `item_content_i18n` by lang)
   market-vector.ts     Market report → MARKET_VECTOR_DB ingest (§14)
-  market-vector-routes.ts  HTTP `POST /api/market-vector/{ingest,query,clear}`
+  market-vector-routes.ts  HTTP `POST /api/market-vector/{ingest,query,clear,cron/run}`
+  market-vector-cron.ts    Daily ingest Cron (UTC 00:05 / 01:05)
   report-keywords.ts   Compact tags/places/entities for chat/prefetch (T3)
   market-date.ts       Calendar YYYY-MM-DD helpers (default Asia/Seoul)
   market-memory-load.ts resolve→fetch→retry for brief/voice/report tools+prefetch
@@ -202,7 +205,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Change model | `wrangler.jsonc` vars only (usually no code change) |
 | AI provider logic | `worker/ai.ts` |
 | PDF ingest / chunking | `worker/ingest.ts`, RAG in `worker/tools/recall.ts` + `chat-agent/rag.ts` (`PDF_VECTOR_DB`) |
-| Market report vectors | `worker/market-vector.ts` + `market-vector-routes.ts` — ingest / query / clear; id `mr_{itemId}_{lang}_{i}` (ko/en coexist); chat 「keyword」 via `market-vector-search.ts` → prefetch `vectorSearch` |
+| Market report vectors | `worker/market-vector.ts` + `market-vector-routes.ts` + `market-vector-cron.ts` — ingest / query / clear / cron; id `mr_{itemId}_{lang}_{i}` (ko/en coexist); chat 「keyword」 via `market-vector-search.ts` → prefetch `vectorSearch` |
 | My Market Notes (KV) | `worker/notes.ts` + `wrangler.jsonc` `kv_namespaces` |
 | My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts`; `topic_labels` + preferences.`display`; panel interests UI `src/lib/topic-preference.ts` + `MyInterestsFold.tsx`; chat prefetch `user-interests.ts` (P3) |
 | Market topic labels | `worker/market-labels.ts` + routes — body-grounded resolve (exact→LLM); post-ingest hook; UI/vector expand consume cache |

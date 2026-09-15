@@ -11,12 +11,14 @@ import {
   ingestMarketReportsForDay,
   queryMarketVectors,
 } from "./market-vector";
+import { runMarketVectorCron } from "./market-vector-cron";
 
 /**
  * HTTP routes:
  *   POST /api/market-vector/ingest — chunk + embed report → MARKET_VECTOR_DB
  *   POST /api/market-vector/query  — similarity search (scoped to one item_id)
  *   POST /api/market-vector/clear  — delete Vectorize chunks for one report
+ *   POST /api/market-vector/cron/run — run daily ingest Cron once (dev / manual)
  *
  * Returns `null` if the path is not a market-vector route.
  */
@@ -55,7 +57,30 @@ export async function handleMarketVectorRequest(
     return handleClearPost(request, env);
   }
 
+  if (pathname === "/api/market-vector/cron/run") {
+    if (request.method !== "POST") {
+      return Response.json({ error: "method not allowed" }, { status: 405 });
+    }
+    const blocked = supabaseServiceRoleGuard(env);
+    if (blocked) return blocked;
+    return handleCronRunPost(env);
+  }
+
   return null;
+}
+
+async function handleCronRunPost(env: Env): Promise<Response> {
+  try {
+    const result = await runMarketVectorCron(env);
+    if (!result.ok) {
+      return Response.json(result, { status: 503 });
+    }
+    return Response.json(result);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "market-vector cron failed";
+    return Response.json({ ok: false, message }, { status: 502 });
+  }
 }
 
 async function handleClearPost(request: Request, env: Env): Promise<Response> {

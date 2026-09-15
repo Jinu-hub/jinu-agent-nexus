@@ -28,6 +28,7 @@ worker/index.ts (HTTP Gateway)
  ├── POST /api/market-vector/ingest                → item_contents → MARKET_VECTOR_DB (§14.1)
  ├── POST /api/market-vector/query                 → 관심사 유사도 검색 (+ 필터) (§14.2)
  ├── POST /api/market-vector/clear                 → 해당 리포트 Vectorize 청크 삭제
+ ├── POST /api/market-vector/cron/run              → 일배치 ingest Cron 1회 수동 (§29)
  ├── POST /api/market-labels/resolve              → Tags/Keywords 본문 grounded 표시 라벨 (B안; body: force/skip_llm)
  ├── GET  /api/report-series                      → report_series 카탈로그 (Settings Content 토글)
  ├── GET  /api/market/day                         → enabled series_id별 brief/voice/report (§20)

@@ -17,6 +17,9 @@
 //  12. Everything else (incl. WebSocket upgrades) → routeAgentRequest,
 //      which dispatches to the ChatAgent / LiveMarketRoomAgent DOs.
 //
+// Cron (`scheduled`): voice (`0 0` / `0 1` UTC) + market-vector
+// (`5 0` / `5 1` UTC = 00:05 / 01:05).
+//
 // The DO class MUST be re-exported from this file. Wrangler's runtime
 // needs to find the class when an instance wakes up, and it looks in
 // the worker's exports by class name.
@@ -42,6 +45,10 @@ import {
   isVoiceAudioCron,
   runVoiceAudioCron,
 } from "./voice-audio-cron";
+import {
+  isMarketVectorCron,
+  runMarketVectorCron,
+} from "./market-vector-cron";
 import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
 
 export { ChatAgent, MyMemory, LiveMarketRoomAgent };
@@ -160,11 +167,20 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    if (!isVoiceAudioCron(event.cron)) return;
-    ctx.waitUntil(
-      runVoiceAudioCron(env, event.cron).then((result) => {
-        console.log("voice-audio-cron", JSON.stringify(result));
-      }),
-    );
+    if (isVoiceAudioCron(event.cron)) {
+      ctx.waitUntil(
+        runVoiceAudioCron(env, event.cron).then((result) => {
+          console.log("voice-audio-cron", JSON.stringify(result));
+        }),
+      );
+      return;
+    }
+    if (isMarketVectorCron(event.cron)) {
+      ctx.waitUntil(
+        runMarketVectorCron(env, event.cron).then((result) => {
+          console.log("market-vector-cron", JSON.stringify(result));
+        }),
+      );
+    }
   },
 } satisfies ExportedHandler<Env>;
