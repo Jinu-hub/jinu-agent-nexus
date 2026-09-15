@@ -385,9 +385,11 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                 "flex items-center gap-1.5 rounded-full px-2 py-1 text-xs",
                 "text-muted-foreground hover:bg-accent hover:text-foreground",
               )}
+              title="Back to home"
+              aria-label="Back to home"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Agent
+              Home
             </a>
             <span
               aria-hidden
@@ -612,7 +614,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
             // chat over the article instead of squeezing it.
             "max-lg:fixed max-lg:inset-y-0 max-lg:right-0 max-lg:z-30",
             "max-lg:w-full max-lg:max-w-sm max-lg:border-l max-lg:shadow-2xl",
-            "lg:w-[26rem] lg:shrink-0 lg:border-l",
+            "lg:w-104 lg:shrink-0 lg:border-l",
           )}
         >
           <ReportChat

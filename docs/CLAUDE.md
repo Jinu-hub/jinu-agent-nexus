@@ -9,7 +9,11 @@
 
 ## Project identity
 
-- **Name:** `jinu-agent-nexus` (Worker, package, UI subtitle)
+- **Product brand (UI):** LYRA — slogan *Your world, a little closer.* (tab
+  title, chat header). Repo/Worker rename later. Report pages use
+  `← Home` for the `/` back-link (brand name alone was ambiguous).
+- **Name:** `jinu-agent-nexus` (Worker, package, GitHub remote — keep until
+  baseline port)
 - **Origin:** Forked from Nomad Coders Cloudflare Agent Boilerplate
 - **Remote:** `https://github.com/Jinu-hub/jinu-agent-nexus.git` — never push
   to nomadcoders upstream

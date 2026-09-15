@@ -12,7 +12,7 @@ import {
 } from "@/lib/brief-for-you";
 import type { PreferenceRow } from "@/lib/topic-preference";
 
-export const SHOW_BRIEF_FOR_YOU = true;
+export const SHOW_BRIEF_FOR_YOU = false;
 
 const KIND_LABEL: Record<string, string> = {
   theme: "Theme",

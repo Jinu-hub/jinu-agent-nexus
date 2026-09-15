@@ -28,7 +28,7 @@ and connect to external MCP servers.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Agent — jinu-agent-nexus                                       │
+│  LYRA — Your world, a little closer.                            │
 ├──────────────────────────────┬──────────────────────────────────┤
 │                              │  [Memory][Skills][Files][Tools]… │
 │  Chat                        │                                  │

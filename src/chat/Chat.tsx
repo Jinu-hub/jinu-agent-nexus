@@ -122,9 +122,9 @@ function Header({
       <div className="flex items-center gap-3">
         <BrandMark />
         <div>
-          <h1 className="text-sm font-semibold tracking-tight">Agent</h1>
-          <p className="font-mono text-[11px] text-muted-foreground">
-            jinu-agent-nexus
+          <h1 className="text-sm font-semibold tracking-tight">LYRA</h1>
+          <p className="text-[11px] text-muted-foreground">
+            Your world, a little closer.
           </p>
         </div>
       </div>

@@ -859,5 +859,17 @@ curl -sS -X POST http://localhost:5173/api/market/for-you \
 * **수정 파일:** `src/reports/ReportSurface.tsx`
 * **의도적으로 안 함:** 진행률 링; 채팅 오버레이와 위치 충돌 회피 애니메이션
 
+## 27. 제품 브랜드 LYRA (UI 표면만) *(완료)*
+
+* **목적:** 유저-facing 이름을 LYRA로 고정. 마켓 → 스포츠/엔터 확장에도 버티컬에 안 묶이게. 레포·Worker·package는 베이스라인 이식 때까지 `jinu-agent-nexus` 유지.
+* **슬로건:** *Your world, a little closer.*
+* **수정 파일:**
+  * `index.html` — `<title>LYRA</title>`
+  * `src/chat/Chat.tsx` — 헤더 `LYRA` + 슬로건
+  * `src/reports/ReportSurface.tsx` — `/` 백링크는 목적지 명확히 `Home` (브랜드명만 두면 모호)
+  * `docs/CLAUDE.md` — Product brand vs Worker/package 구분
+  * `docs/ARCHITECTURE.md` — UI layout 다이어그램 헤더
+* **의도적으로 안 함:** `wrangler.jsonc` / `package.json` / GitHub remote rename; 빈 상태 카피 전면 리라이트; Market Pulse 룸 이름 변경
+
 ---
 
