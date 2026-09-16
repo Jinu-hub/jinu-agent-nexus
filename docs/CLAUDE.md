@@ -10,8 +10,10 @@
 ## Project identity
 
 - **Product brand (UI):** LYRA — slogan *Your world, a little closer.* (tab
-  title, chat header). Repo/Worker rename later. Report pages use
-  `← Home` for the `/` back-link (brand name alone was ambiguous).
+  title, chat header). Warm paper palette (cream + orange accent) is
+  **global** in `src/index.css` (`:root` / `.dark`) — shell and report
+  pages share it. Repo/Worker rename later. Report pages use `← Home`
+  for the `/` back-link (brand name alone was ambiguous).
 - **Name:** `jinu-agent-nexus` (Worker, package, GitHub remote — keep until
   baseline port)
 - **Origin:** Forked from Nomad Coders Cloudflare Agent Boilerplate
@@ -210,7 +212,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts`; `topic_labels` + preferences.`display`; panel interests UI `src/lib/topic-preference.ts` + `MyInterestsFold.tsx`; chat prefetch `user-interests.ts` (P3) |
 | Market topic labels | `worker/market-labels.ts` + routes — body-grounded resolve (exact→LLM); post-ingest hook; UI/vector expand consume cache |
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
-| Report page (`/<slug>`) | `src/reports/ReportSurface.tsx` + `src/lib/report-pages.ts` (`REPORT_PAGES` registry) + `src/lib/brief-format.ts` (`parseBriefParts` from `metadata`, `parseBriefBody` text fallback); routed by pathname in `src/main.tsx`; reads `/settings` + `/api/report-series` + `/api/market/{latest-date,day}`; warm palette via `.report-warm` in `src/index.css` (shell stays neutral); voice player rendered only when `slots[0].voice` is present (same `/api/market/day` response, no extra fetch) and kept **above** the tabs so switching does not unmount the `<audio>`; three depth tabs via `?tab=` — brief / `for-you` (`src/reports/ReportForYou.tsx`) / `full` (`src/reports/ReportFullText.tsx`), the latter two disabled when the day has no report; side chat `src/reports/ReportChat.tsx` — page pins `market_focus_series_id` to its series so chat cites the report on screen |
+| Report page (`/<slug>`) | `src/reports/ReportSurface.tsx` + `src/lib/report-pages.ts` (`REPORT_PAGES` registry) + `src/lib/brief-format.ts` (`parseBriefParts` from `metadata`, `parseBriefBody` text fallback); routed by pathname in `src/main.tsx`; reads `/settings` + `/api/report-series` + `/api/market/{latest-date,day}`; LYRA warm palette is **global** (`:root` / `.dark` in `src/index.css`; shell + report share cream/orange); voice player rendered only when `slots[0].voice` is present (same `/api/market/day` response, no extra fetch) and kept **above** the tabs so switching does not unmount the `<audio>`; three depth tabs via `?tab=` — brief / `for-you` (`src/reports/ReportForYou.tsx`) / `full` (`src/reports/ReportFullText.tsx`), the latter two disabled when the day has no report; side chat `src/reports/ReportChat.tsx` — page pins `market_focus_series_id` to its series so chat cites the report on screen |
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
 | Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today` + `GET /api/briefs/latest-date`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`; omit date = data-backed latest) |
 | Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today`; primary `item_contents` + `item_content_i18n` overlay when `lang` ≠ primary `lang_code`; chat tool `getTodayMarketReport.ts` (excerpt + compact `keywords` via `report-keywords.ts`; lang = Settings `content_lang`) |

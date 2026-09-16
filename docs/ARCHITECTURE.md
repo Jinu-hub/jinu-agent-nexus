@@ -26,6 +26,8 @@ and connect to external MCP servers.
 
 ## UI layout
 
+LYRA warm paper (cream + orange accent) is global — shell and report pages share `src/index.css` tokens.
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  LYRA — Your world, a little closer.                            │

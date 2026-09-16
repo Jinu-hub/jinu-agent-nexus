@@ -5,10 +5,8 @@
    pulls in preflight + utilities. The `@theme` block below defines our
    design tokens; everything else cascades from those CSS variables.
 
-   Look: neutral grays, one restrained accent, no gradients. The only
-   theatrical moment is a single accent scanline that sweeps across
-   the viewport once on page load — terminal-style boot, gone in
-   under a second.
+   Look: LYRA warm paper — cream background, warm ink, one orange accent
+   (shared by agent shell + report reading pages).
    ───────────────────────────────────────────────────────────────────── */
 
 @import "tailwindcss";
@@ -30,66 +28,65 @@
 }
 
 /* Light + dark theme variables. shadcn-style names so components can
-   reuse Tailwind utility classes like `bg-background`, `text-foreground`. */
+   reuse Tailwind utility classes like `bg-background`, `text-foreground`.
+   Values match the former `.report-warm` reading palette (brand unity). */
 :root {
   color-scheme: light;
 
-  --background: oklch(0.99 0 0);
-  --foreground: oklch(0.18 0 0);
+  --background: oklch(0.964 0.007 97.4);
+  --foreground: oklch(0.221 0.011 99.4);
 
-  --card: oklch(0.985 0 0);
-  --card-foreground: oklch(0.18 0 0);
+  --card: oklch(0.985 0.005 95.1);
+  --card-foreground: oklch(0.221 0.011 99.4);
 
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.45 0 0);
+  --muted: oklch(0.937 0.01 93.6);
+  --muted-foreground: oklch(0.534 0.014 96.6);
 
-  --border: oklch(0.92 0 0);
-  --input: oklch(0.92 0 0);
-  --ring: oklch(0.55 0 0);
+  --border: oklch(0.906 0.01 93.6);
+  --input: oklch(0.906 0.01 93.6);
+  --ring: oklch(0.662 0.202 34.1);
 
-  /* Restrained accent — focused inputs, primary buttons, active tab.
-     Single neutral foreground tone, no chroma. The "industry-neutral"
-     decision is here: no blue/green/purple branding. */
-  --primary: oklch(0.22 0 0);
-  --primary-foreground: oklch(0.99 0 0);
+  /* Brand accent — Ask / active tabs / section labels (report orange). */
+  --primary: oklch(0.662 0.202 34.1);
+  --primary-foreground: oklch(0.981 0.009 41.9);
 
-  --secondary: oklch(0.95 0 0);
-  --secondary-foreground: oklch(0.22 0 0);
+  --secondary: oklch(0.937 0.01 93.6);
+  --secondary-foreground: oklch(0.221 0.011 99.4);
 
   --destructive: oklch(0.55 0.22 25);
   --destructive-foreground: oklch(0.99 0 0);
 
-  --accent: oklch(0.94 0 0);
-  --accent-foreground: oklch(0.22 0 0);
+  --accent: oklch(0.934 0.012 91.5);
+  --accent-foreground: oklch(0.221 0.011 99.4);
 }
 
 .dark {
   color-scheme: dark;
 
-  --background: oklch(0.13 0 0);
-  --foreground: oklch(0.96 0 0);
+  --background: oklch(0.213 0.008 95.4);
+  --foreground: oklch(0.952 0.011 89.7);
 
-  --card: oklch(0.16 0 0);
-  --card-foreground: oklch(0.96 0 0);
+  --card: oklch(0.24 0.01 88.8);
+  --card-foreground: oklch(0.952 0.011 89.7);
 
-  --muted: oklch(0.2 0 0);
-  --muted-foreground: oklch(0.65 0 0);
+  --muted: oklch(0.277 0.011 91.7);
+  --muted-foreground: oklch(0.709 0.016 90.3);
 
-  --border: oklch(0.24 0 0);
-  --input: oklch(0.24 0 0);
-  --ring: oklch(0.75 0 0);
+  --border: oklch(0.307 0.013 81.7);
+  --input: oklch(0.307 0.013 81.7);
+  --ring: oklch(0.662 0.202 34.1);
 
-  --primary: oklch(0.96 0 0);
-  --primary-foreground: oklch(0.15 0 0);
+  --primary: oklch(0.662 0.202 34.1);
+  --primary-foreground: oklch(0.981 0.009 41.9);
 
-  --secondary: oklch(0.22 0 0);
-  --secondary-foreground: oklch(0.96 0 0);
+  --secondary: oklch(0.277 0.011 91.7);
+  --secondary-foreground: oklch(0.952 0.011 89.7);
 
   --destructive: oklch(0.6 0.22 25);
   --destructive-foreground: oklch(0.99 0 0);
 
-  --accent: oklch(0.22 0 0);
-  --accent-foreground: oklch(0.96 0 0);
+  --accent: oklch(0.277 0.011 91.7);
+  --accent-foreground: oklch(0.952 0.011 89.7);
 }
 
 /* Map theme tokens to Tailwind color utilities. */
@@ -167,50 +164,11 @@ body {
   border-radius: calc(var(--radius) - 2px);
 }
 
-/* ─── Warm paper — standalone report pages ────────────────────────── */
+/* ─── Report surface marker ───────────────────────────────────────── */
 
-/* The agent shell stays neutral (see the accent note above). Report
-   reading pages get their own warm palette: cream paper, warm ink, one
-   orange accent. Re-declaring the theme variables on the wrapper is
-   enough — every `bg-background` / `text-muted-foreground` utility below
-   it resolves against these instead. */
-.report-warm {
-  --background: oklch(0.964 0.007 97.4);
-  --foreground: oklch(0.221 0.011 99.4);
-
-  --card: oklch(0.985 0.005 95.1);
-  --card-foreground: oklch(0.221 0.011 99.4);
-
-  --muted: oklch(0.937 0.01 93.6);
-  --muted-foreground: oklch(0.534 0.014 96.6);
-
-  --border: oklch(0.906 0.01 93.6);
-  --input: oklch(0.906 0.01 93.6);
-  --ring: oklch(0.662 0.202 34.1);
-
-  --primary: oklch(0.662 0.202 34.1);
-  --primary-foreground: oklch(0.981 0.009 41.9);
-
-  --accent: oklch(0.934 0.012 91.5);
-  --accent-foreground: oklch(0.221 0.011 99.4);
-}
-
-.dark .report-warm {
-  --background: oklch(0.213 0.008 95.4);
-  --foreground: oklch(0.952 0.011 89.7);
-
-  --card: oklch(0.24 0.01 88.8);
-  --card-foreground: oklch(0.952 0.011 89.7);
-
-  --muted: oklch(0.277 0.011 91.7);
-  --muted-foreground: oklch(0.709 0.016 90.3);
-
-  --border: oklch(0.307 0.013 81.7);
-  --input: oklch(0.307 0.013 81.7);
-
-  --accent: oklch(0.277 0.011 91.7);
-  --accent-foreground: oklch(0.952 0.011 89.7);
-}
+/* Report pages still use class `report-warm` as a semantic hook. The
+   cream / orange LYRA palette now lives on `:root` / `.dark` so the
+   agent shell and reading pages share one brand. */
 
 /* Subtle scrollbar styling */
 ::-webkit-scrollbar {

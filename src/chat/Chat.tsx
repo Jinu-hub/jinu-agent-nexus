@@ -216,7 +216,7 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
       <BrandMark size="lg" />
 
       <section className="space-y-3 self-stretch">
-        <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
           소개
         </h2>
         <div className="space-y-3 text-sm leading-relaxed text-foreground/80">
@@ -227,7 +227,7 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
       </section>
 
       <section className="space-y-3 self-stretch">
-        <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
           기술 스택
         </h2>
         <div className="overflow-x-auto self-stretch">
@@ -253,7 +253,7 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
       </section>
 
       <div className="flex flex-col items-stretch gap-2 self-stretch">
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
           이렇게 물어보세요
         </p>
         {HOME_CHAT_SUGGESTIONS.map((s) => (
@@ -261,9 +261,9 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
             key={s.id}
             type="button"
             onClick={() => onPick(s.prompt)}
-            className="group flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left text-xs text-foreground hover:border-foreground/40"
+            className="group flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left text-xs text-foreground hover:border-primary/50"
           >
-            <span className="font-mono text-muted-foreground group-hover:text-foreground">
+            <span className="font-mono text-primary/70 group-hover:text-primary">
               ›
             </span>
             <span>{s.prompt}</span>

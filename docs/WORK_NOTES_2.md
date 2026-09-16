@@ -912,5 +912,16 @@ curl -s "http://localhost:5173/cdn-cgi/handler/scheduled?cron=5+0+*+*+*"
 * **프로덕션:** redeploy 후 Cloudflare triggers에 `5 0` / `5 1` 등록 확인
 * **의도적으로 안 함:** ingest idempotency 변경; query/clear 멀티 fan-out; DO schedule/Workflow; voice cron 시각 변경
 
+## 30. LYRA 브랜드 팔레트 통일 *(완료)*
+
+* **목적:** 홈(`/`) 에이전트 쉘을 `/daily-market-issues` warm paper와 맞춤 — 크림 배경·웜 잉크·주황 액센트 공유.
+* **적용:** 기존 `.report-warm` 토큰을 `:root` / `.dark`로 승격. 쉘·리포트·`/live`가 같은 CSS 변수 사용.
+* **수정 파일:**
+  * `src/index.css` — 전역 warm 팔레트; `.report-warm`은 semantic 마커만
+  * `src/chat/Chat.tsx` — EmptyState 섹션 라벨·제안 칩 `text-primary` (리포트 eyebrow와 동일)
+  * `docs/CLAUDE.md` — brand / Report page 표기
+* **확인:** `/`와 `/daily-market-issues` 배경·primary(Ask/탭/라벨) 톤 일치
+* **의도적으로 안 함:** 리포트 타이포/레이아웃을 쉘에 복제; Market 패널 카드 구조 변경; 시리즈별 액센트
+
 ---
 
