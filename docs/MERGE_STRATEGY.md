@@ -60,7 +60,7 @@
 | Market item resolve | `worker/market-item-resolve.ts`, `worker/market-settings.ts` — ingest/query resolve without brief |
 | Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts` (+ `item_content_i18n` localize), `worker/report-keywords.ts`, `worker/market-date.ts` |
 | Market vectors | `worker/market-vector.ts`, `worker/market-vector-routes.ts`, `worker/market-vector-cron.ts` |
-| Market topic labels | `worker/market-labels.ts`, `worker/market-labels-routes.ts` |
+| Market topic labels | `worker/market-labels.ts`, `worker/market-labels-helper.ts`, `worker/market-labels-routes.ts` |
 | Voice | `worker/content-audio.ts` (barrel), `content-audio-domain.ts`, `content-audio-routes.ts`, `audio-r2.ts`, `tts.ts`, `voice-lang-filter.ts`, `voice-audio-cron.ts` |
 | Shared load | `worker/market-memory-load.ts`, `worker/tools/market-date-resolve.ts` |
 | Market tools | `worker/tools/getTodayMarketBrief.ts`, `getTodayMarketVoice.ts`, `getTodayMarketReport.ts` |
