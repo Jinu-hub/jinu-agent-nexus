@@ -296,7 +296,7 @@ previous-day `market_date` drain — empty pending is a no-op).
 | `src/reports/ReportFullText.tsx` | Full report markdown at article typography + section jump chips (`ReportToc`) |
 | `src/App.tsx` | Layout, `useAgent`, panel tabs (`hidden_panels` filter; dock `lg+`, drawer below), Settings Market content toggles, theme |
 | `src/chat/Chat.tsx` | Shell chat — header report exits, LYRA intro empty state, composes `ChatParts` |
-| `src/chat/HomeReportExits.tsx` | Home → `/<slug>` links (header + landing cards from `REPORT_PAGES`) |
+| `src/chat/HomeReportExits.tsx` | Home → `/<slug>` via category menus + landing cards (`REPORT_NAV_CATEGORIES`) |
 | `src/chat/ChatParts.tsx` | Transcript + composer shared by shell and report pages |
 | `src/chat/Message.tsx` | Message rendering, tool UI, approvals |
 | `src/chat/Markdown.tsx` | Markdown in replies |

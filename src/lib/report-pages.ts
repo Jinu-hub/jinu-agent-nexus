@@ -9,6 +9,9 @@
 // A page can also *include* other catalog slugs (no extra URL). Example:
 // `/daily-market-issues` loads daily + weekly-market-issues as same-day
 // series tabs — weekly does not get its own `/weekly-market-issues` route.
+//
+// Shell header nav groups pages into categories (Market today; Enter /
+// Sports later). Landing cards follow the same grouping.
 // ─────────────────────────────────────────────────────────────────────────
 
 export type ReportPage = {
@@ -16,7 +19,7 @@ export type ReportPage = {
   slug: string;
   /** Small label above the title. */
   eyebrow: string;
-  /** Compact header link on the chat shell. Falls back to `eyebrow`. */
+  /** Menu / card short label. Falls back to `eyebrow`. */
   navLabel?: string;
   /** Heading shown until the catalog row loads. */
   fallbackTitle: string;
@@ -27,11 +30,19 @@ export type ReportPage = {
   includeSeriesSlugs?: string[];
 };
 
+/** Top-level shell nav group — expandable to page links. */
+export type ReportNavCategory = {
+  id: string;
+  label: string;
+  /** `ReportPage.slug`s in menu order. */
+  pageSlugs: string[];
+};
+
 export const REPORT_PAGES: ReportPage[] = [
   {
     slug: "daily-market-issues",
     eyebrow: "Market issues",
-    navLabel: "Market",
+    navLabel: "Market issues",
     fallbackTitle: "Market Issues Report",
     includeSeriesSlugs: ["weekly-market-issues"],
   },
@@ -43,12 +54,36 @@ export const REPORT_PAGES: ReportPage[] = [
   },
 ];
 
+/**
+ * Header / landing taxonomy. Add Enter / Sports here when those
+ * report pages exist — do not flatten them into REPORT_PAGES alone.
+ */
+export const REPORT_NAV_CATEGORIES: ReportNavCategory[] = [
+  {
+    id: "market",
+    label: "Market",
+    pageSlugs: ["daily-market-issues", "weekly-ai-issues"],
+  },
+];
+
 export function reportPagePath(slug: string): string {
   return `/${slug}`;
 }
 
 export function reportPageNavLabel(page: ReportPage): string {
   return page.navLabel?.trim() || page.eyebrow;
+}
+
+export function reportPagesForCategory(
+  category: ReportNavCategory,
+): ReportPage[] {
+  const bySlug = new Map(REPORT_PAGES.map((p) => [p.slug, p]));
+  const out: ReportPage[] = [];
+  for (const slug of category.pageSlugs) {
+    const page = bySlug.get(slug);
+    if (page) out.push(page);
+  }
+  return out;
 }
 
 /** Path slug + companions — order is primary first, then includes. */

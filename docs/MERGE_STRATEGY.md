@@ -54,9 +54,9 @@
 | Supabase | `worker/supabase.ts` |
 | Report series catalog | `worker/report-series.ts` — Settings Content toggles |
 | Market day reads | `worker/market-day.ts` — enabled `series_id` → mmi → item_contents |
-| Report pages | `src/lib/report-pages.ts`, `src/lib/brief-format.ts`, `src/reports/ReportSurface.tsx`, `ReportChat.tsx`, `ReportForYou.tsx`, `ReportFullText.tsx` — `/<slug>` 리딩 화면 (브리프 / 나를 위한 요약 / 전문 + 사이드 채팅) |
+| Report pages | `src/lib/report-pages.ts` (`REPORT_PAGES` + `REPORT_NAV_CATEGORIES`), `src/lib/brief-format.ts`, `src/reports/ReportSurface.tsx`, `ReportChat.tsx`, `ReportForYou.tsx`, `ReportFullText.tsx` — `/<slug>` 리딩 화면 + 쉘 카테고리 메뉴 |
 | Report For you | `worker/market-for-you.ts` — 관심사 ∩ 리포트 → 벡터 문단 → LLM 요약; 캐시는 MyMemory `for_you_summaries` |
-| Chat parts | `src/chat/ChatParts.tsx`, `src/chat/use-client-tools.ts`, `src/chat/HomeReportExits.tsx` — transcript/입력부 공용 + 홈→리포트 출구 |
+| Chat parts | `src/chat/ChatParts.tsx`, `src/chat/use-client-tools.ts`, `src/chat/HomeReportExits.tsx` — transcript/입력부 공용 + 홈→리포트 카테고리 출구 |
 | Market item resolve | `worker/market-item-resolve.ts`, `worker/market-settings.ts` — ingest/query resolve without brief |
 | Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts` (+ `item_content_i18n` localize), `worker/lib/report-keywords.ts`, `worker/lib/market-date.ts` |
 | Market vectors | `worker/market-vector.ts`, `worker/market-vector-routes.ts`, `worker/market-vector-cron.ts` |
@@ -180,3 +180,4 @@
 | 2026-09-17 | 좁은 폭 헤더·패널 — B `App`/`Chat` ([`WORK_NOTES_2` §34.2](./WORK_NOTES_2.md)) |
 | 2026-09-17 | 좁은 폭 패널 드로어 — B `App`/`Chat` ([`WORK_NOTES_2` §34.4](./WORK_NOTES_2.md)) |
 | 2026-09-17 | 작업노트 → `WORK_NOTES_3` (§35~) — docs ([`WORK_NOTES_3` §35](./WORK_NOTES_3.md)) |
+| 2026-09-17 | 헤더 Market 카테고리 메뉴 — A `report-pages` / `HomeReportExits` ([`WORK_NOTES_3` §36](./WORK_NOTES_3.md)) |
