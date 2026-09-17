@@ -144,12 +144,12 @@ function Header({
         <BrandMark />
         <div className="min-w-0">
           <h1 className="text-sm font-semibold tracking-tight">LYRA</h1>
-          <p className="hidden truncate text-[11px] text-muted-foreground xl:block">
+          <p className="hidden truncate text-[11px] text-muted-foreground sm:block">
             Your world, a little closer.
           </p>
         </div>
         {/* Sidebar appears at lg — keep nav only when the chat column is wide enough. */}
-        <ReportNavLinks className="ml-1 hidden xl:flex" />
+        <ReportNavLinks className="ml-3 flex shrink-0" />
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {onTogglePanels ? (

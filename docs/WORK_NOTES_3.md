@@ -64,4 +64,15 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **확인:** 헤더 `Market` ▾ → Market issues / Weekly AI; 빈 화면 「준비된 테마」 아래 Market 그룹
 * **의도적으로 안 함:** Enter/Sports 플레이스홀더 카테고리; 사이드바 패널 탭 개편
 
+### 36.1 헤더 Market 메뉴 — 좁은 폭에서도 유지 *(완료)*
+
+* **목적:** 카테고리가 하나라 폭 여유가 있음 → `xl`에서 숨기지 않음.
+* **수정:** `src/chat/Chat.tsx` — `ReportNavLinks` `hidden xl:flex` → 항상 `flex`
+* **의도적으로 안 함:** Clear 라벨의 `xl` 접기 해제
+
+### 36.2 슬로건 — 모바일에서만 숨김 *(완료)*
+
+* **목적:** `Your world, a little closer.`는 모바일(`<sm`)에서만 접고, 그 이상은 표시.
+* **수정:** `src/chat/Chat.tsx` — 슬로건 `xl:block` → `sm:block`
+
 ---

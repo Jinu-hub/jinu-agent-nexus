@@ -225,7 +225,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Voice audio pipeline | `content-audio.ts` barrel + `content-audio-domain.ts` / `content-audio-routes.ts` + `voice-audio-cron.ts` (UTC `0 0` + catch-up `0 1`) → `/api/audio/*`; today play + tool `getTodayMarketVoice.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
-| UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` + `HomeReportExits.tsx` — empty state = LYRA intro + report landing cards (`REPORT_NAV_CATEGORIES`) + CF stack + `HOME_CHAT_SUGGESTIONS`; header category menus (`Market` ▾ → pages, `xl+`); Reset/Clear labels `xl+`; right panels dock at `lg+`, drawer toggle below (`App.tsx` `panelOpen`) |
+| UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` + `HomeReportExits.tsx` — empty state = LYRA intro + report landing cards (`REPORT_NAV_CATEGORIES`) + CF stack + `HOME_CHAT_SUGGESTIONS`; header category menus (`Market` ▾ → pages, always shown); Reset/Clear labels `xl+`; right panels dock at `lg+`, drawer toggle below (`App.tsx` `panelOpen`) |
 | Chat transcript / input (shared) | `src/chat/ChatParts.tsx` (`ChatMessageList` + `ChatComposer`) + `src/chat/use-client-tools.ts`; each surface supplies its own header + `empty` state (shell = `Chat.tsx`, report page = `ReportChat.tsx`) |
 | Voice in-chat player | `src/chat/Message.tsx` — `<audio>` when `getTodayMarketVoice` returns `playPath` |
 

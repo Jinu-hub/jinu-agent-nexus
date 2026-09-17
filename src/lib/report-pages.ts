@@ -42,14 +42,14 @@ export const REPORT_PAGES: ReportPage[] = [
   {
     slug: "daily-market-issues",
     eyebrow: "Market issues",
-    navLabel: "Market issues",
+    navLabel: "Daily Market issues",
     fallbackTitle: "Market Issues Report",
     includeSeriesSlugs: ["weekly-market-issues"],
   },
   {
     slug: "weekly-ai-issues",
     eyebrow: "Weekly AI issues",
-    navLabel: "Weekly AI",
+    navLabel: "Weekly AI issues",
     fallbackTitle: "Weekly AI Issues Digest",
   },
 ];
