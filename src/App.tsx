@@ -23,6 +23,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgent } from "agents/react";
 import type { MCPServersState } from "agents";
 import { DEFAULT_INSTANCE_NAME } from "@/lib/agent-identity";
+import { cn } from "@/lib/utils";
 import {
   Brain,
   BookOpen,
@@ -35,6 +36,7 @@ import {
   Plug,
   Settings2,
   Newspaper,
+  X,
 } from "lucide-react";
 
 import type { ChatAgent, State } from "../worker/chat-agent";
@@ -52,6 +54,7 @@ import {
   TabsTrigger,
   TabsContent,
 } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 
 import { MemoryPanel } from "@/panels/MemoryPanel";
 import { MarketPanel } from "@/panels/MarketPanel";
@@ -106,6 +109,8 @@ export default function App() {
   const [settingsUpdating, setSettingsUpdating] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("market");
+  /** Below lg the panel column is a drawer; lg+ it stays docked. */
+  const [panelOpen, setPanelOpen] = useState(false);
 
   // ─── Theme toggle (lives in localStorage so it survives refresh) ───────
   // The matching inline script in index.html sets the `dark` class on
@@ -285,6 +290,15 @@ export default function App() {
     [updateSettings],
   );
 
+  useEffect(() => {
+    if (!panelOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPanelOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [panelOpen]);
+
   // ─── Render ────────────────────────────────────────────────────────────
   return (
     <div className="relative isolate flex h-full overflow-hidden">
@@ -297,24 +311,56 @@ export default function App() {
           onReset={() => void agent.stub.resetSession()}
           pendingAsk={pendingAsk}
           onPendingAskConsumed={() => setPendingAsk(null)}
+          panelOpen={panelOpen}
+          onTogglePanels={() => setPanelOpen((v) => !v)}
         />
       </main>
 
-      {/* RIGHT — tabbed panels */}
-      <aside className="hidden w-105 shrink-0 border-l border-border bg-card md:flex md:flex-col animate-fade-up [animation-delay:200ms]">
+      {/* Scrim — only while the drawer is open below lg */}
+      {panelOpen ? (
+        <button
+          type="button"
+          aria-label="Close panels"
+          className="fixed inset-0 z-20 bg-foreground/20 lg:hidden"
+          onClick={() => setPanelOpen(false)}
+        />
+      ) : null}
+
+      {/* RIGHT — tabbed panels (docked lg+; drawer overlay below) */}
+      <aside
+        className={cn(
+          "flex flex-col border-border bg-card animate-fade-up [animation-delay:200ms]",
+          "max-lg:fixed max-lg:inset-y-0 max-lg:right-0 max-lg:z-30",
+          "max-lg:w-full max-lg:max-w-105 max-lg:border-l max-lg:shadow-2xl",
+          panelOpen ? "max-lg:flex" : "max-lg:hidden",
+          "lg:relative lg:flex lg:w-105 lg:shrink-0 lg:border-l",
+        )}
+      >
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
           className="flex h-full flex-col"
         >
-          <TabsList className="shrink-0 px-2 pt-2">
-            {visiblePanels.map((p) => (
-              <TabsTrigger key={p.value} value={p.value}>
-                <p.icon className="size-3.5" />
-                {p.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <div className="flex shrink-0 items-start gap-0.5 pr-1.5 pt-2">
+            <TabsList className="min-w-0 flex-1 px-2 pt-0">
+              {visiblePanels.map((p) => (
+                <TabsTrigger key={p.value} value={p.value}>
+                  <p.icon className="size-3.5" />
+                  {p.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="mt-0.5 shrink-0 lg:hidden"
+              onClick={() => setPanelOpen(false)}
+              title="Close panels"
+              aria-label="Close panels"
+            >
+              <X className="size-3.5" />
+            </Button>
+          </div>
 
           <TabsContent value="memory">
             <MemoryPanel

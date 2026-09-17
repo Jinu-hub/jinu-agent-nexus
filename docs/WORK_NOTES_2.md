@@ -1012,5 +1012,31 @@ curl -s "http://localhost:5173/api/market/latest-date?lang=ko\
 * **확인:** Market 탭에서 daily / weekly-market / weekly-ai → 해당 `/<slug>` (companion은 `?series=`). 등록 없는 시리즈는 링크 숨김
 * **의도적으로 안 함:** 사이드바를 페이지 목록으로 쓰지 않음; in-panel wide reader 제거
 
+### 34.2 좁은 폭 헤더·패널 찌그러짐 *(완료)*
+
+* **목적:** 채팅열 + 고정 `w-105` 패널이 겹칠 때 LYRA 헤더가 줄바꿈으로 깨지는 문제.
+* **수정 및 추가 파일:**
+  * `src/App.tsx` — 패널 aside `md:flex` → `lg:flex` (중간 폭은 채팅 풀폭)
+  * `src/chat/Chat.tsx` — 슬로건·`ReportNavLinks`·Reset/Clear 라벨은 `xl+`(그 아래 아이콘만)
+  * docs: 본 절
+* **확인:** ~md 폭에서 헤더 한 줄·슬로건 숨김; `lg+`에서 패널 재등장, `xl+`에서 Market/Weekly AI·버튼 라벨
+* **의도적으로 안 함:** 패널 오버레이 드로어 → §34.4; `md` 패널 유지
+
+### 34.3 Reset session 헤더 버튼 숨김 *(완료)*
+
+* **목적:** 빈 세션에서 눌러도 UI 변화가 안 보여 혼란 → 일단 숨김. `resetSession` RPC·`App` wiring은 유지.
+* **수정:** `src/chat/Chat.tsx` — `SHOW_RESET_SESSION = false` (나중에 `true`로 복구)
+* **의도적으로 안 함:** Clear chat 제거; `panel-ops.resetSession` 삭제
+
+### 34.4 좁은 폭 패널 드로어 *(완료)*
+
+* **목적:** `lg` 미만에서 패널이 사라져 Market/Settings에 못 들어가던 문제 → 헤더 토글로 오른쪽 오버레이.
+* **수정 및 추가 파일:**
+  * `src/App.tsx` — `panelOpen`; `max-lg:fixed` 드로어 + scrim + Esc/닫기; `lg+`는 기존 도킹
+  * `src/chat/Chat.tsx` — `lg:hidden` `PanelRight` 토글 (`panelOpen` / `onTogglePanels`)
+  * docs: `CLAUDE.md`, `ARCHITECTURE.md`, 본 절
+* **확인:** 좁은 폭에서 패널 아이콘 → Market/Settings 드로어; 배경·X·Esc로 닫힘; `lg+`는 항상 사이드바
+* **의도적으로 안 함:** 열림 상태 localStorage 저장; 슬라이드 애니메이션
+
 ---
 

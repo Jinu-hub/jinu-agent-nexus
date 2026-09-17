@@ -46,7 +46,7 @@ worker/index.ts (HTTP Gateway)
 
 ```text
 src/ (React Frontend)
- ├── /                      → Chat 메인 쉘 + 패널; 헤더/빈 화면에서 `/daily-market-issues` · `/weekly-ai-issues` 출구 (§34). Market 패널은 활성 시리즈만 「이 리포트 크게 보기」 (§34.1)
+ ├── /                      → Chat 메인 쉘 + 패널; 헤더/빈 화면에서 `/daily-market-issues` · `/weekly-ai-issues` 출구 (§34). Market 패널은 활성 시리즈만 「이 리포트 크게 보기」 (§34.1). `lg` 미만 패널은 헤더 드로어 (§34.4)
  ├── /live                  → Market Pulse 실시간 투표방 (단독 전체 화면)
  ├── /daily-market-issues   → Market issues 리딩 페이지 (`?date=` `?lang=` `?tab=` `?series=`) (§26 / §32)
  │                            companion `weekly-market-issues` same-day 탭 (`/weekly-market-…` 라우트 없음)

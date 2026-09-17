@@ -16,7 +16,7 @@
 
 import { useEffect, useRef } from "react";
 import { useAgentChat } from "@cloudflare/ai-chat/react";
-import { Trash2, RotateCcw, Moon, Sun } from "lucide-react";
+import { Trash2, RotateCcw, Moon, Sun, PanelRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { HOME_CHAT_SUGGESTIONS } from "@/lib/market-suggestions";
@@ -36,6 +36,8 @@ export function Chat({
   onReset,
   pendingAsk = null,
   onPendingAskConsumed,
+  panelOpen = false,
+  onTogglePanels,
 }: {
   agent: AgentForChat;
   theme: "light" | "dark";
@@ -44,6 +46,9 @@ export function Chat({
   /** Set by Market panel "Ask in chat" — Chat sends then clears via callback. */
   pendingAsk?: { text: string; nonce: number } | null;
   onPendingAskConsumed?: () => void;
+  /** Narrow-viewport panel drawer open (lg+ dock ignores this). */
+  panelOpen?: boolean;
+  onTogglePanels?: () => void;
 }) {
   const onToolCall = useClientToolCall();
   const chat = useAgentChat({ agent, onToolCall });
@@ -66,6 +71,8 @@ export function Chat({
         theme={theme}
         onToggleTheme={onToggleTheme}
         onReset={onReset}
+        panelOpen={panelOpen}
+        onTogglePanels={onTogglePanels}
       />
       <ChatMessageList
         chat={chat}
@@ -112,32 +119,52 @@ function BrandMark({ size = "sm" }: { size?: "sm" | "lg" }) {
 }
 
 // ─── Header bar ──────────────────────────────────────────────────────────
-// Hosts every chat-level action: theme toggle, full session reset
-// (wipes sources/files/schedules/extensions/MCP), and clear-chat-only.
+// Hosts theme toggle and clear-chat. Reset session (sources/files/schedules/
+// extensions/MCP) stays wired but hidden until the action has clearer UX.
+const SHOW_RESET_SESSION = false;
+
 function Header({
   chat,
   theme,
   onToggleTheme,
   onReset,
+  panelOpen,
+  onTogglePanels,
 }: {
   chat: ChatHelpers;
   theme: "light" | "dark";
   onToggleTheme: () => void;
   onReset: () => void;
+  panelOpen: boolean;
+  onTogglePanels?: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-border px-4 py-3">
+    <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
       <div className="flex min-w-0 items-center gap-3">
         <BrandMark />
         <div className="min-w-0">
           <h1 className="text-sm font-semibold tracking-tight">LYRA</h1>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="hidden truncate text-[11px] text-muted-foreground xl:block">
             Your world, a little closer.
           </p>
         </div>
-        <ReportNavLinks className="ml-1 hidden sm:flex" />
+        {/* Sidebar appears at lg — keep nav only when the chat column is wide enough. */}
+        <ReportNavLinks className="ml-1 hidden xl:flex" />
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        {onTogglePanels ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="lg:hidden"
+            onClick={onTogglePanels}
+            aria-pressed={panelOpen}
+            title={panelOpen ? "Close panels" : "Open panels"}
+            aria-label={panelOpen ? "Close panels" : "Open panels"}
+          >
+            <PanelRight className="size-4" />
+          </Button>
+        ) : null}
         <Button
           size="sm"
           variant="ghost"
@@ -150,16 +177,18 @@ function Header({
             <Sun className="size-4" />
           )}
         </Button>
-        <Separator orientation="vertical" className="mx-1 h-5" />
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={onReset}
-          title="Wipe sources, files, schedules, extensions, MCP connections"
-        >
-          <RotateCcw className="size-3.5" />
-          Reset session
-        </Button>
+        <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block" />
+        {SHOW_RESET_SESSION ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onReset}
+            title="Wipe sources, files, schedules, extensions, MCP connections"
+          >
+            <RotateCcw className="size-3.5" />
+            <span className="hidden xl:inline">Reset session</span>
+          </Button>
+        ) : null}
         <Button
           size="sm"
           variant="ghost"
@@ -167,7 +196,7 @@ function Header({
           title="Clear chat history"
         >
           <Trash2 className="size-3.5" />
-          Clear chat
+          <span className="hidden xl:inline">Clear chat</span>
         </Button>
       </div>
     </div>

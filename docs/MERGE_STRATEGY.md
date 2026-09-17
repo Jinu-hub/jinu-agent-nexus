@@ -177,3 +177,5 @@
 | 2026-09-17 | `/weekly-ai-issues` report page registry — A + ROUTING ([`WORK_NOTES_2` §33](./WORK_NOTES_2.md)) |
 | 2026-09-17 | 홈 → 리포트 페이지 출구 — A `Chat.tsx` + ROUTING ([`WORK_NOTES_2` §34](./WORK_NOTES_2.md)) |
 | 2026-09-17 | Market 패널 「이 리포트 크게 보기」 — A `MarketPanel` ([`WORK_NOTES_2` §34.1](./WORK_NOTES_2.md)) |
+| 2026-09-17 | 좁은 폭 헤더·패널 — B `App`/`Chat` ([`WORK_NOTES_2` §34.2](./WORK_NOTES_2.md)) |
+| 2026-09-17 | 좁은 폭 패널 드로어 — B `App`/`Chat` ([`WORK_NOTES_2` §34.4](./WORK_NOTES_2.md)) |
