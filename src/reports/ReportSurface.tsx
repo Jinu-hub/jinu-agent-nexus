@@ -604,7 +604,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
               </Notice>
             ) : !brief && !hasReport ? (
               <Notice title="Nothing published for this day">
-                No market-issues brief/report for{" "}
+                No brief/report for{" "}
                 <span className="font-mono text-foreground">{date}</span> /{" "}
                 <span className="font-mono text-foreground">{lang}</span>
                 {pageSeriesRows.length > 1 ? (
@@ -614,6 +614,15 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                     <span className="font-mono text-foreground">
                       {pageSeriesRows.map((r) => r.slug).join(", ")}
                     </span>
+                  </>
+                ) : pageSeries ? (
+                  <>
+                    {" "}
+                    (
+                    <span className="font-mono text-foreground">
+                      {pageSeries.slug}
+                    </span>
+                    )
                   </>
                 ) : null}
                 . Newest published day is usually{" "}

@@ -32,6 +32,11 @@ export const REPORT_PAGES: ReportPage[] = [
     fallbackTitle: "Market Issues Report",
     includeSeriesSlugs: ["weekly-market-issues"],
   },
+  {
+    slug: "weekly-ai-issues",
+    eyebrow: "Weekly AI issues",
+    fallbackTitle: "Weekly AI Issues Digest",
+  },
 ];
 
 export function reportPagePath(slug: string): string {

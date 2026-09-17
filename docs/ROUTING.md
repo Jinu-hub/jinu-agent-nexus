@@ -48,10 +48,10 @@ worker/index.ts (HTTP Gateway)
 src/ (React Frontend)
  ├── /                      → Chat 메인 쉘 + 패널 (Memory, Skills, Files, Tools, Sources, Browser, Schedules, Extensions, MCP, Settings, Market …)
  ├── /live                  → Market Pulse 실시간 투표방 (단독 전체 화면)
- └── /daily-market-issues   → report_series 전용 리딩 페이지 (`?date=` `?lang=` `?tab=` `?series=`) (§26 / §32)
-                             path slug = daily; companion `weekly-market-issues`도 같은 날 슬롯 탭으로 표시
-                             `?series=weekly-market-issues` 로 슬롯 고정 가능 (`/weekly-…` 라우트 없음)
-                             `?tab=` 생략/`for-you`/`full` → 30초 브리프 / 나를 위한 요약 / 전문
+ ├── /daily-market-issues   → Market issues 리딩 페이지 (`?date=` `?lang=` `?tab=` `?series=`) (§26 / §32)
+ │                            companion `weekly-market-issues` same-day 탭 (`/weekly-market-…` 라우트 없음)
+ └── /weekly-ai-issues      → Weekly AI digest 리딩 페이지 (`?date=` `?lang=` `?tab=`) (§33)
+                              `?tab=` 생략/`for-you`/`full` → 30초 브리프 / 나를 위한 요약 / 전문
 ```
 
 > `/<report_series.slug>` 경로는 `src/lib/report-pages.ts`의 `REPORT_PAGES`에 등록된 slug만 열린다.

@@ -970,3 +970,24 @@ curl -s http://localhost:5173/api/report-series | jq -r '.items[] | select(.slug
 
 ---
 
+## 33. `/weekly-ai-issues` 전용 리딩 페이지 *(완료)*
+
+* **목적:** Weekly AI digest를 Market 패널이 아니라 전용 프레임에서 읽기. `ReportSurface` 재사용 — Brief 메타(`pulse` / `highlights` / `market_reaction` / `takeaway`)가 market과 동일.
+* **ROUTING 반영:** FE `/weekly-ai-issues` (`?date=` `?lang=` `?tab=`)
+* **수정 파일:**
+  * `src/lib/report-pages.ts` — `REPORT_PAGES`에 `weekly-ai-issues` 등록 (companion 없음)
+  * docs: `ROUTING.md` / `CLAUDE.md` / `ARCHITECTURE.md` / `MERGE_STRATEGY.md` / 본 절
+* **확인:**
+
+```bash
+curl -s "http://localhost:5173/api/market/latest-date?lang=ko\
+&series_id=71754888-892c-4e88-9f3d-9d061940440d" | jq .marketDate
+# → 2026-09-12 (로컬 시점)
+```
+
+  * `http://localhost:5173/weekly-ai-issues` → Latest 자동 로드, 브리프/보이스/전문 탭
+  * `/weekly-market-issues`는 여전히 미등록 (daily companion만)
+* **의도적으로 안 함:** AI 전용 Brief 템플릿 분기; Market issues를 AI 페이지에 include
+
+---
+

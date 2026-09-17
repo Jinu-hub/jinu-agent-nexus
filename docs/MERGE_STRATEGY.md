@@ -174,3 +174,4 @@
 | 2026-09-15 | Market vector ingest cron `5 0`/`5 1` — A + B scheduled + C ([`WORK_NOTES_2` §29](./WORK_NOTES_2.md)) |
 | 2026-09-16 | `worker/lib/` helpers (`market-date`, `voice-lang-filter`, `report-keywords`, `market-labels-helper`) — A ([`WORK_NOTES_2` §31](./WORK_NOTES_2.md)) |
 | 2026-09-17 | `/daily-market-issues` includes weekly companion slots — A + ROUTING ([`WORK_NOTES_2` §32](./WORK_NOTES_2.md)) |
+| 2026-09-17 | `/weekly-ai-issues` report page registry — A + ROUTING ([`WORK_NOTES_2` §33](./WORK_NOTES_2.md)) |
