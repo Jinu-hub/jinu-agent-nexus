@@ -4,16 +4,21 @@
 //
 // Full-frame surface rendered instead of the chat shell (see src/main.tsx).
 //
-// Three tabs, one axis — how deeply you want to read the same day:
+// Three depth tabs — how deeply you want to read the same day:
 //   30초 브리프 → 나를 위한 요약 (interests × report) → 전문
-// Voice sits *above* the tabs: it is the day's asset, not a depth, and a
+// Voice sits *above* the depth tabs: it is the day's asset, not a depth, and a
 // player inside a tab panel would unmount (and stop playing) on switch.
+//
+// Series: the path slug owns the route (`/daily-market-issues`). Companions
+// from `report-pages.includeSeriesSlugs` (e.g. weekly-market-issues) load on
+// the same page as same-day series tabs — no separate weekly URL.
+// Optional `?series=<slug>` pins which slot is selected.
 //
 // It reads the same HTTP APIs as the Market panel:
 //   GET  /settings               → content_lang (unless `?lang=` overrides)
-//   GET  /api/report-series      → slug → series row
-//   GET  /api/market/latest-date → newest market_date for that series
-//   GET  /api/market/day         → brief + voice + full report for one day
+//   GET  /api/report-series      → slug(s) → series rows
+//   GET  /api/market/latest-date → newest market_date across page series
+//   GET  /api/market/day         → brief + voice + full report slots
 //   POST /api/market/for-you     → personalized summary (ReportForYou)
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -52,6 +57,7 @@ import {
   shiftYmd,
 } from "@/lib/market-date";
 import type { ReportPage } from "@/lib/report-pages";
+import { reportPageSeriesSlugs } from "@/lib/report-pages";
 import { fetchTopicLabels } from "@/lib/topic-preference";
 import { cn } from "@/lib/utils";
 
@@ -88,14 +94,19 @@ type ReportItem = {
   metadata: unknown;
 };
 
+type DaySlot = {
+  seriesId: string;
+  seriesSlug: string;
+  seriesTitle: string;
+  seriesTabLabel: string;
+  brief: BriefItem | null;
+  voice: VoiceSlot | null;
+  report: ReportItem | null;
+};
+
 type MarketDayResponse = {
   ok?: boolean;
-  slots?: Array<{
-    seriesId: string;
-    brief: BriefItem | null;
-    voice: VoiceSlot | null;
-    report: ReportItem | null;
-  }>;
+  slots?: DaySlot[];
   message?: string;
 };
 
@@ -116,19 +127,23 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
   const langOverride = params.get("lang");
   const dateParam = params.get("date")?.trim();
   const tabParam = params.get("tab");
+  /** Initial `?series=` only — later tab clicks own selection via state. */
+  const seriesSlugFromUrlRef = useRef(params.get("series")?.trim() || null);
 
   const [lang, setLang] = useState<ContentLang | null>(
     isContentLang(langOverride) ? langOverride : null,
   );
-  const [series, setSeries] = useState<ReportSeriesRow | null>(null);
+  /** Catalog row for the path slug — missing → hard error. */
+  const [pageSeries, setPageSeries] = useState<ReportSeriesRow | null>(null);
+  /** Path + companion series that exist in the catalog. */
+  const [pageSeriesRows, setPageSeriesRows] = useState<ReportSeriesRow[]>([]);
   const [seriesResolved, setSeriesResolved] = useState(false);
   const [date, setDate] = useState<string | null>(
     dateParam && isMarketDateYmd(dateParam) ? dateParam : null,
   );
   const [latestDate, setLatestDate] = useState<string | null>(null);
-  const [brief, setBrief] = useState<BriefItem | null>(null);
-  const [voice, setVoice] = useState<VoiceSlot | null>(null);
-  const [report, setReport] = useState<ReportItem | null>(null);
+  const [daySlots, setDaySlots] = useState<DaySlot[]>([]);
+  const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -151,13 +166,25 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
     setPendingAsk({ text, nonce: Date.now() });
   };
 
-  // Shareable tab — and the depth survives date navigation.
+  // Shareable depth tab — and the depth survives date / series navigation.
   useEffect(() => {
     const url = new URL(window.location.href);
     if (tab === "brief") url.searchParams.delete("tab");
     else url.searchParams.set("tab", tab);
     window.history.replaceState(null, "", url);
   }, [tab]);
+
+  // Shareable series slot when the page hosts more than one slug.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const active = daySlots.find((s) => s.seriesId === activeSeriesId);
+    if (!active || daySlots.length <= 1) {
+      url.searchParams.delete("series");
+    } else {
+      url.searchParams.set("series", active.seriesSlug);
+    }
+    window.history.replaceState(null, "", url);
+  }, [activeSeriesId, daySlots]);
 
   const calendarToday = seoulYmd();
 
@@ -186,6 +213,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
 
   useEffect(() => {
     let active = true;
+    const wanted = reportPageSeriesSlugs(page);
     void fetch("/api/report-series")
       .then(async (res) => {
         const body = (await res.json()) as {
@@ -197,11 +225,17 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
         if (!body.ok || !Array.isArray(body.items)) {
           throw new Error(body.message || `report-series HTTP ${res.status}`);
         }
-        setSeries(body.items.find((row) => row.slug === page.slug) ?? null);
+        const bySlug = new Map(body.items.map((row) => [row.slug, row]));
+        const rows = wanted
+          .map((slug) => bySlug.get(slug))
+          .filter((row): row is ReportSeriesRow => Boolean(row));
+        setPageSeries(bySlug.get(page.slug) ?? null);
+        setPageSeriesRows(rows);
       })
       .catch((err: unknown) => {
         if (!active) return;
-        setSeries(null);
+        setPageSeries(null);
+        setPageSeriesRows([]);
         setError(err instanceof Error ? err.message : "Failed to load catalog");
       })
       .finally(() => {
@@ -210,46 +244,58 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
     return () => {
       active = false;
     };
-  }, [page.slug]);
+  }, [page]);
+
+  const seriesIdsKey = pageSeriesRows.map((r) => r.id).join(",");
 
   // The setters are listed because React Compiler infers them as deps and
   // refuses to compile the component otherwise; they are stable, so this is
   // still the `[]` callback the load effect below needs.
-  const loadBrief = useCallback(
-    async (seriesId: string, marketDate: string, marketLang: string) => {
+  const loadDay = useCallback(
+    async (seriesIds: string[], marketDate: string, marketLang: string) => {
       setLoading(true);
       setError(null);
       try {
         const qs = new URLSearchParams({
           date: marketDate,
           lang: marketLang,
-          series_id: seriesId,
         });
+        for (const id of seriesIds) qs.append("series_id", id);
         const res = await fetch(`/api/market/day?${qs}`);
         const json = (await res.json()) as MarketDayResponse;
         if (!res.ok && !json.ok) {
           throw new Error(json.message || `market/day HTTP ${res.status}`);
         }
-        setBrief(json.slots?.[0]?.brief ?? null);
-        setVoice(json.slots?.[0]?.voice ?? null);
-        setReport(json.slots?.[0]?.report ?? null);
+        const slots = json.slots ?? [];
+        setDaySlots(slots);
+        setActiveSeriesId((prev) => {
+          if (prev && slots.some((s) => s.seriesId === prev)) return prev;
+          const want = seriesSlugFromUrlRef.current;
+          if (want) {
+            const bySlug = slots.find((s) => s.seriesSlug === want);
+            if (bySlug) return bySlug.seriesId;
+          }
+          // Prefer the path slug when both daily + weekly publish that day.
+          const primary = slots.find((s) => s.seriesSlug === page.slug);
+          return primary?.seriesId ?? slots[0]?.seriesId ?? null;
+        });
       } catch (err) {
-        setBrief(null);
-        setVoice(null);
-        setReport(null);
-        setError(err instanceof Error ? err.message : "Failed to load brief");
+        setDaySlots([]);
+        setActiveSeriesId(null);
+        setError(err instanceof Error ? err.message : "Failed to load day");
       } finally {
         setLoading(false);
       }
     },
-    [setLoading, setError, setBrief, setVoice, setReport],
+    [setLoading, setError, setDaySlots, setActiveSeriesId, page.slug],
   );
 
-  // Newest published day for this series — also the initial date.
+  // Newest published day across path + companion series — also the initial date.
   useEffect(() => {
-    if (!series || !lang) return;
+    if (pageSeriesRows.length === 0 || !lang) return;
     let active = true;
-    const qs = new URLSearchParams({ lang, series_id: series.id });
+    const qs = new URLSearchParams({ lang });
+    for (const row of pageSeriesRows) qs.append("series_id", row.id);
     void fetch(`/api/market/latest-date?${qs}`)
       .then(async (res) => {
         const json = (await res.json()) as {
@@ -279,23 +325,27 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
     return () => {
       active = false;
     };
-  }, [series, lang]);
+  }, [seriesIdsKey, lang, pageSeriesRows]);
 
   useEffect(() => {
-    if (!series || !lang || !date) return;
-    void loadBrief(series.id, date, lang);
-  }, [series, lang, date, loadBrief]);
+    if (pageSeriesRows.length === 0 || !lang || !date) return;
+    void loadDay(
+      pageSeriesRows.map((r) => r.id),
+      date,
+      lang,
+    );
+  }, [seriesIdsKey, lang, date, loadDay, pageSeriesRows]);
 
   // Chat's Market scope is a single setting shared with the panel's tab.
-  // Pin it to this page's series so answers cite the report on screen.
+  // Pin it to the slot on screen so answers cite that report.
   useEffect(() => {
-    if (!series) return;
+    if (!activeSeriesId) return;
     void agent.stub
-      .updateSettings({ market_focus_series_id: series.id })
+      .updateSettings({ market_focus_series_id: activeSeriesId })
       .catch(() => {
         // Chat still works, it just falls back to the panel's last tab.
       });
-  }, [series, agent.stub]);
+  }, [activeSeriesId, agent.stub]);
 
   // Same body-grounded map Topics uses — metadata.tags.core often has no
   // label_ko, so the header would otherwise show raw slugs.
@@ -313,6 +363,12 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
       active = false;
     };
   }, [lang]);
+
+  const activeSlot =
+    daySlots.find((s) => s.seriesId === activeSeriesId) ?? daySlots[0] ?? null;
+  const brief = activeSlot?.brief ?? null;
+  const voice = activeSlot?.voice ?? null;
+  const report = activeSlot?.report ?? null;
 
   const parts = parseBriefParts(brief?.metadata);
   // Rows published before the structured metadata landed — read the prose.
@@ -332,7 +388,8 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
           body: s.body,
         })) ?? []);
   const effectiveLatest = latestDate ?? calendarYesterdayYmd();
-  const title = series?.title ?? page.fallbackTitle;
+  const title =
+    activeSlot?.seriesTitle ?? pageSeries?.title ?? page.fallbackTitle;
   const hasReport = Boolean(report?.content?.trim());
   const headline = brief?.title ?? report?.title ?? title;
   const tagLexicon = report ? buildTagLexicon(report.metadata) : null;
@@ -357,6 +414,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
     activeTab === "full"
       ? (report?.lang_code ?? brief?.lang_code ?? lang)
       : (brief?.lang_code ?? lang);
+  const emptyLoading = loading && !brief && !hasReport && daySlots.length === 0;
 
   // Full report is long — surface a back-to-top once the reader has scrolled
   // past the voice/tabs chrome. Other tabs stay short enough without it.
@@ -478,9 +536,15 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
             </button>
             <button
               type="button"
-              disabled={loading || !series || !date || !lang}
+              disabled={loading || pageSeriesRows.length === 0 || !date || !lang}
               onClick={() => {
-                if (series && date && lang) void loadBrief(series.id, date, lang);
+                if (pageSeriesRows.length > 0 && date && lang) {
+                  void loadDay(
+                    pageSeriesRows.map((r) => r.id),
+                    date,
+                    lang,
+                  );
+                }
               }}
               className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
               title="Refresh"
@@ -488,6 +552,37 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
               <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             </button>
           </div>
+
+          {daySlots.length > 1 ? (
+            <div
+              className="mx-auto flex w-full max-w-3xl gap-1 overflow-x-auto px-6 pb-3"
+              role="tablist"
+              aria-label="Reports for this day"
+            >
+              {daySlots.map((slot) => {
+                const selected = slot.seriesId === activeSeriesId;
+                return (
+                  <button
+                    key={slot.seriesId}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    onClick={() => setActiveSeriesId(slot.seriesId)}
+                    className={cn(
+                      "max-w-44 shrink-0 truncate rounded-full px-3 py-1 text-[11px] font-medium transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      selected
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-border text-muted-foreground hover:bg-accent hover:text-foreground",
+                    )}
+                    title={slot.seriesTitle}
+                  >
+                    {slot.seriesTabLabel || slot.seriesTitle}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </header>
 
         <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto">
@@ -496,12 +591,12 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
               {page.eyebrow}
             </p>
 
-            {!seriesResolved || !lang || (loading && !brief) ? (
+            {!seriesResolved || !lang || emptyLoading ? (
               <div className="flex items-center gap-2 py-16 text-sm text-muted-foreground">
                 <LoaderCircle className="size-4 animate-spin" />
                 Loading…
               </div>
-            ) : !series ? (
+            ) : !pageSeries ? (
               <Notice title="Series not in the catalog">
                 <code className="font-mono">{page.slug}</code> is missing from{" "}
                 <code className="font-mono">report_series</code>. Check Supabase
@@ -509,12 +604,20 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
               </Notice>
             ) : !brief && !hasReport ? (
               <Notice title="Nothing published for this day">
-                No final brief for{" "}
+                No market-issues brief/report for{" "}
                 <span className="font-mono text-foreground">{date}</span> /{" "}
-                <span className="font-mono text-foreground">{lang}</span>. The
-                daily batch runs around{" "}
-                <span className="font-mono">22:30 UTC</span>, so the newest day is
-                usually <span className="font-mono text-foreground">{effectiveLatest}</span>.
+                <span className="font-mono text-foreground">{lang}</span>
+                {pageSeriesRows.length > 1 ? (
+                  <>
+                    {" "}
+                    across{" "}
+                    <span className="font-mono text-foreground">
+                      {pageSeriesRows.map((r) => r.slug).join(", ")}
+                    </span>
+                  </>
+                ) : null}
+                . Newest published day is usually{" "}
+                <span className="font-mono text-foreground">{effectiveLatest}</span>.
               </Notice>
             ) : (
               <>
@@ -551,9 +654,9 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                 {activeTab === "full" ? (
                   <ReportFullText content={report?.content ?? ""} />
                 ) : activeTab === "for-you" ? (
-                  series && date && lang ? (
+                  activeSlot && date && lang ? (
                     <ReportForYou
-                      seriesId={series.id}
+                      seriesId={activeSlot.seriesId}
                       marketDate={date}
                       lang={lang}
                       report={report}

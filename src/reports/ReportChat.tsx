@@ -6,9 +6,9 @@
 // brand header, theme toggle and session reset — the report is the main
 // surface here, chat is the sidekick.
 //
-// Scope: ReportSurface pins `market_focus_series_id` to this page's series
-// before the user asks anything, so Market prefetch / vector search read
-// the report they are looking at.
+// Scope: ReportSurface pins `market_focus_series_id` to the active day slot
+// (path series or a companion like weekly-market-issues) before the user asks,
+// so Market prefetch / vector search read the report they are looking at.
 // ─────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useRef } from "react";

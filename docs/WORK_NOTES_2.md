@@ -946,3 +946,27 @@ curl -s "http://localhost:5173/cdn-cgi/handler/scheduled?cron=5+0+*+*+*"
 
 ---
 
+## 32. `/daily-market-issues` — weekly companion 슬롯 *(완료)*
+
+* **목적:** weekly 전용 URL은 만들지 않고, `/daily-market-issues`에서 `weekly-market-issues`도 같은 날 시리즈 탭으로 읽게 한다.
+* **ROUTING 반영:** `?series=` (companion 슬롯 고정)
+* **수정 파일:**
+  * `src/lib/report-pages.ts` — `includeSeriesSlugs` / `reportPageSeriesSlugs()`; daily에 weekly 포함; eyebrow `Market issues`
+  * `src/reports/ReportSurface.tsx` — multi `series_id`로 `latest-date`/`day` 로드; 슬롯 탭; active slot → brief/voice/report + chat focus; `?series=` 동기화
+  * `src/reports/ReportChat.tsx` — 주석(active slot)
+  * docs: `ROUTING.md` / `CLAUDE.md` / `MERGE_STRATEGY.md` / 본 절
+* **확인:**
+
+```bash
+curl -s http://localhost:5173/api/report-series | jq -r '.items[] | select(.slug|test("market-issues")) | "\(.slug) \(.id)"'
+# latest across both, then day slots:
+# curl …/api/market/latest-date?lang=ko&series_id=…&series_id=…
+# curl …/api/market/day?date=…&lang=ko&series_id=…&series_id=… | jq '[.slots[].seriesSlug]'
+```
+
+  * UI: 같은 날 둘 다 있으면 Daily / Weekly Market 탭; weekly만 있으면 탭 없이 weekly 표시
+  * `/weekly-market-issues` 라우트는 여전히 없음
+* **의도적으로 안 함:** weekly 전용 페이지; Settings 그룹 변경; weekly Brief 템플릿 분기
+
+---
+
