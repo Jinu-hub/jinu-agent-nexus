@@ -17,7 +17,7 @@ import { pingAudioBucket, getVoiceAudio } from "./audio-r2";
 import { createTTSProvider, ttsCharLimit } from "./tts";
 import { runVoiceAudioCron } from "./voice-audio-cron";
 import { getSupabaseAccessMode, isSupabaseConfigured } from "./supabase";
-import { isMarketDateYmd } from "./market-date";
+import { isMarketDateYmd } from "./lib/market-date";
 
 /**
  * HTTP routes for Voice generation / playback:

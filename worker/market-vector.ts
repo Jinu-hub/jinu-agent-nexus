@@ -11,7 +11,7 @@ import { embed, embedMany } from "ai";
 
 import { createEmbedder } from "./ai";
 import { chunkMarkdown } from "./ingest";
-import { isMarketDateYmd, marketDateYmdInTimeZone } from "./market-date";
+import { isMarketDateYmd, marketDateYmdInTimeZone } from "./lib/market-date";
 import {
   listReportsForMarketDay,
   resolveEnabledSeriesIds,

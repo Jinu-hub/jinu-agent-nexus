@@ -21,7 +21,7 @@ import {
   getSupabaseAccessMode,
   isSupabaseConfigured,
 } from "./supabase";
-import { isMarketDateYmd } from "./market-date";
+import { isMarketDateYmd } from "./lib/market-date";
 
 export const ITEM_CONTENTS_TABLE = "item_contents";
 export const ITEM_CONTENT_I18N_TABLE = "item_content_i18n";

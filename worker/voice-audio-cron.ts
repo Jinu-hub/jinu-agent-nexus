@@ -18,7 +18,7 @@ import { getSupabaseAccessMode, isSupabaseConfigured } from "./supabase";
 import {
   describeVoiceLangFilter,
   resolveVoiceLangFilter,
-} from "./voice-lang-filter";
+} from "./lib/voice-lang-filter";
 
 /** Primary tick — must match wrangler.jsonc `triggers.crons`. */
 export const VOICE_AUDIO_CRON = "0 0 * * *";

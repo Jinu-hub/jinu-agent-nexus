@@ -3,7 +3,7 @@
 // Not MyMemory ★ prefetch; that path stays string interestHits.
 // ─────────────────────────────────────────────────────────────────────────
 
-import { isMarketDateYmd } from "../market-date";
+import { isMarketDateYmd } from "../lib/market-date";
 import {
   queryMarketVectors,
   type MarketVectorHit,

@@ -4,7 +4,7 @@
 
 import { DEFAULT_INSTANCE_NAME } from "../../src/lib/agent-identity";
 import type { PreferenceRow } from "../my-memory";
-import type { ReportChatKeywords } from "../report-keywords";
+import type { ReportChatKeywords } from "../lib/report-keywords";
 
 const INTEREST_LIMIT = 12;
 const HIT_LIMIT = 5;

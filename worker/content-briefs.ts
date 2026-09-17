@@ -19,7 +19,7 @@ import {
   isMarketDateYmd,
   marketDateYmdInTimeZone,
   shiftMarketDateYmd,
-} from "./market-date";
+} from "./lib/market-date";
 
 export const CONTENT_BRIEFS_TABLE = "content_briefs";
 

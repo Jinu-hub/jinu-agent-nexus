@@ -4,7 +4,7 @@ import {
   getSupabaseAccessMode,
   isSupabaseConfigured,
 } from "./supabase";
-import { isMarketDateYmd } from "./market-date";
+import { isMarketDateYmd } from "./lib/market-date";
 import {
   clearMarketVectors,
   ingestMarketReport,

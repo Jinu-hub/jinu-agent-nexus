@@ -4,7 +4,7 @@
 // Import path `./content-audio` stays stable for index / tools / cron / prefetch.
 // Implementation: content-audio-domain.ts + content-audio-routes.ts.
 
-export type { VoiceLangFilter } from "./voice-lang-filter";
+export type { VoiceLangFilter } from "./lib/voice-lang-filter";
 
 export {
   CONTENT_AUDIO_TABLE,

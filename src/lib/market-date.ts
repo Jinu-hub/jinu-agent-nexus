@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 // Market date helpers (frontend) — Asia/Seoul calendar YYYY-MM-DD
 // ─────────────────────────────────────────────────────────────────────────
-// Mirrors worker/market-date.ts for the Vite app (no Worker import in UI).
+// Mirrors worker/lib/market-date.ts for the Vite app (no Worker import in UI).
 
 export const DEFAULT_MARKET_TIMEZONE = "Asia/Seoul";
 

@@ -9,7 +9,7 @@ import {
   marketDateYmdInTimeZone,
   shiftMarketDateYmd,
   withCurrentSeoulYear,
-} from "../market-date";
+} from "../lib/market-date";
 
 export type ResolvedMarketDate = {
   /** Date passed to Supabase after resolution. */

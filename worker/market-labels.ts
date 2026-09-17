@@ -3,7 +3,7 @@
 //
 // Pipeline: cache (topic_labels) → exact/loose body match → LLM span pick
 // (must appear in body). Persist successes to MyMemory topic_labels.
-// Hint lexicon / polish helpers: `./market-labels-helper`.
+// Hint lexicon / polish helpers: `./lib/market-labels-helper`.
 // ─────────────────────────────────────────────────────────────────────────
 
 import { generateText } from "ai";
@@ -14,7 +14,7 @@ import {
   getTodayItemContent,
   type ItemContentRow,
 } from "./item-contents";
-import { isMarketDateYmd } from "./market-date";
+import { isMarketDateYmd } from "./lib/market-date";
 import {
   findBodySpan,
   groundInBody,
@@ -25,7 +25,7 @@ import {
   polishLabel,
   softTagDisplay,
   variantsFor,
-} from "./market-labels-helper";
+} from "./lib/market-labels-helper";
 import { MyMemory } from "./my-memory";
 import { buildTagLexicon } from "../src/lib/market-tag-lexicon";
 import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
@@ -39,7 +39,7 @@ export {
   LABEL_BODY_HINTS,
   polishLabel,
   TAG_SOFT_DISPLAY_KO,
-} from "./market-labels-helper";
+} from "./lib/market-labels-helper";
 
 export type LabelRole = "tag" | "keyword";
 

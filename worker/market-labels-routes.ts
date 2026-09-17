@@ -1,6 +1,6 @@
 // HTTP routes for market topic label resolve — see market-labels.ts.
 
-import { isMarketDateYmd } from "./market-date";
+import { isMarketDateYmd } from "./lib/market-date";
 import { resolveMarketLabels } from "./market-labels";
 import {
   getSupabaseAccessMode,

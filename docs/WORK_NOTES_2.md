@@ -927,13 +927,22 @@ curl -s "http://localhost:5173/cdn-cgi/handler/scheduled?cron=5+0+*+*+*"
 
 * **목적:** Tags slug `oil`이 본문에 `오일` 없이 `유가`/`원유`만 있을 때 EN fallback 대신 KO 표시어·Ask expand가 잡히도록. hint/polish 맵을 resolve 오케스트레이션과 분리해 지속 튜닝하기 쉽게.
 * **동작 확인:** `LABEL_BODY_HINTS` 후보는 **본문에 실제 등장할 때만** `findBodySpan`으로 채택 (발명 없음).
-* **위치:** `worker/market-labels-helper.ts` (worker 루트 — `voice-lang-filter`와 동일. FE 공용 아님 → `src/lib` / util 폴더 미사용).
+* **위치:** `worker/lib/market-labels-helper.ts` — worker helper 폴더 (`worker/lib/README.md`). FE 공용은 `src/lib`.
 * **수정 파일:**
-  * `worker/market-labels-helper.ts` *(신규)* — `LABEL_BODY_HINTS` / `TAG_SOFT_DISPLAY_KO` / span·polish·hint helpers; `oil` 힌트 포함
+  * `worker/lib/market-labels-helper.ts` *(신규)* — `LABEL_BODY_HINTS` / `TAG_SOFT_DISPLAY_KO` / span·polish·hint helpers; `oil` 힌트 포함
+  * `worker/lib/README.md` *(신규)* — lib vs root 구분
   * `worker/market-labels.ts` — resolve/LLM만 유지; helper re-export
   * docs: `MERGE_STRATEGY` A · `CLAUDE.md`
 * **로컬 재적용:** 캐시된 `oil`→`oil`이면 `POST /api/market-labels/resolve`에 `force:true` (해당 date/lang)
-* **의도적으로 안 함:** `TAG_SOFT_DISPLAY_KO`에 oil 추가; 전역 영한 사전화; `worker/lib` 폴더 신설
+* **의도적으로 안 함:** `TAG_SOFT_DISPLAY_KO`에 oil 추가; 전역 영한 사전화
+
+### 31.1 worker/lib 보조 모듈 이동 *(완료)*
+
+* **목적:** worker 루트 파일 과다 → pure helper를 `worker/lib/`로 모아 구분.
+* **이동:** `market-date.ts`, `voice-lang-filter.ts`, `report-keywords.ts` (+ 기존 `market-labels-helper.ts`)
+* **root 유지:** domain/routes/cron/DO (`market-vector`, `content-audio-*`, `market-item-resolve`, `market-memory-load`, `audio-r2`, `tts` …)
+* **수정:** 전 import `./lib/…` · `docs/CLAUDE.md` layout · `MERGE_STRATEGY` A · `worker/lib/README.md`
+* **의도적으로 안 함:** domain 파일을 lib로 옮기기; FE `src/lib/market-date` 통합
 
 ---
 

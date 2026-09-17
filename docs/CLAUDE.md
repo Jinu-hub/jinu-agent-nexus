@@ -139,6 +139,7 @@ flowchart TD
 ```
 worker/
   index.ts             Worker entry — HTTP routing + DO re-export
+  lib/                 Worker-only helpers — market-date, voice-lang-filter, report-keywords, market-labels-helper (see lib/README.md)
   notes.ts             My Market Notes — Workers KV API (`/notes`)
   my-memory.ts         MyMemory DO — preferences / events / weights
   memory-routes.ts     HTTP routes → MyMemory
@@ -153,8 +154,8 @@ worker/
   market-vector.ts     Market report → MARKET_VECTOR_DB ingest (§14)
   market-vector-routes.ts  HTTP `POST /api/market-vector/{ingest,query,clear,cron/run}`
   market-vector-cron.ts    Daily ingest Cron (UTC 00:05 / 01:05)
-  report-keywords.ts   Compact tags/places/entities for chat/prefetch (T3)
-  market-date.ts       Calendar YYYY-MM-DD helpers (default Asia/Seoul)
+  market-labels.ts     Topic label resolve orchestration
+  market-labels-routes.ts  HTTP `POST /api/market-labels/resolve`
   market-memory-load.ts resolve→fetch→retry for brief/voice/report tools+prefetch
   content-audio.ts     Voice barrel (re-exports domain + routes)
   content-audio-domain.ts  content_audio queue / TTS→R2 / today
@@ -187,7 +188,7 @@ src/
   reports/             Standalone `/<report_series.slug>` reading pages
   components/ui/       shadcn-style primitives
   lib/utils.ts         cn() helper
-  lib/market-date.ts   Seoul YMD helpers for Market panel (mirrors worker)
+  lib/market-date.ts   Seoul YMD helpers for Market panel (mirrors worker/lib/market-date.ts)
 skills/                Markdown files seeded to R2 as on-demand context
 wrangler.jsonc         All Cloudflare bindings and vars
 worker-env.d.ts        Env augmentations (secrets + typed DO stub)
@@ -210,12 +211,12 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Market report vectors | `worker/market-vector.ts` + `market-vector-routes.ts` + `market-vector-cron.ts` — ingest / query / clear / cron; id `mr_{itemId}_{lang}_{i}` (ko/en coexist); chat 「keyword」 via `market-vector-search.ts` → prefetch `vectorSearch` |
 | My Market Notes (KV) | `worker/notes.ts` + `wrangler.jsonc` `kv_namespaces` |
 | My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts`; `topic_labels` + preferences.`display`; panel interests UI `src/lib/topic-preference.ts` + `MyInterestsFold.tsx`; chat prefetch `user-interests.ts` (P3) |
-| Market topic labels | `worker/market-labels.ts` + `market-labels-helper.ts` + routes — body-grounded resolve (exact→hint→LLM); hint maps live in helper for ongoing slug→KO tuning; post-ingest hook; UI/vector expand consume cache |
+| Market topic labels | `worker/market-labels.ts` + `worker/lib/market-labels-helper.ts` + routes — body-grounded resolve (exact→hint→LLM); hint maps in `worker/lib` for ongoing slug→KO tuning; post-ingest hook; UI/vector expand consume cache |
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
 | Report page (`/<slug>`) | `src/reports/ReportSurface.tsx` + `src/lib/report-pages.ts` (`REPORT_PAGES` registry) + `src/lib/brief-format.ts` (`parseBriefParts` from `metadata`, `parseBriefBody` text fallback); routed by pathname in `src/main.tsx`; reads `/settings` + `/api/report-series` + `/api/market/{latest-date,day}`; LYRA warm palette is **global** (`:root` / `.dark` in `src/index.css`; shell + report share cream/orange); voice player rendered only when `slots[0].voice` is present (same `/api/market/day` response, no extra fetch) and kept **above** the tabs so switching does not unmount the `<audio>`; three depth tabs via `?tab=` — brief / `for-you` (`src/reports/ReportForYou.tsx`) / `full` (`src/reports/ReportFullText.tsx`), the latter two disabled when the day has no report; side chat `src/reports/ReportChat.tsx` — page pins `market_focus_series_id` to its series so chat cites the report on screen |
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
-| Content briefs (today) | `worker/content-briefs.ts` + `market-date.ts` → `GET /api/briefs/today` + `GET /api/briefs/latest-date`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`; omit date = data-backed latest) |
-| Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today`; primary `item_contents` + `item_content_i18n` overlay when `lang` ≠ primary `lang_code`; chat tool `getTodayMarketReport.ts` (excerpt + compact `keywords` via `report-keywords.ts`; lang = Settings `content_lang`) |
+| Content briefs (today) | `worker/content-briefs.ts` + `worker/lib/market-date.ts` → `GET /api/briefs/today` + `GET /api/briefs/latest-date`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`; omit date = data-backed latest) |
+| Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today`; primary `item_contents` + `item_content_i18n` overlay when `lang` ≠ primary `lang_code`; chat tool `getTodayMarketReport.ts` (excerpt + compact `keywords` via `worker/lib/report-keywords.ts`; lang = Settings `content_lang`) |
 | Market panel (sidebar) | `MarketPanel.tsx` + `ReportReader.tsx` + `report-topics.tsx` + `MyInterestsFold.tsx` + `BriefForYou.tsx` + `src/lib/market-date.ts` + `src/lib/market-tag-lexicon.ts` (display/expand from `metadata.tags.core` + `metadata.entities` + `topic_labels`; Ask 「」 uses display, save/target stays slug/name); Topics chips/Keywords in `report-topics.tsx` (re-exported by ReportReader); off-switches unchanged; wired in `App.tsx` |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) + `hidden_panels` (tab strip) + `disabled_report_series` (Market content opt-out) + `market_focus_series_id` (Market panel tab → chat vector scope); UI `SettingsPanel` (Content/Language); Market tab sync in `App.tsx` |
 | report_series catalog | `worker/report-series.ts` → `GET /api/report-series` (+ `groups`: weekly+daily market issues 한 토글; service_role) |

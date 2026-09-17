@@ -2,7 +2,7 @@
 
 import { getItemContentById, type ItemContentRow } from "./item-contents";
 import { getChatAgentSettings } from "./market-settings";
-import { isMarketDateYmd, marketDateYmdInTimeZone } from "./market-date";
+import { isMarketDateYmd, marketDateYmdInTimeZone } from "./lib/market-date";
 import {
   enabledReportSeriesRows,
   listReportSeries,

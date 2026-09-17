@@ -18,7 +18,7 @@ import { generateText } from "ai";
 
 import { createModel } from "./ai";
 import type { ItemContentRow } from "./item-contents";
-import { isMarketDateYmd } from "./market-date";
+import { isMarketDateYmd } from "./lib/market-date";
 import { resolveOneReportForIngest } from "./market-item-resolve";
 import { queryMarketVectors, type MarketVectorHit } from "./market-vector";
 import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";

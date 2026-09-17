@@ -9,7 +9,7 @@ import { getTodayContentBrief } from "../content-briefs";
 import { getTodayItemContent } from "../item-contents";
 import { listReportsForMarketDay } from "../market-item-resolve";
 import { metaString, withResolvedMarketDate } from "../market-memory-load";
-import { isMarketDateYmd, shiftMarketDateYmd } from "../market-date";
+import { isMarketDateYmd, shiftMarketDateYmd } from "../lib/market-date";
 import { isSupabaseConfigured } from "../supabase";
 import {
   resolveToolMarketDate,
@@ -19,8 +19,8 @@ import {
   reportChatExcerpt,
   reportHighlightHeadings,
 } from "../tools/getTodayMarketReport";
-import { reportChatKeywords } from "../report-keywords";
-import type { ReportChatKeywords } from "../report-keywords";
+import { reportChatKeywords } from "../lib/report-keywords";
+import type { ReportChatKeywords } from "../lib/report-keywords";
 import {
   detectMarketMemoryIntent,
   type MarketMemoryIntent,

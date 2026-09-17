@@ -58,10 +58,10 @@
 | Report For you | `worker/market-for-you.ts` — 관심사 ∩ 리포트 → 벡터 문단 → LLM 요약; 캐시는 MyMemory `for_you_summaries` |
 | Chat parts | `src/chat/ChatParts.tsx`, `src/chat/use-client-tools.ts` — transcript/입력부 공용 (쉘·리포트 페이지) |
 | Market item resolve | `worker/market-item-resolve.ts`, `worker/market-settings.ts` — ingest/query resolve without brief |
-| Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts` (+ `item_content_i18n` localize), `worker/report-keywords.ts`, `worker/market-date.ts` |
+| Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts` (+ `item_content_i18n` localize), `worker/lib/report-keywords.ts`, `worker/lib/market-date.ts` |
 | Market vectors | `worker/market-vector.ts`, `worker/market-vector-routes.ts`, `worker/market-vector-cron.ts` |
-| Market topic labels | `worker/market-labels.ts`, `worker/market-labels-helper.ts`, `worker/market-labels-routes.ts` |
-| Voice | `worker/content-audio.ts` (barrel), `content-audio-domain.ts`, `content-audio-routes.ts`, `audio-r2.ts`, `tts.ts`, `voice-lang-filter.ts`, `voice-audio-cron.ts` |
+| Market topic labels | `worker/market-labels.ts`, `worker/lib/market-labels-helper.ts`, `worker/market-labels-routes.ts` |
+| Voice | `worker/content-audio.ts` (barrel), `content-audio-domain.ts`, `content-audio-routes.ts`, `audio-r2.ts`, `tts.ts`, `worker/lib/voice-lang-filter.ts`, `voice-audio-cron.ts` |
 | Shared load | `worker/market-memory-load.ts`, `worker/tools/market-date-resolve.ts` |
 | Market tools | `worker/tools/getTodayMarketBrief.ts`, `getTodayMarketVoice.ts`, `getTodayMarketReport.ts` |
 | Chat Market | `worker/chat-agent/market-intent.ts`, `market-prefetch.ts`, `market-vector-search.ts`, `market-turn-hooks.ts`, `soul-market.ts`, `user-interests.ts` |
@@ -172,3 +172,4 @@
 | 2026-09-14 | 리포트 페이지 사이드 채팅 + `ChatParts` 분리 — A ([`WORK_NOTES_2` §26.3](./WORK_NOTES_2.md)) |
 | 2026-09-14 | 리포트 3탭 + For you 요약 — A + B `index.ts` + ROUTING ([`WORK_NOTES_2` §26.5](./WORK_NOTES_2.md)) |
 | 2026-09-15 | Market vector ingest cron `5 0`/`5 1` — A + B scheduled + C ([`WORK_NOTES_2` §29](./WORK_NOTES_2.md)) |
+| 2026-09-16 | `worker/lib/` helpers (`market-date`, `voice-lang-filter`, `report-keywords`, `market-labels-helper`) — A ([`WORK_NOTES_2` §31](./WORK_NOTES_2.md)) |

@@ -1,7 +1,7 @@
 // Shared Market Memory resolve → fetch → year-fallback retry.
 // Used by getTodayMarket* tools and market-prefetch loaders.
 
-import { isMarketDateYmd } from "./market-date";
+import { isMarketDateYmd } from "./lib/market-date";
 import {
   resolveToolMarketDate,
   type ResolvedMarketDate,

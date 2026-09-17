@@ -16,7 +16,7 @@ import { getSettings } from "../chat-agent/settings";
 import { getTodayItemContent } from "../item-contents";
 import { withResolvedMarketDate } from "../market-memory-load";
 import { isSupabaseConfigured } from "../supabase";
-import { reportChatKeywords } from "../report-keywords";
+import { reportChatKeywords } from "../lib/report-keywords";
 import { seoulDateHints } from "./market-date-resolve";
 
 /** Lead blurb for chat grounding — never the full markdown body. */

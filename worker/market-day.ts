@@ -36,7 +36,7 @@ import {
   isMarketDateYmd,
   marketDateYmdInTimeZone,
   shiftMarketDateYmd,
-} from "./market-date";
+} from "./lib/market-date";
 
 const MARKET_MEMORY_ITEMS_TABLE = "market_memory_items";
 
