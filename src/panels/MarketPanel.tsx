@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  ArrowUpRight,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -32,6 +33,7 @@ import {
   hidesReportSummaryBlurb,
   type ReportSeriesRow,
 } from "../../worker/report-series";
+import { readingHrefForSeriesSlug } from "@/lib/report-pages";
 import { MARKET_SUGGESTIONS } from "@/lib/market-suggestions";
 import { buildTagLexicon } from "@/lib/market-tag-lexicon";
 import {
@@ -575,6 +577,24 @@ export function MarketPanel({
   );
   const reportCheckedMissing =
     Boolean(activeSlot) && hasReportCandidate && !hasReport;
+  const readingHref = useMemo(
+    () =>
+      activeSlot?.seriesSlug
+        ? readingHrefForSeriesSlug(activeSlot.seriesSlug, { date, lang })
+        : null,
+    [activeSlot?.seriesSlug, date, lang],
+  );
+  const readingHrefFull = useMemo(
+    () =>
+      activeSlot?.seriesSlug
+        ? readingHrefForSeriesSlug(activeSlot.seriesSlug, {
+            date,
+            lang,
+            tab: "full",
+          })
+        : null,
+    [activeSlot?.seriesSlug, date, lang],
+  );
 
   const copyText = async (
     which: "brief" | "report",
@@ -866,6 +886,19 @@ export function MarketPanel({
         </div>
       ) : null}
 
+      {readingHref ? (
+        <a
+          href={readingHref}
+          className={cn(
+            "mb-2 inline-flex items-center gap-0.5 text-[10px]",
+            "text-muted-foreground hover:text-primary",
+          )}
+        >
+          이 리포트 크게 보기
+          <ArrowUpRight className="h-3 w-3" />
+        </a>
+      ) : null}
+
       {enabledSeriesIds.length === 0 ? (
         <p className="panel-empty px-3 py-6 text-center text-xs italic">
           Turn on at least one series under Settings → Market → Content.
@@ -1131,6 +1164,15 @@ export function MarketPanel({
             summary={reportCollapsedSummary}
             trailing={
               <div className="flex items-center gap-0.5">
+                {readingHrefFull ? (
+                  <a
+                    href={readingHrefFull}
+                    className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                    title="이 리포트 크게 보기"
+                  >
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </a>
+                ) : null}
                 {hasReportCandidate || hasReport ? (
                   <button
                     type="button"
@@ -1201,17 +1243,31 @@ export function MarketPanel({
                   compact
                   className="max-h-64"
                 />
-                <button
-                  type="button"
-                  onClick={() => void openReportReader()}
-                  className={cn(
-                    "w-full rounded-md border border-border bg-background px-2 py-1.5",
-                    "text-[10px] text-muted-foreground",
-                    "hover:border-foreground/30 hover:bg-accent hover:text-foreground",
-                  )}
-                >
-                  Open wide reader
-                </button>
+                {readingHrefFull ? (
+                  <a
+                    href={readingHrefFull}
+                    className={cn(
+                      "flex w-full items-center justify-center gap-1 rounded-md border border-border bg-background px-2 py-1.5",
+                      "text-[10px] text-muted-foreground",
+                      "hover:border-foreground/30 hover:bg-accent hover:text-foreground",
+                    )}
+                  >
+                    이 리포트 크게 보기
+                    <ArrowUpRight className="h-3 w-3" />
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void openReportReader()}
+                    className={cn(
+                      "w-full rounded-md border border-border bg-background px-2 py-1.5",
+                      "text-[10px] text-muted-foreground",
+                      "hover:border-foreground/30 hover:bg-accent hover:text-foreground",
+                    )}
+                  >
+                    Open wide reader
+                  </button>
+                )}
               </div>
             ) : reportCheckedMissing && hasBrief ? (
               <p className="text-[11px] leading-relaxed text-muted-foreground">

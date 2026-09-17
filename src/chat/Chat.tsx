@@ -26,6 +26,7 @@ import {
   type AgentForChat,
   type ChatHelpers,
 } from "./ChatParts";
+import { ReportLandingCards, ReportNavLinks } from "./HomeReportExits";
 import { useClientToolCall } from "./use-client-tools";
 
 export function Chat({
@@ -126,16 +127,17 @@ function Header({
 }) {
   return (
     <div className="flex items-center justify-between border-b border-border px-4 py-3">
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         <BrandMark />
-        <div>
+        <div className="min-w-0">
           <h1 className="text-sm font-semibold tracking-tight">LYRA</h1>
           <p className="text-[11px] text-muted-foreground">
             Your world, a little closer.
           </p>
         </div>
+        <ReportNavLinks className="ml-1 hidden sm:flex" />
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
         <Button
           size="sm"
           variant="ghost"
@@ -225,6 +227,8 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
           ))}
         </div>
       </section>
+
+      <ReportLandingCards />
 
       <section className="space-y-3 self-stretch">
         <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">

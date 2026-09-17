@@ -56,7 +56,7 @@
 | Market day reads | `worker/market-day.ts` — enabled `series_id` → mmi → item_contents |
 | Report pages | `src/lib/report-pages.ts`, `src/lib/brief-format.ts`, `src/reports/ReportSurface.tsx`, `ReportChat.tsx`, `ReportForYou.tsx`, `ReportFullText.tsx` — `/<slug>` 리딩 화면 (브리프 / 나를 위한 요약 / 전문 + 사이드 채팅) |
 | Report For you | `worker/market-for-you.ts` — 관심사 ∩ 리포트 → 벡터 문단 → LLM 요약; 캐시는 MyMemory `for_you_summaries` |
-| Chat parts | `src/chat/ChatParts.tsx`, `src/chat/use-client-tools.ts` — transcript/입력부 공용 (쉘·리포트 페이지) |
+| Chat parts | `src/chat/ChatParts.tsx`, `src/chat/use-client-tools.ts`, `src/chat/HomeReportExits.tsx` — transcript/입력부 공용 + 홈→리포트 출구 |
 | Market item resolve | `worker/market-item-resolve.ts`, `worker/market-settings.ts` — ingest/query resolve without brief |
 | Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts` (+ `item_content_i18n` localize), `worker/lib/report-keywords.ts`, `worker/lib/market-date.ts` |
 | Market vectors | `worker/market-vector.ts`, `worker/market-vector-routes.ts`, `worker/market-vector-cron.ts` |
@@ -71,7 +71,7 @@
 
 | 영역 | 경로 |
 |------|------|
-| Panel | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `report-topics.tsx`, `MyInterestsFold.tsx`, `BriefForYou.tsx` |
+| Panel | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `report-topics.tsx`, `MyInterestsFold.tsx`, `BriefForYou.tsx` — inspect workbench; registered series → reading page helper |
 | Libs | `src/lib/market-date.ts`, `market-suggestions.ts`, `topic-preference.ts`, `brief-for-you.ts` |
 
 ### Docs (포팅 후 선택)
@@ -175,3 +175,5 @@
 | 2026-09-16 | `worker/lib/` helpers (`market-date`, `voice-lang-filter`, `report-keywords`, `market-labels-helper`) — A ([`WORK_NOTES_2` §31](./WORK_NOTES_2.md)) |
 | 2026-09-17 | `/daily-market-issues` includes weekly companion slots — A + ROUTING ([`WORK_NOTES_2` §32](./WORK_NOTES_2.md)) |
 | 2026-09-17 | `/weekly-ai-issues` report page registry — A + ROUTING ([`WORK_NOTES_2` §33](./WORK_NOTES_2.md)) |
+| 2026-09-17 | 홈 → 리포트 페이지 출구 — A `Chat.tsx` + ROUTING ([`WORK_NOTES_2` §34](./WORK_NOTES_2.md)) |
+| 2026-09-17 | Market 패널 「이 리포트 크게 보기」 — A `MarketPanel` ([`WORK_NOTES_2` §34.1](./WORK_NOTES_2.md)) |

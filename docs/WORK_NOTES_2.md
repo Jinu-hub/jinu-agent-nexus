@@ -989,5 +989,28 @@ curl -s "http://localhost:5173/api/market/latest-date?lang=ko\
   * `/weekly-market-issues`는 여전히 미등록 (daily companion만)
 * **의도적으로 안 함:** AI 전용 Brief 템플릿 분기; Market issues를 AI 페이지에 include
 
+## 34. 홈 → 리포트 페이지 출구 *(완료)*
+
+* **목적:** `/` 에이전트 쉘에서 등록된 리딩 페이지(`/daily-market-issues`, `/weekly-ai-issues`)로 나간다. 새 탭이 아니라 **쉘에서 읽는 화면으로의 링크**.
+* **ROUTING 반영:** FE 홈 출구만 (경로 추가 없음). `weekly-market-issues`는 daily companion이라 홈 링크 없음.
+* **수정 및 추가 파일:**
+  * `src/lib/report-pages.ts` — `navLabel` / `reportPageNavLabel()`
+  * `src/chat/HomeReportExits.tsx` *(신규)* — 헤더 `ReportNavLinks` + 빈 화면 `ReportLandingCards` (latest-date)
+  * `src/chat/Chat.tsx` — 헤더 LYRA 옆 링크, 소개 아래 카드
+  * docs: `CLAUDE.md`, `ARCHITECTURE.md`, `MERGE_STRATEGY.md`, 본 절
+* **확인:** `/` 빈 화면 → Market / Weekly AI 카드, Latest 날짜; 헤더 `Market` · `Weekly AI` → 해당 페이지; 리포트 `Agent`로 복귀
+* **의도적으로 안 함:** Reports 패널 탭; Market 패널 wide-reader를 전용 페이지로 교체; 헤더에 날짜 표시
+
+### 34.1 Market 패널 「이 리포트 크게 보기」 *(완료)*
+
+* **목적:** 홈 헤더는 페이지 카탈로그, Market 패널은 inspect. 지금 보고 있는 시리즈만 전용 리딩 페이지로 보내는 **보조 링크**.
+* **ROUTING 반영:** 경로 추가 없음. companion `weekly-market-issues` → `/daily-market-issues?series=`
+* **수정 및 추가 파일:**
+  * `src/lib/report-pages.ts` — `findReportPageForSeriesSlug()` / `readingHrefForSeriesSlug()` (`?date=` `?lang=` `?tab=` `?series=`)
+  * `src/panels/MarketPanel.tsx` — 탭 아래 텍스트 링크; Report 섹션 아이콘 + 하단 CTA (`tab=full`). Maximize2 모달은 유지
+  * docs: `CLAUDE.md`, `ARCHITECTURE.md`, `ROUTING.md`, `MERGE_STRATEGY.md`, 본 절
+* **확인:** Market 탭에서 daily / weekly-market / weekly-ai → 해당 `/<slug>` (companion은 `?series=`). 등록 없는 시리즈는 링크 숨김
+* **의도적으로 안 함:** 사이드바를 페이지 목록으로 쓰지 않음; in-panel wide reader 제거
+
 ---
 
