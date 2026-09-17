@@ -2,7 +2,9 @@
 
 > 프로젝트의 주요 기능 개발 내역, 소스코드 변경 사항, 아키텍처 및 라우팅 현황을 기록하는 문서입니다.
 >
-> **아카이브 (§1 ~ §10.16).** 이후 작업 기록은 [`WORK_NOTES_2.md`](./WORK_NOTES_2.md) (§11~)에만 추가한다.  
+> **아카이브 (§1 ~ §10.16).**  
+> - [`WORK_NOTES_2.md`](./WORK_NOTES_2.md) — §11 ~ §34 (아카이브)  
+> - **활성 기록:** [`WORK_NOTES_3.md`](./WORK_NOTES_3.md) (§35~)  
 > **현재 HTTP/FE 라우팅 트리:** [`ROUTING.md`](./ROUTING.md) (단일 소스).
 
 ---
@@ -1053,5 +1055,5 @@ curl -sS 'http://localhost:5173/api/briefs/latest-date?lang=ko' | python3 -m jso
 
 ---
 
-> **이어쓰기:** [`WORK_NOTES_2.md`](./WORK_NOTES_2.md) (§11~)
+> **이어쓰기:** [`WORK_NOTES_3.md`](./WORK_NOTES_3.md) (§35~) · 중간 아카이브 [`WORK_NOTES_2.md`](./WORK_NOTES_2.md) (§11–34)
 

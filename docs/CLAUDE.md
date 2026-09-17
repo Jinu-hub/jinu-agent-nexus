@@ -2,7 +2,7 @@
 
 > Human docs (all under `docs/`): `README.md` (KO), `README.eng.md` (EN),
 > `ARCHITECTURE.md` (flows), `MERGE_STRATEGY.md` (baseline overlay A/B/C),
-> `ROUTING.md` (HTTP/FE tree), `WORK_NOTES_2.md` (active work log).
+> `ROUTING.md` (HTTP/FE tree), `WORK_NOTES_3.md` (active work log; `_2` / `_1` archives).
 > Root `CLAUDE.md` / `README.md` are short pointers here.
 > This file is for **LLM-assisted development** — architecture, extension
 > patterns, and constraints. Not a copy of the README.

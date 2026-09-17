@@ -1,0 +1,57 @@
+# jinu-agent-nexus 개발 작업노트 (계속)
+
+> **이전 기록:**  
+> - [`WORK_NOTES.md`](./WORK_NOTES.md) — §1 ~ §10.16 (아카이브)  
+> - [`WORK_NOTES_2.md`](./WORK_NOTES_2.md) — §11 ~ §34 (아카이브. 새 기능은 여기에 추가하지 않음)  
+> **이후 기록:** 이 파일만 사용. 섹션 번호는 **§35**부터.  
+> **머지/포팅 체크리스트:** [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md) (A/B/C — Phase 서술 대신 여기 표 갱신)  
+> **HTTP/FE 라우팅:** [`ROUTING.md`](./ROUTING.md) (단일 소스)
+
+---
+
+## 기록 규칙 (이 파일)
+
+비트리비얼 작업(새 route / binding / secret / tool / panel / Phase / 동작 변경)은 **같은 변경 세트**에 아래를 남긴다. 순수 typo·스타일만이면 생략.
+
+### 섹션에 넣을 것
+
+1. **목적** — 왜 / 무엇이 바뀌는지
+2. **수정 및 추가 파일** — 경로 + *(신규)* 여부 + 한 줄 역할 (가능한 한 완전하게)
+3. **확인** — curl / UI 체크 / 로컬 검증 결과
+4. **의도적으로 안 함** — 스코프 밖 항목
+
+### 번호·위치
+
+| 항목 | 규칙 |
+|------|------|
+| 새 큰 기능 | `## 35.` … `## 36.` … (정수 절) |
+| 같은 절 안의 단계 | `### 35.1` Phase / 버그픽스 소절 |
+| HTTP 경로 변경 | **라우팅 트리**는 [`ROUTING.md`](./ROUTING.md)만 갱신 (단일 소스). 이 파일 해당 절에 “ROUTING 반영” 한 줄 |
+| 과거 Phase 조회 | `WORK_NOTES.md` (§1–10) · `WORK_NOTES_2.md` (§11–34). 내용을 여기로 복사하지 않음 |
+
+### 스타일
+
+- `WORK_NOTES.md` / `_2`와 동일: 한국어 불릿, Phase 표, curl 블록
+- 코드에 없는 기능을 문서에 적지 않음
+- 병렬 “그림자” 문서 대신 기존 절을 이어 씀
+
+### 관련 문서 (코드와 같이)
+
+`.cursor/rules/update-docs.mdc` 기준 — route/DO/tool/panel/binding 등이면 `ARCHITECTURE.md` / `CLAUDE.md` / `.dev.vars.example` 등도 같은 PR에서 갱신.  
+A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 함께. HTTP 경로면 [`ROUTING.md`](./ROUTING.md).
+
+---
+
+## 35. 작업노트 분할 — `WORK_NOTES_3` *(완료)*
+
+* **목적:** `WORK_NOTES_2` (§11–§34)가 길어져 활성 기록을 `WORK_NOTES_3.md` (§35~)로 이어 씀.
+* **수정 및 추가 파일:**
+  * `docs/WORK_NOTES_3.md` *(신규)* — 활성 작업노트
+  * `docs/WORK_NOTES_2.md` — 아카이브 헤더 (§11–§34)
+  * `docs/WORK_NOTES.md` — 이어쓰기 포인터 → `_3`
+  * `.cursor/rules/update-docs.mdc` — 활성 파일 = `_3`
+  * docs: `CLAUDE.md`, `ARCHITECTURE.md`, `MERGE_STRATEGY.md`, `ROUTING.md`
+* **확인:** 새 비트리비얼 작업은 `_3`에만 추가; `_2` 과거 절 링크 유지
+* **의도적으로 안 함:** `_2` 본문 이동/재번호; 과거 MERGE changelog 링크 일괄 변경
+
+---

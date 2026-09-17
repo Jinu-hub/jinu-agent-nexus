@@ -2,7 +2,7 @@
 
 > **목적:** ~2주 뒤 GitHub에서 가져온 **최신 boilerplate(baseline)** 위에  
 > 현재 `jinu-agent-nexus` 제품 기능을 **원할히 이식(overlay)** 하기 위한 단일 소스.  
-> 작업 이력은 [`WORK_NOTES_2.md`](./WORK_NOTES_2.md) / 아카이브 [`WORK_NOTES.md`](./WORK_NOTES.md).  
+> 작업 이력은 [`WORK_NOTES_3.md`](./WORK_NOTES_3.md) (§35~) / 아카이브 [`WORK_NOTES_2.md`](./WORK_NOTES_2.md) (§11–34) · [`WORK_NOTES.md`](./WORK_NOTES.md) (§1–10).  
 > 이 파일은 **무엇을 복사·무엇을 손으로 꽂을지**만 유지한다.
 
 ---
@@ -76,7 +76,7 @@
 
 ### Docs (포팅 후 선택)
 
-`WORK_NOTES.md` / `WORK_NOTES_2.md` / 이 파일 — 제품 히스토리. baseline에 필수는 아님.
+`WORK_NOTES.md` / `WORK_NOTES_2.md` / `WORK_NOTES_3.md` / 이 파일 — 제품 히스토리. baseline에 필수는 아님.
 
 ---
 
@@ -124,7 +124,7 @@
 5. `/live` Market Pulse (토큰 있으면)
 6. `/daily-market-issues` 3탭 (브리프 / 나를 위한 요약 / 전문) + `POST /api/market/for-you` (§26.5)
 
-상세 curl·Phase 맥락 → `WORK_NOTES.md` §7–§10, `WORK_NOTES_2.md` §11.
+상세 curl·Phase 맥락 → `WORK_NOTES.md` §7–§10, `WORK_NOTES_2.md` §11–§34, `WORK_NOTES_3.md` §35~.
 
 ---
 
@@ -138,7 +138,7 @@
 ### 갱신 규칙
 
 코드가 **A 목록·B 접합·C 인프라**를 바꾸면 **같은 변경 세트**에서 이 파일을 고친다  
-(`.cursor/rules/update-docs.mdc`). Phase 서술·curl 결과는 `WORK_NOTES_2.md`에 두고, 여기에는 표·체크리스트만.
+(`.cursor/rules/update-docs.mdc`). Phase 서술·curl 결과는 `WORK_NOTES_3.md`에 두고, 여기에는 표·체크리스트만.
 
 ### 의도적으로 하지 않음 (포팅 전)
 
@@ -179,3 +179,4 @@
 | 2026-09-17 | Market 패널 「이 리포트 크게 보기」 — A `MarketPanel` ([`WORK_NOTES_2` §34.1](./WORK_NOTES_2.md)) |
 | 2026-09-17 | 좁은 폭 헤더·패널 — B `App`/`Chat` ([`WORK_NOTES_2` §34.2](./WORK_NOTES_2.md)) |
 | 2026-09-17 | 좁은 폭 패널 드로어 — B `App`/`Chat` ([`WORK_NOTES_2` §34.4](./WORK_NOTES_2.md)) |
+| 2026-09-17 | 작업노트 → `WORK_NOTES_3` (§35~) — docs ([`WORK_NOTES_3` §35](./WORK_NOTES_3.md)) |

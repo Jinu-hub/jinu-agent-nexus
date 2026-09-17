@@ -1,7 +1,7 @@
 # HTTP / Frontend 라우팅 트리
 
 > **단일 소스.** Worker·SPA 경로가 바뀌면 이 파일만 갱신한다.  
-> 작업노트에는 “ROUTING 반영” 한 줄만 남긴다 (`WORK_NOTES_2.md`).  
+> 작업노트에는 “ROUTING 반영” 한 줄만 남긴다 (`WORK_NOTES_3.md`).  
 > 아카이브 스냅샷(§7 완료 시점)은 [`WORK_NOTES.md` §6.1](./WORK_NOTES.md)에만 둔다.
 
 ---

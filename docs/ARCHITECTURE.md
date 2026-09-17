@@ -327,5 +327,7 @@ previous-day `market_date` drain — empty pending is a no-op).
 | `ROUTING.md` | HTTP / FE path tree (single source) |
 | `README.md` | Setup, deploy, course-aligned how-tos |
 | `README.eng.md` | English README |
-| `WORK_NOTES_2.md` | Active work log |
+| `WORK_NOTES_3.md` | Active work log (§35~) |
+| `WORK_NOTES_2.md` | Archive work log (§11–§34) |
+| `WORK_NOTES.md` | Archive work log (§1–§10) |
 | `MERGE_STRATEGY.md` | Baseline overlay A/B/C |
