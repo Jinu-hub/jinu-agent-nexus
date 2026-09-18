@@ -47,11 +47,22 @@ export const LABEL_BODY_HINTS: Record<string, string[]> = {
   // on-device-ai: body often says 소비자 기기 / 애플 — chip uses TAG_SOFT_DISPLAY_KO
   "platform-consolidation": ["플랫폼"],
   "production-scale": ["프로덕션"],
+  // 2026-09-17 daily tags — prefer longer body phrases first
+  tokenization: ["토큰화 주식", "토큰화", "토큰"],
+  "tokenized-assets": ["토큰화", "토큰화 주식"],
+  "tokenized-stocks": ["토큰화 주식", "토큰화"],
+  "regulatory-recalibration": ["금융 규제", "규제 면제", "규제"],
+  "regulation-shift": ["금융 규제", "규제"],
+  "policy-recalibration": ["금융 규제", "규제"],
+  finance: ["금융 규제", "금융"],
+  "trade-friction": ["무역 갈등", "무역 마찰", "무역"],
+  "trade friction": ["무역 갈등", "무역 마찰", "무역"],
 };
 
 /**
  * Tag-only soft KO chips when the natural Korean form is not a body substring
  * (e.g. on-device-ai → 온디바이스) but still useful for UI / Ask.
+ * Also used as a stable chip when LLM grounding is flaky for abstract EN slugs.
  */
 export const TAG_SOFT_DISPLAY_KO: Record<string, string> = {
   "on-device-ai": "온디바이스",
@@ -59,6 +70,15 @@ export const TAG_SOFT_DISPLAY_KO: Record<string, string> = {
   nvidia: "엔비디아",
   "platform-consolidation": "플랫폼",
   "production-scale": "프로덕션",
+  tokenization: "토큰화",
+  "tokenized-assets": "토큰화",
+  "tokenized-stocks": "토큰화",
+  "regulatory-recalibration": "규제 재조정",
+  "regulation-shift": "규제 재조정",
+  "policy-recalibration": "규제 재조정",
+  finance: "금융",
+  "trade-friction": "무역 갈등",
+  "trade friction": "무역 갈등",
 };
 
 export function looseKey(s: string): string {

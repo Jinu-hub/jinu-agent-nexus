@@ -383,19 +383,20 @@ export async function resolveMarketLabels(
       continue;
     }
 
-    // Tags: preferred KO chip before weak body paraphrases (on-device-ai → 온디바이스).
+    // Prefer body-grounded hints before soft chips (report language first).
+    const hinted = pickHintSpan(body, key, aliases, lang);
+    if (hinted) {
+      accept(key, hinted, "hint", true);
+      continue;
+    }
+
+    // Tags: KO chip when body has no usable span (on-device-ai → 온디바이스).
     if (input.role === "tag") {
       const soft = softTagDisplay(key, lang);
       if (soft) {
         accept(key, soft, "soft", true);
         continue;
       }
-    }
-
-    const hinted = pickHintSpan(body, key, aliases, lang);
-    if (hinted) {
-      accept(key, hinted, "hint", true);
-      continue;
     }
 
     if (input.role === "tag" && isEnglishyKey(key) && lang === "en") {

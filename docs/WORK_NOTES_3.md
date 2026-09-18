@@ -111,4 +111,20 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
   ```
 * **의도적으로 안 함:** summary/excerpt 폴백; vector error 시 폴백; 무관한 하이라이트 전체 주입
 
+## 38. Topic label soft/hint 튜닝 — 태그 EN fallback 완화 *(완료)*
+
+* **목적:** `tokenization` / `regulatory-recalibration` / `finance` / `trade-friction` 등이 LLM miss 시 slug로 남는 문제. 배포는 캐시로 3개쯤 보이는데 로컬은 soft/hint 맵이 비어 EN fallback이 잦음.
+* **수정 및 추가 파일:**
+  * `worker/lib/market-labels-helper.ts` — 위 slug(+aliases)용 `LABEL_BODY_HINTS` · `TAG_SOFT_DISPLAY_KO` 추가
+  * `worker/market-labels.ts` — Tags 경로 **hint → soft** 순으로 변경 (본문 근거 우선, soft는 본문 없을 때)
+  * docs: 본 절
+* **확인 (로컬 2026-09-18):**
+  ```bash
+  curl -sS -X POST http://localhost:5173/api/market-labels/resolve \
+    -H 'Content-Type: application/json' \
+    -d '{"date":"2026-09-17","lang":"ko","force":true}'
+  ```
+  * Tags: tokenization→hint(토큰화…), finance→hint(금융…), trade-friction→hint(무역…), regulatory-recalibration→hint/soft — EN fallback 제거
+* **의도적으로 안 함:** Keywords soft(본문 없으면 탈락 유지); 전역 영한 사전
+
 ---
