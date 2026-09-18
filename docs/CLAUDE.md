@@ -139,7 +139,7 @@ flowchart TD
 ```
 worker/
   index.ts             Worker entry — HTTP routing + DO re-export
-  lib/                 Worker-only helpers — market-date, voice-lang-filter, report-keywords, market-labels-helper (see lib/README.md)
+  lib/                 Worker-only helpers — market-date, voice-lang-filter, report-keywords, market-labels-helper, market-vector-defaults (see lib/README.md)
   notes.ts             My Market Notes — Workers KV API (`/notes`)
   my-memory.ts         MyMemory DO — preferences / events / weights
   memory-routes.ts     HTTP routes → MyMemory
@@ -208,7 +208,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Change model | `wrangler.jsonc` vars only (usually no code change) |
 | AI provider logic | `worker/ai.ts` |
 | PDF ingest / chunking | `worker/ingest.ts`, RAG in `worker/tools/recall.ts` + `chat-agent/rag.ts` (`PDF_VECTOR_DB`) |
-| Market report vectors | `worker/market-vector.ts` + `market-vector-routes.ts` + `market-vector-cron.ts` — ingest / query / clear / cron; id `mr_{itemId}_{lang}_{i}` (ko/en coexist); chat 「keyword」 via `market-vector-search.ts` → prefetch `vectorSearch` |
+| Market report vectors | `worker/market-vector.ts` + `market-vector-routes.ts` + `market-vector-cron.ts` + `worker/lib/market-vector-defaults.ts` (chat topK/minScore + HTTP defaults) — ingest / query / clear / cron; id `mr_{itemId}_{lang}_{i}` (ko/en coexist); chat 「keyword」 via `market-vector-search.ts` → prefetch `vectorSearch` |
 | My Market Notes (KV) | `worker/notes.ts` + `wrangler.jsonc` `kv_namespaces` |
 | My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts`; `topic_labels` + preferences.`display`; panel interests UI `src/lib/topic-preference.ts` + `MyInterestsFold.tsx`; chat prefetch `user-interests.ts` (P3) |
 | Market topic labels | `worker/market-labels.ts` + `worker/lib/market-labels-helper.ts` + routes — body-grounded resolve (exact→hint→LLM); hint maps in `worker/lib` for ongoing slug→KO tuning; post-ingest hook; UI/vector expand consume cache |
@@ -221,7 +221,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) + `hidden_panels` (tab strip) + `disabled_report_series` (Market content opt-out) + `market_focus_series_id` (Market panel tab → chat vector scope); UI `SettingsPanel` (Content/Language); Market tab sync in `App.tsx` |
 | report_series catalog | `worker/report-series.ts` → `GET /api/report-series` (+ `groups`: weekly+daily market issues 한 토글; service_role) |
 | Market day (panel) | `worker/market-day.ts` → `GET /api/market/day` + `/api/market/latest-date` (`series_id`); MarketPanel tabs when 2+ slots |
-| Market Memory intent | `market-turn-hooks.ts` + `market-intent.ts` + `market-prefetch.ts` + `market-vector-search.ts` + `soul-market.ts` + `market-memory-load.ts` — prefetch (`toolChoice: none`); 「keyword」 → `vectorSearch` (expand via report tag lexicon); ★ `interestHits` string match; beforeStep fallback for weather / no prefetch |
+| Market Memory intent | `market-turn-hooks.ts` + `market-intent.ts` + `market-prefetch.ts` + `market-vector-search.ts` + `soul-market.ts` + `market-memory-load.ts` — prefetch (`toolChoice: none`); 「keyword」 → `vectorSearch` (expand via report tag lexicon; empty → keywords/highlights literal fallback); ★ `interestHits` string match; beforeStep fallback for weather / no prefetch |
 | Voice audio pipeline | `content-audio.ts` barrel + `content-audio-domain.ts` / `content-audio-routes.ts` + `voice-audio-cron.ts` (UTC `0 0` + catch-up `0 1`) → `/api/audio/*`; today play + tool `getTodayMarketVoice.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |

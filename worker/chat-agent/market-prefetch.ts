@@ -36,6 +36,7 @@ import {
   extractQuotedQueries,
   runChatVectorSearch,
   vectorSearchInstructionClause,
+  withKeywordHighlightFallback,
   type ChatVectorSearchResult,
 } from "./market-vector-search";
 import {
@@ -43,6 +44,28 @@ import {
   serializeTagLexicon,
   type TagLexeme,
 } from "../../src/lib/market-tag-lexicon";
+
+/** Prefetch report fields used when Vectorize keyword search is empty. */
+function fallbackCorpusFromPayload(payload: Record<string, unknown>): {
+  keywords: ReportChatKeywords | null;
+  highlights: string[];
+} {
+  const report = payload.report;
+  if (!report || typeof report !== "object" || Array.isArray(report)) {
+    return { keywords: null, highlights: [] };
+  }
+  const r = report as Record<string, unknown>;
+  const keywords =
+    r.keywords && typeof r.keywords === "object" && !Array.isArray(r.keywords)
+      ? (r.keywords as ReportChatKeywords)
+      : null;
+  const highlights = Array.isArray(r.highlights)
+    ? r.highlights.filter(
+        (h): h is string => typeof h === "string" && h.trim().length > 0,
+      )
+    : [];
+  return { keywords, highlights };
+}
 
 /** Attach compact userInterests (+ interestHits) to a prefetch payload. */
 function withUserInterests<T extends Record<string, unknown>>(
@@ -88,12 +111,15 @@ async function withVectorSearch<T extends Record<string, unknown>>(
     seriesId?: string;
     itemId?: string;
     tagLexicon?: TagLexeme[] | null;
+    /** Brief-only asks: pass report keywords/highlights when not on payload. */
+    keywords?: ReportChatKeywords | null;
+    highlights?: string[] | null;
   },
 ): Promise<T & { vectorSearch?: ChatVectorSearchResult }> {
   const queries = extractQuotedQueries(opts.userText);
   if (queries.length === 0) return payload;
 
-  const search = await runChatVectorSearch(env, {
+  let search = await runChatVectorSearch(env, {
     queries,
     marketDate: opts.marketDate,
     lang: opts.lang,
@@ -101,6 +127,14 @@ async function withVectorSearch<T extends Record<string, unknown>>(
     itemId: opts.itemId,
     tagLexicon: opts.tagLexicon,
   });
+
+  const fromPayload = fallbackCorpusFromPayload(payload);
+  search = withKeywordHighlightFallback(search, {
+    keywords: opts.keywords ?? fromPayload.keywords,
+    highlights: opts.highlights ?? fromPayload.highlights,
+    tagLexicon: opts.tagLexicon,
+  });
+
   const instruction =
     typeof payload.instruction === "string"
       ? payload.instruction +
@@ -645,6 +679,16 @@ export async function buildMarketPrefetchBlock(
     // Brief asks with 「keyword」 still need report lexicon for alias expand.
     const reportForLexicon =
       quoted.length > 0 ? await loadReport(agent, env, askDate) : null;
+    const lexiconKw =
+      reportForLexicon && "keywords" in reportForLexicon
+        ? (reportForLexicon.keywords as ReportChatKeywords)
+        : null;
+    const lexiconHighlights =
+      reportForLexicon &&
+      "highlights" in reportForLexicon &&
+      Array.isArray(reportForLexicon.highlights)
+        ? (reportForLexicon.highlights as string[])
+        : null;
     return JSON.stringify(
       await withVectorSearch(
         env,
@@ -666,6 +710,8 @@ export async function buildMarketPrefetchBlock(
           lang,
           ...vectorScope(reportForLexicon),
           tagLexicon: tagLexiconFromReport(reportForLexicon),
+          keywords: lexiconKw,
+          highlights: lexiconHighlights,
         },
       ),
       null,

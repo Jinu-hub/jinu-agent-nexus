@@ -5,7 +5,14 @@
 
 import { isMarketDateYmd } from "../lib/market-date";
 import {
+  CHAT_VECTOR_HIT_LIMIT,
+  CHAT_VECTOR_MIN_SCORE,
+  CHAT_VECTOR_TOP_K_PER_QUERY,
+} from "../lib/market-vector-defaults";
+import type { ReportChatKeywords } from "../lib/report-keywords";
+import {
   queryMarketVectors,
+  textIncludesQuery,
   type MarketVectorHit,
 } from "../market-vector";
 import {
@@ -15,8 +22,8 @@ import {
 } from "../../src/lib/market-tag-lexicon";
 import { DEFAULT_INSTANCE_NAME } from "../../src/lib/agent-identity";
 
-/** Default floor — weak matches below this are treated as no hit. */
-export const CHAT_VECTOR_MIN_SCORE = 0.68;
+/** Re-export — weak matches below this are treated as no hit (unless lexical). */
+export { CHAT_VECTOR_MIN_SCORE };
 
 /** Normalize one user/tag query (+ optional report lexicon) into variants. */
 export function expandChatVectorQueries(
@@ -47,6 +54,11 @@ export type ChatVectorSearchResult = {
   /** True when query ran but nothing passed minScore / empty index. */
   empty: boolean;
   error?: string;
+  /**
+   * When set, hits came from report keywords/highlights after Vectorize empty
+   * (literal string match only).
+   */
+  fallback?: "keywords_highlights";
 };
 
 /** Pull 「…」 / 『…』 / "…" / '…' search terms from the user message. */
@@ -88,6 +100,103 @@ function toChatHits(hits: MarketVectorHit[]): ChatVectorHit[] {
     score: h.score,
     chunkIndex: h.chunkIndex,
   }));
+}
+
+function flattenKeywordCorpus(
+  keywords: ReportChatKeywords | null | undefined,
+): string[] {
+  if (!keywords) return [];
+  return [
+    ...keywords.companies.map((n) => `companies: ${n}`),
+    ...keywords.institutions.map((n) => `institutions: ${n}`),
+    ...keywords.technologies.map((n) => `technologies: ${n}`),
+    ...keywords.industries.map((n) => `industries: ${n}`),
+    ...keywords.products.map((n) => `products: ${n}`),
+    ...keywords.tags.map((n) => `tags: ${n}`),
+    ...keywords.places.map((n) => `places: ${n}`),
+  ];
+}
+
+/**
+ * When Vectorize returns no hits, keep literal matches from report
+ * highlights / keywords so chat does not claim "not in report" while Topics
+ * shows the name.
+ */
+export function buildKeywordHighlightFallbackHits(
+  queries: string[],
+  opts: {
+    keywords?: ReportChatKeywords | null;
+    highlights?: string[] | null;
+    tagLexicon?: TagLexeme[] | null;
+  },
+): ChatVectorHit[] {
+  const userQueries = queries.map((q) => q.trim()).filter(Boolean);
+  if (userQueries.length === 0) return [];
+
+  const highlights = (opts.highlights ?? []).filter(
+    (h): h is string => typeof h === "string" && h.trim().length > 0,
+  );
+  const keywordLines = flattenKeywordCorpus(opts.keywords);
+
+  const hits: ChatVectorHit[] = [];
+  const seenText = new Set<string>();
+
+  const tryPush = (query: string, text: string, score: number) => {
+    const t = text.trim();
+    if (!t) return;
+    const key = t.toLowerCase();
+    if (seenText.has(key)) return;
+    seenText.add(key);
+    hits.push({
+      query,
+      text: t,
+      score,
+      chunkIndex: -1,
+    });
+  };
+
+  // Prefer highlight headings (narrative) over bare keyword labels.
+  for (const q of userQueries) {
+    const matchVars = expandChatVectorQueries(q, opts.tagLexicon);
+    for (const h of highlights) {
+      if (matchVars.some((v) => textIncludesQuery(h, v))) {
+        tryPush(q, h, 1);
+      }
+    }
+  }
+  for (const q of userQueries) {
+    const matchVars = expandChatVectorQueries(q, opts.tagLexicon);
+    for (const line of keywordLines) {
+      if (matchVars.some((v) => textIncludesQuery(line, v))) {
+        tryPush(q, line, 0.95);
+      }
+    }
+  }
+
+  return hits.slice(0, CHAT_VECTOR_HIT_LIMIT);
+}
+
+/** Fill empty vectorSearch from keywords/highlights when literal match exists. */
+export function withKeywordHighlightFallback(
+  search: ChatVectorSearchResult,
+  opts: {
+    keywords?: ReportChatKeywords | null;
+    highlights?: string[] | null;
+    tagLexicon?: TagLexeme[] | null;
+  },
+): ChatVectorSearchResult {
+  if (search.error) return search;
+  if (!search.empty && search.hits.length > 0) return search;
+
+  const hits = buildKeywordHighlightFallbackHits(search.queries, opts);
+  if (hits.length === 0) return search;
+
+  return {
+    ...search,
+    hits,
+    empty: false,
+    fallback: "keywords_highlights",
+  };
 }
 
 /**
@@ -150,8 +259,8 @@ export async function runChatVectorSearch(
       lang: opts.lang,
       seriesId: opts.seriesId,
       itemId: opts.itemId,
-      topKPerQuery: 2,
-      hitLimit: 3,
+      topKPerQuery: CHAT_VECTOR_TOP_K_PER_QUERY,
+      hitLimit: CHAT_VECTOR_HIT_LIMIT,
       minScore: CHAT_VECTOR_MIN_SCORE,
     });
     const hits = toChatHits(result.hits);
@@ -202,16 +311,23 @@ export function vectorSearchInstructionClause(
       ? search.queries[0]
       : search.queries.join(" / ");
   const explain = isVectorExplainAsk(userText);
+  const fromFallback = search.fallback === "keywords_highlights";
   const bulletHint = explain
     ? Math.min(Math.max(search.hits.length + 1, 3), 5)
     : Math.min(Math.max(search.hits.length, 2), 4);
   const depth = explain
     ? `${bulletHint} bullets (min 3, max 5); each bullet may be 1–2 sentences; cover cause/effect when present in hits`
     : `${bulletHint} bullets (min 2, max 4); each bullet = one line / one sentence`;
+  const sourceNote = fromFallback
+    ? " Hits are from report highlights/keywords (vector empty; literal match only). " +
+      "If a hit is only a keyword label (e.g. companies: Intel) without a narrative highlight, " +
+      "say it appears in Topics and point to Market tab — do NOT invent story details.\n"
+    : "";
   return (
     " CRITICAL: keyword ask — answer ONLY from vectorSearch.hits text. " +
     "Do NOT invent. Do NOT pad with unrelated highlights/추가 항목. " +
-    "Do NOT mention scores, hit counts, vectorSearch, embeddings, or prefetch JSON.\n" +
+    "Do NOT mention scores, hit counts, vectorSearch, embeddings, fallback, or prefetch JSON.\n" +
+    sourceNote +
     "OUTPUT SHAPE (markdown; blank lines required):\n" +
     `1) First line only: **「${label}」** (use this display phrase; not an English slug unless the user typed one)\n` +
     "2) Blank line\n" +

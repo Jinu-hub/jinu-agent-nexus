@@ -75,4 +75,40 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **목적:** `Your world, a little closer.`는 모바일(`<sm`)에서만 접고, 그 이상은 표시.
 * **수정:** `src/chat/Chat.tsx` — 슬로건 `xl:block` → `sm:block`
 
+## 37. Chat 「keyword」 vector topK — entity miss 수정 *(완료)*
+
+* **목적:** 하이라이트/키워드에 있는 고유명사(예: Intel)가 `vectorSearch.hits` empty로 나와 “없다”고 답하던 문제. 원인: 짧은 쿼리의 리터럴 청크가 cosine 3등인데 chat `topKPerQuery=2`라 lexical 예외(`textIncludesQuery`)가 후보를 못 봄.
+* **수정 및 추가 파일:**
+  * `worker/lib/market-vector-defaults.ts` *(신규)* — `CHAT_VECTOR_*` + HTTP `DEFAULT_TOP_K` / `DEFAULT_HIT_LIMIT`
+  * `worker/chat-agent/market-vector-search.ts` — chat knobs import; `topKPerQuery` **2 → 8**, `hitLimit` 3 유지, `minScore` 0.68
+  * `worker/market-vector.ts` — HTTP 기본 topK/hitLimit을 동일 모듈에서 import
+  * `worker/lib/README.md` — 모듈 표
+  * docs: `CLAUDE.md` (file map), 본 절
+* **확인 (로컬 2026-09-18):**
+  ```bash
+  # chat knobs 재현 — hits≥1, chunk에 Intel
+  curl -sS -X POST http://localhost:5173/api/market-vector/query \
+    -H 'Content-Type: application/json' \
+    -d '{"queries":["Intel"],"date":"2026-09-16","lang":"ko","topKPerQuery":8,"hitLimit":3,"minScore":0.68}'
+  ```
+  * 이전 `topKPerQuery:2` + `minScore:0.68` → hits 0; `8` → score~0.61 chunk0 lexical 채택
+* **의도적으로 안 함:** HTTP 기본 topK(2) 상향; minScore 변경
+
+### 37.1 Empty vectorSearch → keywords/하이라이트 문자 폴백 *(완료)*
+
+* **목적:** Vectorize가 여전히 empty여도 Topics/하이라이트에 리터럴로 있으면 “없다”고 답하지 않게 함 (ingest 누락·스코프 어긋남 대비).
+* **수정 및 추가 파일:**
+  * `worker/chat-agent/market-vector-search.ts` — `buildKeywordHighlightFallbackHits` / `withKeywordHighlightFallback`; `fallback: "keywords_highlights"`; instruction에 라벨-only 시 Topics 안내
+  * `worker/chat-agent/market-prefetch.ts` — empty 후 payload.report(또는 brief 경로의 report keywords/highlights)로 폴백
+  * docs: 본 소절
+* **확인:**
+  ```ts
+  // highlights에 Intel 있으면 fallback hits ≥ 1
+  withKeywordHighlightFallback(
+    { queries: ["Intel"], hits: [], empty: true, marketDate: null, lang: null, itemId: null },
+    { highlights: ["SK하이닉스와 Intel, 첫 미국 메모리칩 …"], keywords: { companies: ["Intel"], tags: [], places: [], institutions: [], technologies: [], industries: [], products: [] } },
+  )
+  ```
+* **의도적으로 안 함:** summary/excerpt 폴백; vector error 시 폴백; 무관한 하이라이트 전체 주입
+
 ---

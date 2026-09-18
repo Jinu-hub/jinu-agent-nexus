@@ -13,6 +13,10 @@ import { createEmbedder } from "./ai";
 import { chunkMarkdown } from "./ingest";
 import { isMarketDateYmd, marketDateYmdInTimeZone } from "./lib/market-date";
 import {
+  DEFAULT_HIT_LIMIT,
+  DEFAULT_TOP_K_PER_QUERY,
+} from "./lib/market-vector-defaults";
+import {
   listReportsForMarketDay,
   resolveEnabledSeriesIds,
   resolveOneReportForIngest,
@@ -351,8 +355,6 @@ export const MARKET_VECTOR_FILTER_PROPERTIES = [
  */
 export const MARKET_VECTOR_QUERY_FILTER_BY_LANG = true;
 
-const DEFAULT_TOP_K_PER_QUERY = 2;
-const DEFAULT_HIT_LIMIT = 3;
 const MAX_QUERIES = 8;
 
 export type MarketVectorHit = {
