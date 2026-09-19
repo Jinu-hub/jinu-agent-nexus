@@ -196,7 +196,7 @@ export function ChatHelperRail({
             Loading topics…
           </div>
         ) : SHOW_TOPICS_SECTION && SHOW_REPORT_TOPIC_CHIPS ? (
-          <div className="paper-inset space-y-3 px-3 py-2.5">
+          <div className="paper-surface space-y-3 px-3 py-2.5">
             <div className="flex items-center gap-1.5">
               <Tags className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <p className="text-xs font-medium">Topics</p>

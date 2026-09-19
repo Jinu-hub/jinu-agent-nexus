@@ -358,7 +358,7 @@ export function ReportKeywordChips({
   /** Body-grounded labels from MyMemory / resolve. Keywords without a label drop when map is set. */
   labelMap?: Record<string, string> | null;
 }) {
-  const [keywordsOpen, setKeywordsOpen] = useState(false);
+  const [keywordsOpen, setKeywordsOpen] = useState(true);
   if (!SHOW_REPORT_TOPIC_CHIPS) return null;
 
   const prefs = preferences ?? [];

@@ -8,8 +8,8 @@
 // market_date that actually has a final brief (GET /api/briefs/latest-date),
 // not blindly Seoul yesterday — weekends/holidays often have no US-market row.
 //
-// Slim home (`SHOW_MARKET_WORKBENCH = false`): pulse/takeaway + brief body +
-// report blurb + voice + reading CTA. Topics/Ask live in ChatHelperRail;
+// Slim home (`SHOW_MARKET_WORKBENCH = false`): voice + pulse/takeaway +
+// brief body + report blurb + reading CTA. Topics/Ask live in ChatHelperRail;
 // full Brief/Voice/Report folds stay behind the flag for easy rollback.
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -630,7 +630,7 @@ export function MarketPanel({
         </div>
       ) : date && !SHOW_MARKET_WORKBENCH ? (
         <div className="space-y-3">
-          <div className="paper-inset space-y-2.5 px-3 py-2.5">
+          <div className="paper-surface space-y-2.5 px-3 py-2.5">
             <div className="space-y-1">
               <p className="text-[11px] font-medium leading-snug text-foreground">
                 {briefItem?.title ??
@@ -649,6 +649,23 @@ export function MarketPanel({
                   .join(" · ")}
               </p>
             </div>
+            {hasVoice && playPath ? (
+              <div className="space-y-1.5">
+                <p className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
+                  Voice
+                </p>
+                <audio
+                  className="w-full"
+                  controls
+                  preload="metadata"
+                  src={playPath}
+                >
+                  <a href={playPath} target="_blank" rel="noreferrer">
+                    Download MP3
+                  </a>
+                </audio>
+              </div>
+            ) : null}
             {showBriefLead && pulse ? (
               <p className="text-[11px] leading-relaxed text-foreground/90">
                 {pulse}
@@ -663,7 +680,8 @@ export function MarketPanel({
               <div
                 className={cn(
                   "space-y-1.5",
-                  showBriefLead && (pulse || takeaway)
+                  (hasVoice && playPath) ||
+                    (showBriefLead && (pulse || takeaway))
                     ? "border-t border-border/60 pt-2"
                     : null,
                 )}
@@ -706,23 +724,6 @@ export function MarketPanel({
               <p className="border-t border-border/60 pt-2 text-[10px] text-muted-foreground">
                 Report not published for this day.
               </p>
-            ) : null}
-            {hasVoice && playPath ? (
-              <div className="space-y-1.5 border-t border-border/60 pt-2">
-                <p className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
-                  Voice
-                </p>
-                <audio
-                  className="w-full"
-                  controls
-                  preload="metadata"
-                  src={playPath}
-                >
-                  <a href={playPath} target="_blank" rel="noreferrer">
-                    Download MP3
-                  </a>
-                </audio>
-              </div>
             ) : null}
           </div>
           {readingHref ? (

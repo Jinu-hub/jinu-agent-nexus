@@ -158,6 +158,17 @@ body {
   border-radius: calc(var(--radius) - 2px);
 }
 
+/* Brighter reading plate — long-form brief / Topics (Ask + Market home). */
+.paper-surface {
+  background: color-mix(in oklab, var(--card) 55%, white);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.dark .paper-surface {
+  background: color-mix(in oklab, var(--foreground) 5.5%, var(--card));
+}
+
 .panel-empty {
   color: var(--muted-foreground);
   border: 1px dashed var(--border);
