@@ -11,17 +11,12 @@ import {
   type BriefForYouHit,
 } from "@/lib/brief-for-you";
 import type { PreferenceRow } from "@/lib/topic-preference";
+import { interestKindLabel, useT } from "@/i18n/ui-lang";
 
 export const SHOW_BRIEF_FOR_YOU = false;
 
-const KIND_LABEL: Record<string, string> = {
-  theme: "Theme",
-  company: "Company",
-  industry: "Industry",
-  asset: "Asset",
-};
-
 function InterestChips({ hits }: { hits: BriefForYouHit[] }) {
+  const t = useT();
   return (
     <div className="flex flex-wrap gap-1">
       {hits.map((hit) => (
@@ -33,7 +28,7 @@ function InterestChips({ hits }: { hits: BriefForYouHit[] }) {
           )}
         >
           <span className="font-mono text-[9px] uppercase text-muted-foreground">
-            {KIND_LABEL[hit.kind] ?? hit.kind}
+            {interestKindLabel(t, hit.kind)}
           </span>
           <span className="truncate text-foreground/85">{hit.target}</span>
         </span>
@@ -75,6 +70,7 @@ export function BriefForYou({
 }) {
   const [open, setOpen] = useState(false);
   const titleId = useId();
+  const t = useT();
 
   if (!SHOW_BRIEF_FOR_YOU) return null;
 
@@ -91,14 +87,14 @@ export function BriefForYou({
           "hover:bg-amber-500/15",
           className,
         )}
-        title="Open For you"
+        title={t("forYou.open")}
       >
         <Star className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
         <span className="text-[11px] font-medium text-amber-900 dark:text-amber-200">
-          For you
+          {t("forYou.title")}
         </span>
         <span className="font-mono text-[9px] text-amber-800/70 dark:text-amber-300/70">
-          from interests · taste
+          {t("forYou.fromInterests")}
         </span>
         <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 font-mono text-[9px] text-amber-800 dark:text-amber-300">
           {hits.length}
@@ -126,6 +122,7 @@ function BriefForYouModal({
   titleId: string;
   hits: BriefForYouHit[];
 }) {
+  const t = useT();
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -169,17 +166,17 @@ function BriefForYouModal({
               className="flex flex-wrap items-center gap-1.5 text-sm font-medium"
             >
               <Star className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-              For you
+              {t("forYou.title")}
             </p>
             <p className="font-mono text-[10px] text-muted-foreground">
-              from interests · taste
+              {t("forYou.fromInterests")}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-            title="Close (Esc)"
+            title={t("common.closeEsc")}
           >
             <X className="h-4 w-4" />
           </button>

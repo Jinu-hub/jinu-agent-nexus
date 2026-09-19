@@ -27,6 +27,7 @@ import {
 } from "./ChatParts";
 import { ReportLandingCards, ReportNavLinks } from "./HomeReportExits";
 import { useClientToolCall } from "./use-client-tools";
+import { useT } from "@/i18n/ui-lang";
 
 export function Chat({
   agent,
@@ -148,6 +149,7 @@ function Header({
   helperOpen: boolean;
   onToggleHelper?: () => void;
 }) {
+  const t = useT();
   return (
     <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
       <div className="flex min-w-0 items-center gap-3">
@@ -158,8 +160,10 @@ function Header({
             className="xl:hidden"
             onClick={onToggleHelper}
             aria-pressed={helperOpen}
-            title={helperOpen ? "Close helper" : "Open helper"}
-            aria-label={helperOpen ? "Close helper" : "Open helper"}
+            title={helperOpen ? t("shell.closeHelper") : t("shell.openHelper")}
+            aria-label={
+              helperOpen ? t("shell.closeHelper") : t("shell.openHelper")
+            }
           >
             <PanelLeft className="size-4" />
           </Button>
@@ -168,7 +172,7 @@ function Header({
         <div className="min-w-0">
           <h1 className="text-sm font-semibold tracking-tight">LYRA</h1>
           <p className="hidden truncate text-[11px] text-muted-foreground sm:block">
-            Your world, a little closer.
+            {t("chat.slogan")}
           </p>
         </div>
         {/* Sidebar appears at lg — keep nav only when the chat column is wide enough. */}
@@ -182,8 +186,8 @@ function Header({
             className="lg:hidden"
             onClick={onTogglePanels}
             aria-pressed={panelOpen}
-            title={panelOpen ? "Close panels" : "Open panels"}
-            aria-label={panelOpen ? "Close panels" : "Open panels"}
+            title={panelOpen ? t("panels.close") : t("panels.open")}
+            aria-label={panelOpen ? t("panels.close") : t("panels.open")}
           >
             <PanelRight className="size-4" />
           </Button>
@@ -192,7 +196,7 @@ function Header({
           size="sm"
           variant="ghost"
           onClick={onToggleTheme}
-          title="Toggle theme"
+          title={t("chat.toggleTheme")}
         >
           {theme === "light" ? (
             <Moon className="size-4" />
@@ -206,20 +210,20 @@ function Header({
             size="sm"
             variant="ghost"
             onClick={onReset}
-            title="Wipe sources, files, schedules, extensions, MCP connections"
+            title={t("chat.resetSessionTitle")}
           >
             <RotateCcw className="size-3.5" />
-            <span className="hidden xl:inline">Reset session</span>
+            <span className="hidden xl:inline">{t("chat.resetSession")}</span>
           </Button>
         ) : null}
         <Button
           size="sm"
           variant="ghost"
           onClick={() => chat.clearHistory()}
-          title="Clear chat history"
+          title={t("chat.clearHistoryTitle")}
         >
           <Trash2 className="size-3.5" />
-          <span className="hidden xl:inline">Clear chat</span>
+          <span className="hidden xl:inline">{t("chat.clearHistory")}</span>
         </Button>
       </div>
     </div>
@@ -229,53 +233,35 @@ function Header({
 // ─── Empty state — shown before the first message ───────────────────────
 // Product intro + Cloudflare stack notes. Starter prompts live in the
 // left ChatHelperRail so the conversation column stays a reading intro.
-const INTRO_PARAS = [
-  "LYRA는 매일 쏟아지는 많은 정보 속에서 자신에게 필요한 내용을 일일이 찾아보기 어려운 사람을 위한 개인화 정보 서비스입니다.",
-  "현재는 글로벌 시장과 AI 관련 주요 이슈를 짧고 쉽게 정리해 보여주고, 사용자가 등록한 관심 키워드와 태그를 기준으로 관련 내용을 따로 요약해 제공합니다.",
-  "앞으로는 국내 이슈, 스포츠, 엔터테인먼트 등 보다 대중적인 분야로 콘텐츠를 확장하고, 사용자의 관심 키워드와 연결되는 심층 리포트가 발행될 경우 이를 추천하고 이어서 볼 수 있도록 하는 기능도 추가할 계획입니다.",
-  "궁극적으로는 사용자가 여러 뉴스와 콘텐츠를 직접 찾아다니지 않아도, 나에게 중요한 정보를 빠르게 발견하고 필요할 때 더 깊이 탐색할 수 있도록 하는 것이 LYRA의 목적입니다.",
+const INTRO_KEYS = [
+  "chat.intro.p1",
+  "chat.intro.p2",
+  "chat.intro.p3",
+  "chat.intro.p4",
 ] as const;
 
 const TECH_STACK = [
-  {
-    name: "Workers AI",
-    detail: "임베딩 / For you 요약 LLM / Voice TTS / topic label 보강",
-  },
-  {
-    name: "Vectorize",
-    detail: "마켓 리포트 청크 검색 (ingest · keyword · For you 근거)",
-  },
-  {
-    name: "R2",
-    detail: "Voice 오디오 저장·재생 (AUDIO_BUCKET)",
-  },
-  {
-    name: "Cron Triggers",
-    detail:
-      "일일 Voice TTS + Market vector ingest (각 catch-up 포함)",
-  },
-  {
-    name: "Durable Objects (SQLite)",
-    detail: "ChatAgent 설정 · MyMemory(관심사/라벨/for-you 캐시)",
-  },
-  {
-    name: "Workers RPC / HTTP routes",
-    detail: "settings RPC · /api/market/* · /api/audio/* · /memory/*",
-  },
+  { name: "Workers AI", detailKey: "chat.tech.workersAi" },
+  { name: "Vectorize", detailKey: "chat.tech.vectorize" },
+  { name: "R2", detailKey: "chat.tech.r2" },
+  { name: "Cron Triggers", detailKey: "chat.tech.cron" },
+  { name: "Durable Objects (SQLite)", detailKey: "chat.tech.do" },
+  { name: "Workers RPC / HTTP routes", detailKey: "chat.tech.rpc" },
 ] as const;
 
 function EmptyState() {
+  const t = useT();
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col items-start gap-8 py-10 animate-fade-up [animation-delay:280ms]">
       <BrandMark size="lg" />
 
       <section className="space-y-3 self-stretch">
         <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
-          소개
+          {t("chat.introHeading")}
         </h2>
         <div className="space-y-3 text-sm leading-relaxed text-foreground/80">
-          {INTRO_PARAS.map((p) => (
-            <p key={p.slice(0, 24)}>{p}</p>
+          {INTRO_KEYS.map((key) => (
+            <p key={key}>{t(key)}</p>
           ))}
         </div>
       </section>
@@ -284,14 +270,18 @@ function EmptyState() {
 
       <section className="space-y-3 self-stretch">
         <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
-          기술 스택
+          {t("chat.techHeading")}
         </h2>
         <div className="overflow-x-auto self-stretch">
           <table className="w-full border-collapse text-left text-[11px] leading-snug">
             <thead>
               <tr className="border-b border-border text-muted-foreground">
-                <th className="py-2 pr-4 font-semibold tracking-wide">기술</th>
-                <th className="py-2 font-semibold tracking-wide">용도</th>
+                <th className="py-2 pr-4 font-semibold tracking-wide">
+                  {t("chat.tech.colName")}
+                </th>
+                <th className="py-2 font-semibold tracking-wide">
+                  {t("chat.tech.colUse")}
+                </th>
               </tr>
             </thead>
             <tbody className="font-mono text-muted-foreground">
@@ -300,7 +290,7 @@ function EmptyState() {
                   <td className="whitespace-nowrap py-2.5 pr-4 text-foreground/85">
                     {row.name}
                   </td>
-                  <td className="py-2.5">{row.detail}</td>
+                  <td className="py-2.5">{t(row.detailKey)}</td>
                 </tr>
               ))}
             </tbody>

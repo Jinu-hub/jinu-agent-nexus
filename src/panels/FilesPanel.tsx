@@ -16,6 +16,7 @@ import { useState } from "react";
 import { FolderTree, FileText } from "lucide-react";
 import type { FileEntry } from "../../worker/chat-agent";
 import { PanelHeader } from "./PanelHeader";
+import { useT } from "@/i18n/ui-lang";
 
 export function FilesPanel({
   files,
@@ -36,23 +37,24 @@ export function FilesPanel({
     const content = await onRead(path);
     setSelected({ path, content });
   };
+  const t = useT();
 
   return (
     <section>
       <PanelHeader
         icon={FolderTree}
-        title="Files"
+        title={t("panels.files")}
         trailing={
           <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
             {files.length}
           </span>
         }
         onClear={onClear}
-        clearLabel="Clear workspace"
+        clearLabel={t("files.clear")}
       />
       {files.length === 0 ? (
         <p className="panel-empty px-3 py-6 text-center text-xs italic">
-          The agent hasn't created any files yet. Ask it to save something.
+          {t("files.empty")}
         </p>
       ) : (
         <ul className="mb-3 space-y-0.5">
@@ -84,11 +86,11 @@ export function FilesPanel({
               onClick={() => setSelected(null)}
               className="text-muted-foreground hover:text-foreground"
             >
-              close
+              {t("files.close")}
             </button>
           </div>
           <pre className="max-h-72 overflow-auto whitespace-pre-wrap p-3 text-[11px] leading-relaxed">
-            {selected.content ?? "loading…"}
+            {selected.content ?? t("files.loading")}
           </pre>
         </div>
       )}

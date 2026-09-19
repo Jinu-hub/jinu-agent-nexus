@@ -24,6 +24,7 @@ import { PanelHeader } from "./PanelHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useT } from "@/i18n/ui-lang";
 
 export type McpServerView = {
   id: string;
@@ -48,6 +49,7 @@ export function McpPanel({
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const t = useT();
 
   const submit = async () => {
     if (!name.trim() || !url.trim()) return;
@@ -68,19 +70,19 @@ export function McpPanel({
     <section>
       <PanelHeader
         icon={Plug}
-        title="MCP Servers"
+        title={t("mcp.title")}
         trailing={
           <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
             {servers.length}
           </span>
         }
         onClear={onClear}
-        clearLabel="Disconnect all"
+        clearLabel={t("mcp.clear")}
       />
 
       <div className="paper-inset mb-3 space-y-2 p-2.5">
         <Input
-          placeholder="Server name (e.g. 'github')"
+          placeholder={t("mcp.namePlaceholder")}
           value={name}
           onChange={(e) => setName(e.target.value)}
           disabled={busy}
@@ -97,15 +99,14 @@ export function McpPanel({
           onClick={() => void submit()}
           disabled={busy || !name.trim() || !url.trim()}
         >
-          {busy ? "Connecting…" : "Connect"}
+          {busy ? t("mcp.connecting") : t("mcp.connect")}
         </Button>
         {err && <p className="text-[11px] text-destructive">{err}</p>}
       </div>
 
       {servers.length === 0 ? (
         <p className="panel-empty px-3 py-6 text-center text-xs italic">
-          No servers connected. Add an MCP server URL above — its tools will
-          merge into the agent's toolset automatically.
+          {t("mcp.empty")}
         </p>
       ) : (
         <ul className="space-y-1.5">
@@ -133,7 +134,7 @@ export function McpPanel({
                     rel="noreferrer"
                     className="mt-1 inline-flex items-center gap-1 text-primary hover:underline"
                   >
-                    Authenticate
+                    {t("mcp.authenticate")}
                     <ExternalLink className="h-3 w-3" />
                   </a>
                 )}
@@ -141,7 +142,7 @@ export function McpPanel({
               <button
                 type="button"
                 onClick={() => void onDisconnect(s.id)}
-                title="Disconnect"
+                title={t("mcp.disconnect")}
                 className="rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
               >
                 <X className="h-3 w-3" />

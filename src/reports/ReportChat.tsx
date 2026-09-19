@@ -23,6 +23,7 @@ import {
 import { useClientToolCall } from "@/chat/use-client-tools";
 import { reportPageSuggestions } from "@/lib/market-suggestions";
 import { cn } from "@/lib/utils";
+import { useT, useUiLang } from "@/i18n/ui-lang";
 
 export function ReportChat({
   agent,
@@ -45,6 +46,7 @@ export function ReportChat({
   sendRef.current = chat.sendMessage;
   const consumedRef = useRef(onPendingAskConsumed);
   consumedRef.current = onPendingAskConsumed;
+  const t = useT();
 
   useEffect(() => {
     const text = pendingAsk?.text?.trim();
@@ -58,13 +60,13 @@ export function ReportChat({
       <div className="flex items-center gap-2 border-b border-border px-3 py-3">
         <MessageSquare className="h-3.5 w-3.5 shrink-0 text-primary" />
         <p className="min-w-0 flex-1 truncate text-xs font-semibold tracking-tight">
-          Ask about this report
+          {t("report.askTitle")}
         </p>
         <button
           type="button"
           onClick={() => chat.clearHistory()}
           className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-          title="Clear chat history"
+          title={t("chat.clearHistoryTitle")}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -72,7 +74,7 @@ export function ReportChat({
           type="button"
           onClick={onClose}
           className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-          title="Hide chat"
+          title={t("report.hideChat")}
         >
           <X className="h-4 w-4" />
         </button>
@@ -101,14 +103,16 @@ function Suggestions({
   marketDate: string | null;
   onPick: (text: string) => void;
 }) {
+  const t = useT();
+  const { lang } = useUiLang();
   if (!marketDate) return null;
 
   return (
     <div className="space-y-2">
       <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-        이렇게 물어보세요
+        {t("report.tryAsking")}
       </p>
-      {reportPageSuggestions(marketDate).map((s) => (
+      {reportPageSuggestions(marketDate, lang).map((s) => (
         <button
           key={s.id}
           type="button"

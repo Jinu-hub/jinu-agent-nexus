@@ -12,6 +12,7 @@ import { Clock, X } from "lucide-react";
 import type { ScheduleView } from "../../worker/chat-agent";
 import { PanelHeader } from "./PanelHeader";
 import { Badge } from "@/components/ui/badge";
+import { useT } from "@/i18n/ui-lang";
 
 export function SchedulesPanel({
   schedules,
@@ -22,22 +23,23 @@ export function SchedulesPanel({
   onCancel: (id: string) => Promise<void> | void;
   onClear?: () => void | Promise<void>;
 }) {
+  const t = useT();
   return (
     <section>
       <PanelHeader
         icon={Clock}
-        title="Schedules"
+        title={t("panels.schedules")}
         trailing={
           <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
             {schedules.length}
           </span>
         }
         onClear={onClear}
-        clearLabel="Cancel all"
+        clearLabel={t("schedules.clear")}
       />
       {schedules.length === 0 ? (
         <p className="panel-empty px-3 py-6 text-center text-xs italic">
-          Nothing scheduled. Try "remind me to stretch in 30 seconds".
+          {t("schedules.empty")}
         </p>
       ) : (
         <ul className="space-y-1.5">
@@ -56,7 +58,7 @@ export function SchedulesPanel({
               <button
                 type="button"
                 onClick={() => void onCancel(s.id)}
-                title="Cancel"
+                title={t("schedules.cancel")}
                 className="mt-0.5 rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
               >
                 <X className="h-3 w-3" />

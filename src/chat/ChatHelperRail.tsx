@@ -16,7 +16,7 @@ import { LoaderCircle, MessageSquare, Tags, X } from "lucide-react";
 
 import type { ContentLang } from "../../worker/chat-agent/settings";
 import {
-  MARKET_SUGGESTIONS,
+  marketSuggestions,
   reportPageSuggestions,
 } from "@/lib/market-suggestions";
 import { buildTagLexicon } from "@/lib/market-tag-lexicon";
@@ -37,6 +37,7 @@ import {
 } from "@/panels/ReportReader";
 import { MyInterestsFold, SHOW_MY_INTERESTS } from "@/panels/MyInterestsFold";
 import { collectReportPreferenceKeys } from "@/lib/topic-preference";
+import { seriesTabLabel, useT } from "@/i18n/ui-lang";
 
 export function ChatHelperRail({
   contentLang,
@@ -55,6 +56,7 @@ export function ChatHelperRail({
   onClose?: () => void;
 }) {
   const lang = contentLang ?? "ko";
+  const t = useT();
   const [interestsOnly, setInterestsOnly] = useState(false);
 
   const prefsEnabled = SHOW_MY_INTERESTS || SHOW_TOPIC_CHIP_STAR;
@@ -117,18 +119,23 @@ export function ChatHelperRail({
     SHOW_TOPICS_SECTION && SHOW_REPORT_TOPIC_CHIPS && hasReport,
   );
 
-  const seriesLabel =
-    activeSlot?.seriesTabLabel || activeSlot?.seriesTitle || null;
+  const seriesLabel = activeSlot
+    ? seriesTabLabel(
+        t,
+        activeSlot.seriesSlug,
+        activeSlot.seriesTabLabel || activeSlot.seriesTitle || "",
+      ) || activeSlot.seriesTabLabel || activeSlot.seriesTitle
+    : null;
 
   const dateLabel = date
-    ? `${date === latestDate ? "Latest · " : ""}${date}${
+    ? `${date === latestDate ? `${t("common.latest")} · ` : ""}${date}${
         seriesLabel ? ` · ${seriesLabel}` : ""
       }`
-    : "Pick a day in Market";
+    : t("helper.pickDay");
 
   const askSuggestions = useMemo(
-    () => (date ? reportPageSuggestions(date) : MARKET_SUGGESTIONS),
-    [date],
+    () => (date ? reportPageSuggestions(date, lang) : marketSuggestions(lang)),
+    [date, lang],
   );
 
   return (
@@ -136,7 +143,7 @@ export function ChatHelperRail({
       <div className="flex shrink-0 items-start gap-2 border-b border-border px-3 py-3">
         <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold tracking-tight">Ask</p>
+          <p className="text-xs font-semibold tracking-tight">{t("helper.ask")}</p>
           <p className="truncate font-mono text-[10px] text-muted-foreground">
             {dateLabel}
           </p>
@@ -146,8 +153,8 @@ export function ChatHelperRail({
             type="button"
             onClick={onClose}
             className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground xl:hidden"
-            title="Hide helper"
-            aria-label="Hide helper"
+            title={t("helper.hide")}
+            aria-label={t("helper.hide")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -158,7 +165,7 @@ export function ChatHelperRail({
         <div
           className="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-3 py-2"
           role="tablist"
-          aria-label="Report series"
+          aria-label={t("helper.reportSeries")}
         >
           {slots.map((slot) => {
             const selected = slot.seriesId === activeSlot?.seriesId;
@@ -178,7 +185,11 @@ export function ChatHelperRail({
                 )}
                 title={slot.seriesTitle}
               >
-                {slot.seriesTabLabel || slot.seriesTitle}
+                {seriesTabLabel(
+                  t,
+                  slot.seriesSlug,
+                  slot.seriesTabLabel || slot.seriesTitle,
+                )}
               </button>
             );
           })}
@@ -188,18 +199,18 @@ export function ChatHelperRail({
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {enabledSeriesIds.length === 0 ? (
           <p className="px-1 py-6 text-center text-[11px] italic text-muted-foreground">
-            Turn on at least one series under Settings → Market → Content.
+            {t("helper.enableSeries")}
           </p>
         ) : loading ? (
           <div className="flex items-center gap-2 py-6 text-[11px] text-muted-foreground">
             <LoaderCircle className="size-3.5 animate-spin" />
-            Loading topics…
+            {t("helper.loadingTopics")}
           </div>
         ) : SHOW_TOPICS_SECTION && SHOW_REPORT_TOPIC_CHIPS ? (
           <div className="paper-surface space-y-3 px-3 py-2.5">
             <div className="flex items-center gap-1.5">
               <Tags className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <p className="text-xs font-medium">Topics</p>
+              <p className="text-xs font-medium">{t("helper.topics")}</p>
             </div>
             {SHOW_MY_INTERESTS ? (
               <MyInterestsFold
@@ -229,14 +240,14 @@ export function ChatHelperRail({
               />
             ) : (
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                {error ?? "No keywords for this day."}
+                {error ?? t("helper.noKeywords")}
               </p>
             )}
             {SHOW_TOPIC_CHIP_ASK || SHOW_TOPIC_CHIP_STAR ? (
               <p className="text-[10px] leading-relaxed text-muted-foreground/80">
-                {SHOW_TOPIC_CHIP_ASK ? "Tap a keyword to ask in chat" : null}
+                {SHOW_TOPIC_CHIP_ASK ? t("helper.tapKeyword") : null}
                 {SHOW_TOPIC_CHIP_ASK && SHOW_TOPIC_CHIP_STAR ? " · " : null}
-                {SHOW_TOPIC_CHIP_STAR ? "Star to save an interest" : null}
+                {SHOW_TOPIC_CHIP_STAR ? t("helper.starInterest") : null}
               </p>
             ) : null}
           </div>
@@ -252,10 +263,12 @@ export function ChatHelperRail({
       <div className="shrink-0 border-t border-border px-3 py-3">
         <div className="mb-1.5 flex items-center gap-1.5">
           <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-          <p className="text-[11px] font-medium text-foreground">Ask in chat</p>
+          <p className="text-[11px] font-medium text-foreground">
+            {t("helper.askInChat")}
+          </p>
         </div>
         <p className="mb-2 text-[10px] leading-relaxed text-muted-foreground">
-          이해는 챗에서 · 원문은 Market / 읽기 페이지.
+          {t("helper.askHint")}
         </p>
         <div className="flex flex-wrap gap-1.5">
           {askSuggestions.map((s) => (

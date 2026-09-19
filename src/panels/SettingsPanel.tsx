@@ -5,18 +5,29 @@ import type {
   ContentLang,
   ToggleablePanel,
 } from "../../worker/chat-agent/settings";
-import {
-  CONTENT_LANGS,
-  TOGGLEABLE_PANELS,
-  TOGGLEABLE_PANEL_LABELS,
-} from "../../worker/chat-agent/settings";
+import { CONTENT_LANGS, TOGGLEABLE_PANELS } from "../../worker/chat-agent/settings";
 import type {
   ReportSeriesContentGroup,
   ReportSeriesRow,
 } from "../../worker/report-series";
 import { groupReportSeriesForSettings } from "../../worker/report-series";
+import { seriesGroupTitle, useT, type TFn } from "@/i18n/ui-lang";
+import type { MessageKey } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 import { PanelHeader } from "./PanelHeader";
+
+const PANEL_LABEL_KEYS: Record<ToggleablePanel, MessageKey> = {
+  market: "panels.market",
+  memory: "panels.memory",
+  skills: "panels.skills",
+  files: "panels.files",
+  tools: "panels.tools",
+  sources: "panels.sources",
+  browser: "panels.browser",
+  schedules: "panels.schedules",
+  extensions: "panels.extensions",
+  mcp: "panels.mcp",
+};
 
 function SettingSwitch({
   checked,
@@ -85,10 +96,10 @@ function SettingRow({
   );
 }
 
-function SoonBadge() {
+function SoonBadge({ t }: { t: TFn }) {
   return (
     <span className="rounded border border-border/60 bg-muted/60 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
-      soon
+      {t("common.soon")}
     </span>
   );
 }
@@ -118,6 +129,7 @@ export function SettingsPanel({
   /** Enable/disable one or more report_series.slug values together. */
   onToggleReportSeries: (slugs: string[], enabled: boolean) => Promise<void>;
 }) {
+  const t = useT();
   const [panelsOpen, setPanelsOpen] = useState(false);
   const [marketOpen, setMarketOpen] = useState(false);
   const [groups, setGroups] = useState<ReportSeriesContentGroup[] | null>(null);
@@ -138,7 +150,7 @@ export function SettingsPanel({
         };
         if (!active) return;
         if (!res.ok || !body.ok || !Array.isArray(body.items)) {
-          setSeriesError(body.message ?? "Failed to load report series.");
+          setSeriesError(body.message ?? t("settings.seriesLoadFailed"));
           setGroups([]);
           return;
         }
@@ -151,7 +163,7 @@ export function SettingsPanel({
       .catch((err: unknown) => {
         if (!active) return;
         setSeriesError(
-          err instanceof Error ? err.message : "Failed to load report series.",
+          err instanceof Error ? err.message : t("settings.seriesLoadFailed"),
         );
         setGroups([]);
       })
@@ -161,7 +173,7 @@ export function SettingsPanel({
     return () => {
       active = false;
     };
-  }, []);
+  }, [t]);
 
   const hidden = new Set(settings?.hidden_panels ?? []);
   const disabledSeries = new Set(settings?.disabled_report_series ?? []);
@@ -169,24 +181,30 @@ export function SettingsPanel({
   const visibleCount = TOGGLEABLE_PANELS.length - hiddenCount;
   const panelsSummary =
     hiddenCount === 0
-      ? `${TOGGLEABLE_PANELS.length} tabs shown`
-      : `${visibleCount} shown · ${hiddenCount} hidden`;
+      ? t("settings.tabsAllShown", { n: TOGGLEABLE_PANELS.length })
+      : t("settings.tabsSummary", {
+          shown: visibleCount,
+          hidden: hiddenCount,
+        });
 
   const controllableGroups = (groups ?? []).filter((g) => !g.soon);
   const enabledSeriesCount = controllableGroups.filter((g) =>
     g.controllableSlugs.every((slug) => !disabledSeries.has(slug)),
   ).length;
   const marketSummary = seriesLoading
-    ? `lang ${settings?.content_lang ?? "…"}`
+    ? t("common.loading")
     : controllableGroups.length === 0
-      ? `${settings?.content_lang ?? "ko"}`
-      : `${settings?.content_lang ?? "ko"} · ${enabledSeriesCount}/${controllableGroups.length} series`;
+      ? ""
+      : t("settings.seriesCount", {
+          enabled: enabledSeriesCount,
+          total: controllableGroups.length,
+        });
 
   return (
     <section>
       <PanelHeader
         icon={Settings2}
-        title="Settings"
+        title={t("settings.title")}
         trailing={
           updating ? (
             <LoaderCircle className="size-3.5 animate-spin text-muted-foreground" />
@@ -197,10 +215,41 @@ export function SettingsPanel({
       {loading && !settings ? (
         <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted-foreground">
           <LoaderCircle className="size-3.5 animate-spin" />
-          Loading settings…
+          {t("settings.loading")}
         </div>
       ) : settings ? (
         <div className="space-y-2">
+          <div className="paper-inset px-3 py-2.5">
+            <p className="text-xs font-medium">{t("settings.language")}</p>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+              {t("settings.languageHelp")}
+            </p>
+            <div className="mt-2.5 flex gap-1.5">
+              {CONTENT_LANGS.map((lang) => {
+                const selected = settings.content_lang === lang;
+                return (
+                  <button
+                    key={lang}
+                    type="button"
+                    disabled={updating}
+                    aria-pressed={selected}
+                    onClick={() => void onContentLangChange(lang)}
+                    className={cn(
+                      "min-w-12 rounded-md px-3 py-1.5 font-mono text-xs transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      "disabled:cursor-not-allowed disabled:opacity-50",
+                      selected
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80",
+                    )}
+                  >
+                    {lang}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="paper-inset px-3 py-2.5">
             <button
               type="button"
@@ -211,7 +260,7 @@ export function SettingsPanel({
                 marketOpen && "mb-2",
               )}
             >
-              <p className="text-xs font-medium">Market</p>
+              <p className="text-xs font-medium">{t("settings.market")}</p>
               {!marketOpen && (
                 <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">
                   {marketSummary}
@@ -226,114 +275,77 @@ export function SettingsPanel({
               />
             </button>
             {marketOpen && (
-              <div className="space-y-3">
-                <div>
-                  <p className="text-[11px] font-medium text-muted-foreground">
-                    Content
-                  </p>
-                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                    Choose which Market Memory series to use. Weekly and daily
-                    market issues share one switch. Inactive catalog entries
-                    stay off until they ship.
-                  </p>
-                  <div className="mt-2 space-y-1.5">
-                    {seriesLoading && !groups ? (
-                      <div className="flex items-center gap-2 py-2 text-[11px] text-muted-foreground">
-                        <LoaderCircle className="size-3 animate-spin" />
-                        Loading series…
-                      </div>
-                    ) : groups && groups.length > 0 ? (
-                      groups.map((group) => {
-                        const soon = group.soon;
-                        const enabled = soon
-                          ? false
-                          : group.controllableSlugs.every(
-                              (slug) => !disabledSeries.has(slug),
-                            );
-                        return (
-                          <div
-                            key={group.id}
-                            className={cn(
-                              "flex items-center justify-between gap-3 rounded-md px-2.5 py-1.5",
-                              soon ? "bg-muted/25 opacity-70" : "bg-muted/40",
-                            )}
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <span className="truncate text-xs font-medium">
-                                  {group.title}
-                                </span>
-                                {soon && <SoonBadge />}
-                              </div>
-                              <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
-                                {group.detail}
-                              </p>
-                            </div>
-                            <SettingSwitch
-                              checked={enabled}
-                              disabled={updating || soon}
-                              label={
-                                soon
-                                  ? `${group.title} (coming soon)`
-                                  : `Use ${group.title}`
-                              }
-                              onChange={(nextEnabled) =>
-                                void onToggleReportSeries(
-                                  group.controllableSlugs.length > 0
-                                    ? group.controllableSlugs
-                                    : group.slugs,
-                                  nextEnabled,
-                                )
-                              }
-                            />
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="py-1 text-[11px] text-muted-foreground">
-                        {seriesError ?? "No report series found."}
-                      </p>
-                    )}
-                    {seriesError && groups && groups.length > 0 && (
-                      <p className="text-[10px] text-destructive">
-                        {seriesError}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="border-t border-border/50 pt-3">
-                  <p className="text-[11px] font-medium text-muted-foreground">
-                    Language
-                  </p>
-                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                    Preferred lang_code for Market Memory briefs and voice
-                    (Supabase). Independent of chat reply language.
-                  </p>
-                  <div className="mt-2.5 flex gap-1.5">
-                    {CONTENT_LANGS.map((lang) => {
-                      const selected = settings.content_lang === lang;
+              <div>
+                <p className="text-[11px] font-medium text-muted-foreground">
+                  {t("settings.marketContent")}
+                </p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                  {t("settings.marketContentHelp")}
+                </p>
+                <div className="mt-2 space-y-1.5">
+                  {seriesLoading && !groups ? (
+                    <div className="flex items-center gap-2 py-2 text-[11px] text-muted-foreground">
+                      <LoaderCircle className="size-3 animate-spin" />
+                      {t("settings.loadingSeries")}
+                    </div>
+                  ) : groups && groups.length > 0 ? (
+                    groups.map((group) => {
+                      const soon = group.soon;
+                      const title = seriesGroupTitle(t, group.id, group.title);
+                      const enabled = soon
+                        ? false
+                        : group.controllableSlugs.every(
+                            (slug) => !disabledSeries.has(slug),
+                          );
                       return (
-                        <button
-                          key={lang}
-                          type="button"
-                          disabled={updating}
-                          aria-pressed={selected}
-                          onClick={() => void onContentLangChange(lang)}
+                        <div
+                          key={group.id}
                           className={cn(
-                            "min-w-12 rounded-md px-3 py-1.5 font-mono text-xs transition-colors",
-                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                            "disabled:cursor-not-allowed disabled:opacity-50",
-                            selected
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-muted-foreground hover:bg-muted/80",
+                            "flex items-center justify-between gap-3 rounded-md px-2.5 py-1.5",
+                            soon ? "bg-muted/25 opacity-70" : "bg-muted/40",
                           )}
                         >
-                          {lang}
-                        </button>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="truncate text-xs font-medium">
+                                {title}
+                              </span>
+                              {soon && <SoonBadge t={t} />}
+                            </div>
+                            <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
+                              {group.detail}
+                            </p>
+                          </div>
+                          <SettingSwitch
+                            checked={enabled}
+                            disabled={updating || soon}
+                            label={
+                              soon
+                                ? t("settings.seriesSoon", { title })
+                                : t("settings.seriesUse", { title })
+                            }
+                            onChange={(nextEnabled) =>
+                              void onToggleReportSeries(
+                                group.controllableSlugs.length > 0
+                                  ? group.controllableSlugs
+                                  : group.slugs,
+                                nextEnabled,
+                              )
+                            }
+                          />
+                        </div>
                       );
-                    })}
-                  </div>
+                    })
+                  ) : (
+                    <p className="py-1 text-[11px] text-muted-foreground">
+                      {seriesError ?? t("settings.noSeries")}
+                    </p>
+                  )}
+                  {seriesError && groups && groups.length > 0 && (
+                    <p className="text-[10px] text-destructive">
+                      {seriesError}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -349,7 +361,7 @@ export function SettingsPanel({
                 panelsOpen && "mb-2",
               )}
             >
-              <p className="text-xs font-medium">Panel tabs</p>
+              <p className="text-xs font-medium">{t("settings.panelTabs")}</p>
               {!panelsOpen && (
                 <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">
                   {panelsSummary}
@@ -366,24 +378,22 @@ export function SettingsPanel({
             {panelsOpen && (
               <>
                 <p className="mb-2.5 text-[11px] leading-relaxed text-muted-foreground">
-                  Show or hide side-panel tabs. Settings stays available so you
-                  can turn tabs back on.
+                  {t("settings.panelTabsHelp")}
                 </p>
                 <div className="space-y-1.5">
                   {TOGGLEABLE_PANELS.map((panel) => {
                     const visible = !hidden.has(panel);
+                    const title = t(PANEL_LABEL_KEYS[panel]);
                     return (
                       <div
                         key={panel}
                         className="flex items-center justify-between gap-3 rounded-md bg-muted/40 px-2.5 py-1.5"
                       >
-                        <span className="text-xs font-medium">
-                          {TOGGLEABLE_PANEL_LABELS[panel]}
-                        </span>
+                        <span className="text-xs font-medium">{title}</span>
                         <SettingSwitch
                           checked={visible}
                           disabled={updating}
-                          label={`Show ${TOGGLEABLE_PANEL_LABELS[panel]} tab`}
+                          label={t("settings.showTab", { title })}
                           onChange={(nextVisible) =>
                             void onTogglePanelVisibility(panel, nextVisible)
                           }
@@ -397,15 +407,15 @@ export function SettingsPanel({
           </div>
 
           <SettingRow
-            title="Alarm scheduling"
-            description="Allow the agent to schedule background cleanup work."
+            title={t("settings.alarm")}
+            description={t("settings.alarmHelp")}
             checked={settings.alarm_enabled}
             disabled={updating}
             onChange={(enabled) => void onToggleAlarm(enabled)}
           />
           <SettingRow
-            title="Message cleanup"
-            description="Delete messages older than the configured retention period."
+            title={t("settings.cleanup")}
+            description={t("settings.cleanupHelp")}
             checked={settings.message_cleanup_enabled}
             disabled={updating}
             onChange={(enabled) => void onToggleCleanup(enabled)}
@@ -413,13 +423,17 @@ export function SettingsPanel({
 
           <div className="mt-3 grid grid-cols-2 gap-2">
             <div className="paper-inset px-3 py-2">
-              <p className="text-[10px] text-muted-foreground">Retention</p>
+              <p className="text-[10px] text-muted-foreground">
+                {t("settings.retention")}
+              </p>
               <p className="mt-1 font-mono text-xs">
                 {formatDuration(settings.message_retention_seconds)}
               </p>
             </div>
             <div className="paper-inset px-3 py-2">
-              <p className="text-[10px] text-muted-foreground">Interval</p>
+              <p className="text-[10px] text-muted-foreground">
+                {t("settings.interval")}
+              </p>
               <p className="mt-1 font-mono text-xs">
                 {formatDuration(settings.alarm_interval_seconds)}
               </p>
@@ -427,12 +441,14 @@ export function SettingsPanel({
           </div>
 
           <p className="pt-1 text-[10px] text-muted-foreground">
-            Updated {formatUpdatedAt(settings.updated_at)}
+            {t("settings.updated", {
+              when: formatUpdatedAt(settings.updated_at, t),
+            })}
           </p>
         </div>
       ) : (
         <p className="panel-empty px-3 py-6 text-center text-xs italic">
-          Settings are unavailable.
+          {t("settings.unavailable")}
         </p>
       )}
 
@@ -452,9 +468,9 @@ function formatDuration(seconds: number): string {
   return `${seconds}s`;
 }
 
-function formatUpdatedAt(updatedAt: string): string {
-  if (!updatedAt) return "never";
+function formatUpdatedAt(updatedAt: string, t: TFn): string {
+  if (!updatedAt) return t("common.never");
   const date = new Date(updatedAt);
-  if (Number.isNaN(date.getTime())) return "unknown";
+  if (Number.isNaN(date.getTime())) return t("common.unknown");
   return date.toLocaleString();
 }

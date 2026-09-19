@@ -28,30 +28,65 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { UiLangProvider, useT, type TFn } from "@/i18n/ui-lang";
+import type { ContentLang } from "../../worker/chat-agent/settings";
+import { isContentLang } from "../../worker/chat-agent/settings";
 
-const REFUSAL_TEXT: Record<
-  Extract<RoomActionResult, { ok: false }>["reason"],
-  string
-> = {
-  readonly: "You joined as a spectator — votes aren't counted.",
-  closed: "This poll has closed. New votes are no longer counted.",
-  unknown_option: "That option no longer exists.",
-  empty_label: "Give the option a name first.",
-  duplicate_option: "That option is already on the ballot.",
-  too_many_options: "The ballot is full.",
-};
+function refusalText(
+  t: TFn,
+  reason: Extract<RoomActionResult, { ok: false }>["reason"],
+): string {
+  switch (reason) {
+    case "readonly":
+      return t("live.refuse.readonly");
+    case "closed":
+      return t("live.refuse.closed");
+    case "unknown_option":
+      return t("live.refuse.unknown_option");
+    case "empty_label":
+      return t("live.refuse.empty_label");
+    case "duplicate_option":
+      return t("live.refuse.duplicate_option");
+    case "too_many_options":
+      return t("live.refuse.too_many_options");
+  }
+}
 
 export default function LiveMarketRoom() {
+  const [lang, setLang] = useState<ContentLang>("ko");
+  useEffect(() => {
+    let active = true;
+    void fetch("/settings")
+      .then((res) => res.json() as Promise<{ content_lang?: unknown }>)
+      .then((body) => {
+        if (!active) return;
+        if (isContentLang(body.content_lang)) setLang(body.content_lang);
+      })
+      .catch(() => {
+        /* keep default */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return (
+    <UiLangProvider lang={lang}>
+      <LiveMarketRoomBody />
+    </UiLangProvider>
+  );
+}
+
+function LiveMarketRoomBody() {
   const params = new URLSearchParams(window.location.search);
   const token = params.get("token")?.trim() ?? "";
   const readonly = params.get("readonly") === "true";
+  const t = useT();
 
   if (!token) {
     return (
-      <Gate title="Room token required">
-        Append <code className="font-mono">?token=…</code> to the URL to join
-        Market Pulse. Add <code className="font-mono">&amp;readonly=true</code>{" "}
-        to watch without voting.
+      <Gate title={t("live.tokenRequired")}>
+        {t("live.tokenRequiredBody")}
       </Gate>
     );
   }
@@ -66,6 +101,7 @@ function Room({ token, readonly }: { token: string; readonly: boolean }) {
   const [pending, setPending] = useState(false);
   const [draftOption, setDraftOption] = useState("");
   const [now, setNow] = useState(() => Date.now());
+  const t = useT();
 
   // Reconnects would thrash if this object were rebuilt on every render.
   const query = useMemo<Record<string, string>>(() => {
@@ -109,29 +145,28 @@ function Room({ token, readonly }: { token: string; readonly: boolean }) {
     setNotice(null);
     try {
       const result = await action();
-      if (!result.ok) setNotice(REFUSAL_TEXT[result.reason]);
+      if (!result.ok) setNotice(refusalText(t, result.reason));
       return result.ok;
     } catch (error) {
       setNotice(
-        error instanceof Error ? error.message : "The room rejected that.",
+        error instanceof Error ? error.message : t("live.rejected"),
       );
       return false;
     } finally {
       setPending(false);
     }
-  }, []);
+  }, [t]);
 
   const poll = agent.state;
 
   if (!poll && (unauthorized || handshakeExpired)) {
     return (
-      <Gate title="Invalid room token">
-        The room refused this connection. Check the{" "}
-        <code className="font-mono">token</code> query parameter and try again.
+      <Gate title={t("live.invalidToken")}>
+        {t("live.invalidTokenBody")}
       </Gate>
     );
   }
-  if (!poll) return <Gate title="Joining the room…">Opening the socket.</Gate>;
+  if (!poll) return <Gate title={t("live.joining")}>{t("live.opening")}</Gate>;
 
   const total = poll.options.reduce((sum, o) => sum + o.votes, 0);
   const leader = poll.options.reduce(
@@ -153,18 +188,18 @@ function Room({ token, readonly }: { token: string; readonly: boolean }) {
               poll.closed ? "text-muted-foreground" : "text-primary",
             )}
           />
-          <span className="text-sm font-semibold">Market Pulse</span>
+          <span className="text-sm font-semibold">{t("live.title")}</span>
           {readonly && (
             <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
               <Eye className="size-3" />
-              Spectator
+              {t("live.spectator")}
             </span>
           )}
           <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
             {poll.closed ? (
               <>
                 <Lock className="size-3" />
-                closed
+                {t("live.closed")}
               </>
             ) : (
               <>
@@ -177,7 +212,9 @@ function Room({ token, readonly }: { token: string; readonly: boolean }) {
 
         <h1 className="text-lg font-semibold leading-snug">{poll.question}</h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          {total} {total === 1 ? "vote" : "votes"} so far
+          {total === 1
+            ? t("live.voteOne", { n: total })
+            : t("live.voteMany", { n: total })}
         </p>
 
         <ul className="mt-4 space-y-2">
@@ -235,7 +272,7 @@ function Room({ token, readonly }: { token: string; readonly: boolean }) {
             value={draftOption}
             disabled={locked || pending}
             maxLength={60}
-            placeholder="Add another signal…"
+            placeholder={t("live.addPlaceholder")}
             onChange={(event) => setDraftOption(event.target.value)}
           />
           <Button
@@ -245,7 +282,7 @@ function Room({ token, readonly }: { token: string; readonly: boolean }) {
             disabled={locked || pending || !draftOption.trim()}
           >
             <Plus className="size-3.5" />
-            Add
+            {t("live.add")}
           </Button>
         </form>
 
@@ -258,8 +295,8 @@ function Room({ token, readonly }: { token: string; readonly: boolean }) {
         <footer className="mt-5 flex items-center gap-3 text-[11px] text-muted-foreground">
           <span className="min-w-0 flex-1 truncate">
             {poll.recentCities.length > 0
-              ? `Voting from ${poll.recentCities.join(" · ")}`
-              : "No votes recorded yet."}
+              ? t("live.votingFrom", { cities: poll.recentCities.join(" · ") })
+              : t("live.noVotes")}
           </span>
           <Button
             type="button"
@@ -269,7 +306,7 @@ function Room({ token, readonly }: { token: string; readonly: boolean }) {
             onClick={() => void run(() => agent.stub.reset())}
           >
             <RotateCcw className="size-3.5" />
-            Reset
+            {t("live.reset")}
           </Button>
         </footer>
       </section>

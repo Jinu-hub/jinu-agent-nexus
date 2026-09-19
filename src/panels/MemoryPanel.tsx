@@ -13,6 +13,7 @@
 import { Brain } from "lucide-react";
 import type { MemoryView } from "../../worker/chat-agent";
 import { PanelHeader } from "./PanelHeader";
+import { useT } from "@/i18n/ui-lang";
 
 export function MemoryPanel({
   memory,
@@ -24,12 +25,13 @@ export function MemoryPanel({
   const pct = memory.maxTokens
     ? Math.min(100, (memory.tokens / memory.maxTokens) * 100)
     : 0;
+  const t = useT();
 
   return (
     <section>
       <PanelHeader
         icon={Brain}
-        title="Memory"
+        title={t("panels.memory")}
         trailing={
           <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
             {memory.tokens.toLocaleString()}
@@ -38,7 +40,7 @@ export function MemoryPanel({
           </span>
         }
         onClear={onClear}
-        clearLabel="Clear memory"
+        clearLabel={t("memory.clear")}
       />
       <div className="relative mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
         <div
@@ -52,7 +54,7 @@ export function MemoryPanel({
         </pre>
       ) : (
         <p className="panel-empty px-3 py-6 text-center text-xs italic">
-          Tell the agent something to remember.
+          {t("memory.empty")}
         </p>
       )}
     </section>

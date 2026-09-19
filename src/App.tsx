@@ -69,6 +69,8 @@ import { BrowserPanel } from "@/panels/BrowserPanel";
 import { ExtensionsPanel } from "@/panels/ExtensionsPanel";
 import { McpPanel, type McpServerView } from "@/panels/McpPanel";
 import { SettingsPanel } from "@/panels/SettingsPanel";
+import { UiLangConsumer, UiLangProvider, translate } from "@/i18n/ui-lang";
+import type { MessageKey } from "@/i18n/messages";
 
 const INITIAL_STATE: State = {
   files: [],
@@ -85,18 +87,22 @@ const INITIAL_STATE: State = {
 // new tab. The value strings are arbitrary — they just have to match
 // between trigger and content.
 const PANELS = [
-  { value: "market", label: "Market", icon: Newspaper },
-  { value: "memory", label: "Memory", icon: Brain },
-  { value: "skills", label: "Skills", icon: BookOpen },
-  { value: "files", label: "Files", icon: FolderTree },
-  { value: "tools", label: "Tools", icon: Wrench },
-  { value: "sources", label: "Sources", icon: FileUp },
-  { value: "browser", label: "Browser", icon: Globe },
-  { value: "schedules", label: "Schedules", icon: Clock },
-  { value: "extensions", label: "Extensions", icon: Puzzle },
-  { value: "mcp", label: "MCP", icon: Plug },
-  { value: "settings", label: "Settings", icon: Settings2 },
-] as const;
+  { value: "market", labelKey: "panels.market" as const, icon: Newspaper },
+  { value: "memory", labelKey: "panels.memory" as const, icon: Brain },
+  { value: "skills", labelKey: "panels.skills" as const, icon: BookOpen },
+  { value: "files", labelKey: "panels.files" as const, icon: FolderTree },
+  { value: "tools", labelKey: "panels.tools" as const, icon: Wrench },
+  { value: "sources", labelKey: "panels.sources" as const, icon: FileUp },
+  { value: "browser", labelKey: "panels.browser" as const, icon: Globe },
+  { value: "schedules", labelKey: "panels.schedules" as const, icon: Clock },
+  { value: "extensions", labelKey: "panels.extensions" as const, icon: Puzzle },
+  { value: "mcp", labelKey: "panels.mcp" as const, icon: Plug },
+  { value: "settings", labelKey: "panels.settings" as const, icon: Settings2 },
+] as const satisfies ReadonlyArray<{
+  value: string;
+  labelKey: MessageKey;
+  icon: typeof Newspaper;
+}>;
 
 export default function App() {
   // ─── Live View URL (from broadcast) ────────────────────────────────────
@@ -198,7 +204,9 @@ export default function App() {
       .catch((error: unknown) => {
         if (active) {
           setSettingsError(
-            error instanceof Error ? error.message : "Failed to load settings.",
+            error instanceof Error
+              ? error.message
+              : translate("ko", "settings.loadFailed"),
           );
         }
       })
@@ -219,7 +227,9 @@ export default function App() {
         setSettings(await agent.stub.updateSettings(patch));
       } catch (error) {
         setSettingsError(
-          error instanceof Error ? error.message : "Failed to update settings.",
+          error instanceof Error
+            ? error.message
+            : translate(settings?.content_lang ?? "ko", "settings.updateFailed"),
         );
       } finally {
         setSettingsUpdating(false);
@@ -316,12 +326,15 @@ export default function App() {
 
   // ─── Render ────────────────────────────────────────────────────────────
   return (
+    <UiLangProvider lang={settings?.content_lang ?? "ko"}>
+      <UiLangConsumer>
+        {(t) => (
     <div className="relative isolate flex h-full overflow-hidden">
       {/* Scrim — helper drawer below xl */}
       {helperOpen ? (
         <button
           type="button"
-          aria-label="Close helper"
+          aria-label={t("shell.closeHelper")}
           className="fixed inset-0 z-20 bg-foreground/20 xl:hidden"
           onClick={() => setHelperOpen(false)}
         />
@@ -371,7 +384,7 @@ export default function App() {
       {panelOpen ? (
         <button
           type="button"
-          aria-label="Close panels"
+          aria-label={t("panels.close")}
           className="fixed inset-0 z-20 bg-foreground/20 lg:hidden"
           onClick={() => setPanelOpen(false)}
         />
@@ -397,7 +410,7 @@ export default function App() {
               {visiblePanels.map((p) => (
                 <TabsTrigger key={p.value} value={p.value}>
                   <p.icon className="size-3.5" />
-                  {p.label}
+                  {t(p.labelKey)}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -406,8 +419,8 @@ export default function App() {
               variant="ghost"
               className="mt-0.5 shrink-0 lg:hidden"
               onClick={() => setPanelOpen(false)}
-              title="Close panels"
-              aria-label="Close panels"
+              title={t("panels.close")}
+              aria-label={t("panels.close")}
             >
               <X className="size-3.5" />
             </Button>
@@ -528,5 +541,8 @@ export default function App() {
         </Tabs>
       </aside>
     </div>
+        )}
+      </UiLangConsumer>
+    </UiLangProvider>
   );
 }

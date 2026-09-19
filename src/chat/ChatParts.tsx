@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Message } from "./Message";
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n/ui-lang";
 
 // useAgentChat returns a value whose shape includes `messages`,
 // `status`, `sendMessage`, etc. The SDK doesn't export the type
@@ -95,6 +96,7 @@ export function ChatMessageList({
 }
 
 function PreparingReply() {
+  const t = useT();
   return (
     <div className="flex justify-start" aria-live="polite" aria-busy="true">
       <div
@@ -102,8 +104,8 @@ function PreparingReply() {
           "inline-flex max-w-[85%] items-center gap-1.5 rounded-2xl rounded-bl-sm",
           "border border-border bg-card px-3.5 py-2.5 shadow-sm",
         )}
-        title="Preparing reply"
-        aria-label="Preparing reply"
+        title={t("chat.preparing")}
+        aria-label={t("chat.preparing")}
       >
         <LoaderCircle className="size-3.5 shrink-0 animate-spin text-primary" />
         <span className="inline-flex gap-0.5" aria-hidden>
@@ -120,6 +122,7 @@ export function ChatComposer({ chat }: { chat: ChatHelpers }) {
   const [value, setValue] = useState("");
   const isStreaming = chat.status === "streaming";
   const isBusy = isStreaming || chat.status === "submitted";
+  const t = useT();
 
   const send = () => {
     const text = value.trim();
@@ -134,7 +137,7 @@ export function ChatComposer({ chat }: { chat: ChatHelpers }) {
         <Textarea
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="Send a message…"
+          placeholder={t("chat.placeholder")}
           rows={1}
           className="min-h-11 resize-none"
           onKeyDown={(e) => {
@@ -150,12 +153,12 @@ export function ChatComposer({ chat }: { chat: ChatHelpers }) {
           // and bails out of its streamText loop.
           <Button onClick={() => void chat.stop()} variant="outline">
             <Square className="size-4 fill-current" />
-            Stop
+            {t("common.stop")}
           </Button>
         ) : (
           <Button onClick={send} disabled={!value.trim() || isBusy}>
             <Send className="size-4" />
-            Send
+            {t("common.send")}
           </Button>
         )}
       </div>

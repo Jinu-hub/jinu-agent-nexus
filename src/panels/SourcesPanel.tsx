@@ -17,6 +17,7 @@ import { FileUp, X } from "lucide-react";
 import type { Source } from "../../worker/chat-agent";
 import { PanelHeader } from "./PanelHeader";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n/ui-lang";
 
 export function SourcesPanel({
   sources,
@@ -30,6 +31,7 @@ export function SourcesPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   const upload = async (file: File) => {
     setError(null);
@@ -56,14 +58,14 @@ export function SourcesPanel({
     <section>
       <PanelHeader
         icon={FileUp}
-        title="Sources"
+        title={t("panels.sources")}
         trailing={
           <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
             {sources.length}
           </span>
         }
         onClear={onClear}
-        clearLabel="Delete all sources"
+        clearLabel={t("sources.clear")}
       />
 
       <div
@@ -73,7 +75,7 @@ export function SourcesPanel({
       >
         <FileUp className="h-5 w-5 text-muted-foreground" />
         <p className="text-xs text-muted-foreground">
-          Drop a PDF here, or
+          {t("sources.dropPdf")}
         </p>
         <Button
           size="sm"
@@ -81,7 +83,9 @@ export function SourcesPanel({
           onClick={() => fileInputRef.current?.click()}
           disabled={!!uploading}
         >
-          {uploading ? `Ingesting ${uploading}…` : "Choose file"}
+          {uploading
+            ? t("sources.ingesting", { name: uploading })
+            : t("sources.chooseFile")}
         </Button>
         <input
           ref={fileInputRef}
@@ -99,7 +103,7 @@ export function SourcesPanel({
 
       {sources.length === 0 ? (
         <p className="text-center text-xs italic text-muted-foreground">
-          No sources yet. The `recall` tool will be inert until you add one.
+          {t("sources.empty")}
         </p>
       ) : (
         <ul className="space-y-1">
@@ -112,7 +116,7 @@ export function SourcesPanel({
               <button
                 type="button"
                 onClick={() => void onDelete(s.source)}
-                title="Delete source"
+                title={t("sources.delete")}
                 className="ml-auto rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
               >
                 <X className="h-3 w-3" />

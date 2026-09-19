@@ -17,16 +17,18 @@ import { BookOpen } from "lucide-react";
 import type { SkillsView } from "../../worker/chat-agent";
 import { PanelHeader } from "./PanelHeader";
 import { Badge } from "@/components/ui/badge";
+import { useT } from "@/i18n/ui-lang";
 
 export function SkillsPanel({ skills }: { skills: SkillsView }) {
+  const t = useT();
   return (
     <section>
       <PanelHeader
         icon={BookOpen}
-        title="Skills"
+        title={t("panels.skills")}
         trailing={
           <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
-            {skills.loaded.length} loaded
+            {t("skills.loadedCount", { n: skills.loaded.length })}
           </span>
         }
       />
@@ -36,18 +38,16 @@ export function SkillsPanel({ skills }: { skills: SkillsView }) {
         </pre>
       ) : (
         <p className="panel-empty mb-3 px-3 py-4 text-center text-xs italic">
-          No skills indexed. Drop a markdown file into{" "}
-          <code className="font-mono">skills/</code> and run{" "}
-          <code className="font-mono">npm run seed:skills:local</code>.
+          {t("skills.empty")}
         </p>
       )}
       <div>
         <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          Currently loaded
+          {t("skills.currentlyLoaded")}
         </p>
         {skills.loaded.length === 0 ? (
           <p className="text-xs text-muted-foreground/80">
-            None — the model will <code>load_context</code> when needed.
+            {t("skills.noneLoaded")}
           </p>
         ) : (
           <div className="flex flex-wrap gap-1.5">

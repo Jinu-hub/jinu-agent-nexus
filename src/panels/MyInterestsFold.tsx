@@ -11,17 +11,11 @@ import {
   type PreferenceRow,
 } from "@/lib/topic-preference";
 import { interestDisplayLabel, type TagLexicon } from "@/lib/market-tag-lexicon";
+import { interestKindLabel, useT } from "@/i18n/ui-lang";
 
 export const SHOW_MY_INTERESTS = true;
 /** P2 — “Interests in this report” filter toggle under Topics. */
 export const SHOW_INTERESTS_ONLY_FILTER = true;
-
-const KIND_LABEL: Record<string, string> = {
-  theme: "Tag",
-  company: "Company",
-  industry: "Industry",
-  asset: "Asset",
-};
 
 export function MyInterestsFold({
   preferences,
@@ -49,6 +43,7 @@ export function MyInterestsFold({
   className?: string;
 }) {
   const [open, setOpen] = useState(true);
+  const t = useT();
   if (!SHOW_MY_INTERESTS) return null;
 
   const sorted = sortPreferencesForReport(preferences, reportKeys);
@@ -85,14 +80,14 @@ export function MyInterestsFold({
         />
         <Star className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
         <span className="text-[11px] font-medium text-foreground">
-          My interests
+          {t("interest.my")}
         </span>
         <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
           {loading ? "…" : count}
         </span>
         {!loading && reportKeys && inReportCount > 0 ? (
           <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 font-mono text-[10px] text-amber-800 dark:text-amber-300">
-            {inReportCount} in report
+            {t("interest.inReport", { n: inReportCount })}
           </span>
         ) : null}
       </button>
@@ -106,18 +101,18 @@ export function MyInterestsFold({
                 onChange={(e) => onInterestsOnlyChange?.(e.target.checked)}
                 className="size-3 rounded border-border"
               />
-              Show interests in this report only
+              {t("interest.filter")}
             </label>
           ) : null}
           {loading ? (
-            <p className="text-[10px] text-muted-foreground">Loading…</p>
+            <p className="text-[10px] text-muted-foreground">{t("common.loading")}</p>
           ) : count === 0 ? (
             <p className="text-[10px] leading-relaxed text-muted-foreground">
-              Star a Topics chip to save an interest here.
+              {t("interest.empty")}
             </p>
           ) : visibleCount === 0 ? (
             <p className="text-[10px] leading-relaxed text-muted-foreground">
-              None of your interests appear in this report.
+              {t("interest.noneInReport")}
             </p>
           ) : (
             <div className="flex flex-wrap gap-1">
@@ -135,7 +130,7 @@ export function MyInterestsFold({
                     )}
                   >
                     <span className="font-mono text-[9px] uppercase text-muted-foreground">
-                      {KIND_LABEL[row.kind] ?? row.kind}
+                      {interestKindLabel(t, row.kind)}
                     </span>
                     <span
                       className="truncate text-foreground/85"
@@ -150,13 +145,13 @@ export function MyInterestsFold({
                     </span>
                     {inReport ? (
                       <span className="shrink-0 pr-0.5 font-mono text-[9px] text-amber-700 dark:text-amber-300">
-                        in report
+                        {t("interest.chipInReport")}
                       </span>
                     ) : null}
                     {onRemove ? (
                       <button
                         type="button"
-                        title={`Remove ${row.target}`}
+                        title={t("interest.remove")}
                         onClick={() => onRemove(row)}
                         className="rounded-md p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
                       >

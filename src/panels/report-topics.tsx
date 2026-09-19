@@ -10,6 +10,13 @@ import {
 import { ChevronDown, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  entityGroupLabel,
+  keywordKindLabel,
+  useT,
+  useUiLang,
+  type TFn,
+} from "@/i18n/ui-lang";
+import {
   topicChipAskPrompt,
   type TopicChipAskKind,
 } from "@/lib/market-suggestions";
@@ -62,33 +69,10 @@ const ENTITY_GROUP_ORDER = [
 
 const ENTITY_GROUP_ORDER_SET = new Set<string>(ENTITY_GROUP_ORDER);
 
-const ENTITY_GROUP_LABELS: Record<string, string> = {
-  companies: "Companies",
-  institutions: "Institutions",
-  technologies: "Technologies",
-  industries: "Industries",
-  products: "Products",
-  indicators: "Indicators",
-  persons: "Persons",
-  countries: "Countries",
-};
-
-/** Chip prefix like My interests (Company Fortum). */
-const KEYWORD_SECTION_LABELS: Record<string, string> = {
-  companies: "Company",
-  institutions: "Institution",
-  technologies: "Technology",
-  industries: "Industry",
-  products: "Product",
-  indicators: "Indicator",
-  persons: "Person",
-  countries: "Place",
-};
-
-function keywordSectionLabel(source: TopicPreferenceSource): string {
-  if (source.source === "place") return "Place";
-  if (source.source === "tag") return "Tag";
-  return KEYWORD_SECTION_LABELS[source.group] ?? source.group;
+function keywordSectionLabel(t: TFn, source: TopicPreferenceSource): string {
+  if (source.source === "place") return t("topics.kind.place");
+  if (source.source === "tag") return t("forYou.kind.tag");
+  return keywordKindLabel(t, source.group);
 }
 
 /** Display order: Company → Institution → … → Place (within group, keep pick order). */
@@ -359,6 +343,7 @@ export function ReportKeywordChips({
   labelMap?: Record<string, string> | null;
 }) {
   const [keywordsOpen, setKeywordsOpen] = useState(true);
+  const t = useT();
   if (!SHOW_REPORT_TOPIC_CHIPS) return null;
 
   const prefs = preferences ?? [];
@@ -409,7 +394,7 @@ export function ReportKeywordChips({
     ) {
       return (
         <p className="text-[10px] leading-relaxed text-muted-foreground">
-          No starred tags / keywords in this report.
+          {t("topics.noStarred")}
         </p>
       );
     }
@@ -426,7 +411,7 @@ export function ReportKeywordChips({
       {tagList.length > 0 ? (
         <div>
           <TopicFieldLabel>
-            Tags
+            {t("topics.tags")}
             <span className="ml-1 font-mono font-normal normal-case tracking-normal text-muted-foreground/60">
               {interestsOnly ? tagList.length : allTags.length}
             </span>
@@ -451,7 +436,7 @@ export function ReportKeywordChips({
             })}
             {tagExtra > 0 ? (
               <span className="self-center font-mono text-[10px] text-muted-foreground/70">
-                +{tagExtra} more
+                {t("topics.more", { n: tagExtra })}
               </span>
             ) : null}
           </div>
@@ -475,7 +460,7 @@ export function ReportKeywordChips({
               )}
             />
             <span className="text-[11px] font-medium text-foreground">
-              Keywords
+              {t("topics.keywords")}
             </span>
             <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
               {keywords.length}
@@ -491,7 +476,7 @@ export function ReportKeywordChips({
                   key={kw.key}
                   label={kw.label}
                   displayLabel={display}
-                  sectionLabel={keywordSectionLabel(kw.source)}
+                  sectionLabel={keywordSectionLabel(t, kw.source)}
                   askKind={kw.askKind}
                   source={{ ...kw.source, display }}
                   marketDate={marketDate}
@@ -530,6 +515,7 @@ export function ReportTopicChips({
   /** P2 — only show chips that are already starred. */
   interestsOnly?: boolean;
 }) {
+  const t = useT();
   if (!SHOW_REPORT_TOPIC_CHIPS) return null;
   if (!hasReportTopicFields({ tags, countries, regions })) return null;
 
@@ -567,7 +553,7 @@ export function ReportTopicChips({
     if (tagList.length === 0 && placeList.length === 0) {
       return (
         <p className="text-[10px] leading-relaxed text-muted-foreground">
-          No starred tags / places in this report.
+          {t("topics.noStarred")}
         </p>
       );
     }
@@ -580,7 +566,7 @@ export function ReportTopicChips({
       {tagList.length > 0 ? (
         <div>
           <TopicFieldLabel>
-            Tags
+            {t("topics.tags")}
             <span className="ml-1 font-mono font-normal normal-case tracking-normal text-muted-foreground/60">
               {interestsOnly ? tagList.length : allTags.length}
             </span>
@@ -601,7 +587,7 @@ export function ReportTopicChips({
             ))}
             {tagExtra > 0 ? (
               <span className="self-center font-mono text-[10px] text-muted-foreground/70">
-                +{tagExtra} more
+                {t("topics.more", { n: tagExtra })}
               </span>
             ) : null}
           </div>
@@ -610,7 +596,7 @@ export function ReportTopicChips({
       {placeList.length > 0 ? (
         <div>
           <TopicFieldLabel>
-            Places
+            {t("topics.places")}
             <span className="ml-1 font-mono font-normal normal-case tracking-normal text-muted-foreground/60">
               {placeList.length}
             </span>
@@ -667,6 +653,8 @@ function TopicChip({
     isPreferenceSaved(preferences, mapped.kind, mapped.target);
   const askLabel = source.label;
   const shown = (displayLabel ?? label).trim() || label;
+  const { lang } = useUiLang();
+  const t = useT();
   const titleHint =
     shown !== askLabel ? `${shown} · ${askLabel}` : askLabel;
   const body = sectionLabel ? (
@@ -687,9 +675,9 @@ function TopicChip({
       {onAsk ? (
         <button
           type="button"
-          title={`Ask in chat: ${titleHint}`}
+          title={`${t("topics.askChip")}: ${titleHint}`}
           onClick={() =>
-            onAsk(topicChipAskPrompt(askKind, shown, marketDate))
+            onAsk(topicChipAskPrompt(askKind, shown, marketDate, lang))
           }
           className={cn(
             className,
@@ -718,8 +706,8 @@ function TopicChip({
           type="button"
           title={
             saved
-              ? `Remove interest: ${askLabel}`
-              : `Save interest: ${askLabel}`
+              ? `${t("interest.remove")}: ${askLabel}`
+              : `${t("topics.starChip")}: ${askLabel}`
           }
           aria-pressed={saved}
           onClick={() =>
@@ -791,7 +779,7 @@ export function parseReportEntityGroups(
     const items = all.slice(0, ENTITY_ITEM_LIMIT);
     groups.push({
       key,
-      label: ENTITY_GROUP_LABELS[key] ?? key,
+      label: key,
       items,
       extra: Math.max(0, all.length - items.length),
     });
@@ -831,6 +819,7 @@ export function ReportEntitiesFold({
   interestsOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
   if (!SHOW_REPORT_ENTITIES) return null;
   if (placement === "topics" && !SHOW_REPORT_ENTITIES_IN_TOPICS) return null;
 
@@ -861,7 +850,7 @@ export function ReportEntitiesFold({
     if (groups.length === 0) {
       return (
         <p className="text-[10px] leading-relaxed text-muted-foreground">
-          No starred entities in this report.
+          {t("topics.noStarred")}
         </p>
       );
     }
@@ -899,7 +888,7 @@ export function ReportEntitiesFold({
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
             <span className="text-[11px] font-medium text-foreground">
-              Named entities
+              {t("topics.entities")}
             </span>
             <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
               {total}
@@ -923,7 +912,7 @@ export function ReportEntitiesFold({
               <div key={group.key}>
                 <div className="mb-1 flex items-center gap-1.5">
                   <span className="text-[10px] font-medium text-foreground">
-                    {group.label}
+                    {entityGroupLabel(t, group.key)}
                   </span>
                   <span className="font-mono text-[10px] text-muted-foreground/70">
                     {count}
@@ -951,7 +940,7 @@ export function ReportEntitiesFold({
                   ))}
                   {group.extra > 0 ? (
                     <span className="self-center font-mono text-[10px] text-muted-foreground/70">
-                      +{group.extra} more
+                      {t("topics.more", { n: group.extra })}
                     </span>
                   ) : null}
                 </div>

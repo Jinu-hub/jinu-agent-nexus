@@ -21,6 +21,7 @@
 import { Globe } from "lucide-react";
 import { PanelHeader } from "./PanelHeader";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n/ui-lang";
 
 export function BrowserPanel({
   liveViewUrl,
@@ -29,15 +30,16 @@ export function BrowserPanel({
   liveViewUrl: string | null;
   onClose: () => Promise<void> | void;
 }) {
+  const t = useT();
   return (
     <section className="flex h-full flex-col">
       <PanelHeader
         icon={Globe}
-        title="Browser"
+        title={t("panels.browser")}
         trailing={
           liveViewUrl && (
             <Button size="sm" variant="outline" onClick={() => void onClose()}>
-              Close browser
+              {t("browser.close")}
             </Button>
           )
         }
@@ -46,7 +48,7 @@ export function BrowserPanel({
         <div className="paper-inset h-[70vh] w-full overflow-hidden">
           <iframe
             src={liveViewUrl}
-            title="Agent browser"
+            title={t("browser.iframe")}
             className="h-full w-full border-0"
             // sandbox kept loose so the DevTools page can run scripts.
             // Live View is a Cloudflare-hosted URL — same trust level
@@ -56,8 +58,7 @@ export function BrowserPanel({
         </div>
       ) : (
         <p className="panel-empty px-3 py-6 text-center text-xs italic">
-          Ask the agent to <code>navigate</code> somewhere — the live tab
-          will appear here.
+          {t("browser.empty")}
         </p>
       )}
     </section>

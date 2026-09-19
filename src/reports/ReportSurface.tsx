@@ -60,6 +60,14 @@ import type { ReportPage } from "@/lib/report-pages";
 import { reportPageSeriesSlugs } from "@/lib/report-pages";
 import { fetchTopicLabels } from "@/lib/topic-preference";
 import { cn } from "@/lib/utils";
+import {
+  seriesTabLabel,
+  reportPageEyebrow,
+  UiLangConsumer,
+  UiLangProvider,
+  useT,
+} from "@/i18n/ui-lang";
+import type { MessageKey } from "@/i18n/messages";
 
 type BriefItem = {
   id: string;
@@ -111,10 +119,10 @@ type MarketDayResponse = {
 };
 
 const TABS = [
-  { id: "brief", label: "30초 브리프" },
-  { id: "for-you", label: "나를 위한 요약" },
-  { id: "full", label: "전문" },
-] as const;
+  { id: "brief", labelKey: "report.tab.brief" as const },
+  { id: "for-you", labelKey: "report.tab.forYou" as const },
+  { id: "full", labelKey: "report.tab.full" as const },
+] as const satisfies ReadonlyArray<{ id: string; labelKey: MessageKey }>;
 
 type TabId = (typeof TABS)[number]["id"];
 
@@ -440,6 +448,9 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
   }, [activeTab, date]);
 
   return (
+    <UiLangProvider lang={lang ?? "ko"}>
+      <UiLangConsumer>
+        {(t) => (
     <div className="report-warm flex h-full bg-background text-foreground">
       <div className="relative flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 border-b border-border bg-background/90 backdrop-blur">
@@ -450,11 +461,11 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                 "flex items-center gap-1.5 rounded-full px-2 py-1 text-xs",
                 "text-muted-foreground hover:bg-accent hover:text-foreground",
               )}
-              title="Back to home"
-              aria-label="Back to home"
+              title={t("common.backHome")}
+              aria-label={t("common.backHome")}
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Home
+              {t("common.home")}
             </a>
             <span
               aria-hidden
@@ -474,10 +485,10 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                   "flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-1",
                   "text-[11px] font-semibold text-primary-foreground hover:opacity-90",
                 )}
-                title="Ask about this report"
+                title={t("report.askTitle")}
               >
                 <MessageSquare className="h-3.5 w-3.5" />
-                Ask
+                {t("common.ask")}
               </button>
             ) : null}
           </div>
@@ -488,7 +499,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
               disabled={loading || !date}
               onClick={() => setDate((d) => (d ? shiftYmd(d, -1) : d))}
               className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
-              title="Previous day"
+              title={t("market.prevDay")}
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -511,7 +522,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
               disabled={loading || !date}
               onClick={() => setDate((d) => (d ? shiftYmd(d, 1) : d))}
               className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
-              title="Next day"
+              title={t("market.nextDay")}
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -524,9 +535,9 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                 "hover:bg-accent hover:text-foreground",
                 "disabled:cursor-not-allowed disabled:opacity-40",
               )}
-              title={`Newest published day · ${effectiveLatest}`}
+              title={t("report.latestTitle", { date: effectiveLatest })}
             >
-              Latest
+              {t("common.latest")}
             </button>
             <button
               type="button"
@@ -537,9 +548,9 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                 "hover:bg-accent hover:text-foreground",
                 "disabled:cursor-not-allowed disabled:opacity-40",
               )}
-              title="Seoul calendar today (often not published yet)"
+              title={t("market.todayTitle")}
             >
-              Today
+              {t("common.today")}
             </button>
             <button
               type="button"
@@ -554,7 +565,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                 }
               }}
               className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
-              title="Refresh"
+              title={t("common.refresh")}
             >
               <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             </button>
@@ -564,7 +575,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
             <div
               className="mx-auto flex w-full max-w-3xl gap-1 overflow-x-auto px-6 pb-3"
               role="tablist"
-              aria-label="Reports for this day"
+              aria-label={t("market.dayReports")}
             >
               {daySlots.map((slot) => {
                 const selected = slot.seriesId === activeSeriesId;
@@ -584,7 +595,11 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                     )}
                     title={slot.seriesTitle}
                   >
-                    {slot.seriesTabLabel || slot.seriesTitle}
+                    {seriesTabLabel(
+                      t,
+                      slot.seriesSlug,
+                      slot.seriesTabLabel || slot.seriesTitle,
+                    )}
                   </button>
                 );
               })}
@@ -595,45 +610,25 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
         <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto">
           <article className="mx-auto w-full max-w-3xl px-6 py-12">
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-primary">
-              {page.eyebrow}
+              {reportPageEyebrow(t, page.slug, page.eyebrow)}
             </p>
 
             {!seriesResolved || !lang || emptyLoading ? (
               <div className="flex items-center gap-2 py-16 text-sm text-muted-foreground">
                 <LoaderCircle className="size-4 animate-spin" />
-                Loading…
+                {t("report.loading")}
               </div>
             ) : !pageSeries ? (
-              <Notice title="Series not in the catalog">
-                <code className="font-mono">{page.slug}</code> is missing from{" "}
-                <code className="font-mono">report_series</code>. Check Supabase
-                or the slug in <code className="font-mono">report-pages.ts</code>.
+              <Notice title={t("report.seriesMissing")}>
+                {t("report.seriesMissingBody", { slug: page.slug })}
               </Notice>
             ) : !brief && !hasReport ? (
-              <Notice title="Nothing published for this day">
-                No brief/report for{" "}
-                <span className="font-mono text-foreground">{date}</span> /{" "}
-                <span className="font-mono text-foreground">{lang}</span>
-                {pageSeriesRows.length > 1 ? (
-                  <>
-                    {" "}
-                    across{" "}
-                    <span className="font-mono text-foreground">
-                      {pageSeriesRows.map((r) => r.slug).join(", ")}
-                    </span>
-                  </>
-                ) : pageSeries ? (
-                  <>
-                    {" "}
-                    (
-                    <span className="font-mono text-foreground">
-                      {pageSeries.slug}
-                    </span>
-                    )
-                  </>
-                ) : null}
-                . Newest published day is usually{" "}
-                <span className="font-mono text-foreground">{effectiveLatest}</span>.
+              <Notice title={t("report.nothingPublished")}>
+                {t("report.nothingPublishedBody", {
+                  date: date ?? "",
+                  lang,
+                  latest: effectiveLatest,
+                })}
               </Notice>
             ) : (
               <>
@@ -664,7 +659,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                 <TabBar
                   active={activeTab}
                   onSelect={setTab}
-                  disabled={hasReport ? null : "full report not published"}
+                  disabled={hasReport ? null : t("report.tabDisabled")}
                 />
 
                 {activeTab === "full" ? (
@@ -680,8 +675,8 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                     />
                   ) : null
                 ) : briefMissing ? (
-                  <Notice title="30초 브리프가 아직 없어요">
-                    이 날짜에는 브리프가 아직 생성되지 않았어요.
+                  <Notice title={t("report.briefMissing")}>
+                    {t("report.briefMissingBody")}
                     {hasReport ? (
                       <>
                         {" "}
@@ -690,12 +685,11 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                           onClick={() => setTab("full")}
                           className="font-medium text-foreground underline decoration-border underline-offset-2 hover:text-primary"
                         >
-                          전문
+                          {t("report.briefMissingReadFull")}
                         </button>
-                        에서 리포트를 읽어 보세요.
                       </>
                     ) : (
-                      <> 나중에 다시 확인해 주세요.</>
+                      <> {t("report.briefMissingLater")}</>
                     )}
                   </Notice>
                 ) : (
@@ -734,8 +728,8 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                   "hover:border-primary/40 hover:text-primary",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 )}
-                title="맨 위로"
-                aria-label="맨 위로"
+                title={t("report.scrollTop")}
+                aria-label={t("report.scrollTop")}
               >
                 <ArrowUp className="h-4 w-4" />
               </button>
@@ -765,6 +759,9 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
         </aside>
       ) : null}
     </div>
+        )}
+      </UiLangConsumer>
+    </UiLangProvider>
   );
 }
 
@@ -778,26 +775,27 @@ function TabBar({
   /** Reason the report-backed tabs are off, or null when they work. */
   disabled: string | null;
 }) {
+  const translate = useT();
   return (
     <div className="mt-8 flex gap-5 border-b border-border">
-      {TABS.map((t) => {
-        const off = disabled != null && t.id !== "brief";
+      {TABS.map((tab) => {
+        const off = disabled != null && tab.id !== "brief";
         return (
           <button
-            key={t.id}
+            key={tab.id}
             type="button"
             disabled={off}
             title={off ? disabled : undefined}
-            onClick={() => onSelect(t.id)}
+            onClick={() => onSelect(tab.id)}
             className={cn(
               "-mb-px border-b-2 pb-2.5 text-[13px] font-semibold tracking-tight",
-              active === t.id
+              active === tab.id
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground",
               off && "cursor-not-allowed opacity-40 hover:text-muted-foreground",
             )}
           >
-            {t.label}
+            {translate(tab.labelKey)}
           </button>
         );
       })}
@@ -820,6 +818,7 @@ function BriefBody({
   }>;
   takeaway: string | null;
 }) {
+  const t = useT();
   return (
     <>
       {lead.map((paragraph, i) => (
@@ -847,7 +846,7 @@ function BriefBody({
       {reactions.length > 0 ? (
         <div className="mt-10 rounded-xl border border-border bg-card px-5 py-4">
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-            Market reaction
+            {t("report.marketReaction")}
           </p>
           <dl className="mt-3 divide-y divide-border">
             {reactions.map((reaction, i) => (
@@ -875,7 +874,7 @@ function BriefBody({
       {takeaway ? (
         <div className="mt-4 rounded-xl bg-foreground px-5 py-5 text-background">
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-            Takeaway
+            {t("report.takeaway")}
           </p>
           <p className="mt-2 whitespace-pre-wrap text-[15px] leading-7">
             {takeaway}
@@ -890,13 +889,14 @@ function VoicePlayer({ voice }: { voice: VoiceSlot }) {
   const { playPath, item } = voice;
   const duration =
     item.duration_seconds != null ? `${item.duration_seconds}s` : null;
+  const t = useT();
 
   return (
     <div className="mt-6 rounded-xl border border-border bg-card px-4 py-3">
       <div className="flex items-center gap-2">
         <Volume2 className="h-3.5 w-3.5 shrink-0 text-primary" />
         <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-          Listen
+          {t("report.listen")}
         </span>
         <span className="ml-auto shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
           {[duration, item.lang_code].filter(Boolean).join(" · ")}
@@ -904,7 +904,7 @@ function VoicePlayer({ voice }: { voice: VoiceSlot }) {
       </div>
       <audio className="mt-2.5 w-full" controls preload="metadata" src={playPath}>
         <a href={playPath} target="_blank" rel="noreferrer">
-          Download MP3
+          {t("market.downloadMp3")}
         </a>
       </audio>
     </div>

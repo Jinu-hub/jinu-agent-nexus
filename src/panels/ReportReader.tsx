@@ -13,6 +13,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { X } from "lucide-react";
+import { useT } from "@/i18n/ui-lang";
 import { cn } from "@/lib/utils";
 import type {
   PreferenceRow,
@@ -218,6 +219,7 @@ export function ReportReaderModal({
   labelMap?: Record<string, string> | null;
 }) {
   const titleId = useId();
+  const t = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
   const sections = extractReportSections(content);
 
@@ -289,7 +291,7 @@ export function ReportReaderModal({
             type="button"
             onClick={onClose}
             className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-            title="Close (Esc)"
+            title={t("common.closeEsc")}
           >
             <X className="h-4 w-4" />
           </button>

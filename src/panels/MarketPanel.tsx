@@ -40,6 +40,7 @@ import {
 } from "@/lib/use-market-day-data";
 import { useMarketPreferences } from "@/lib/use-market-preferences";
 import { cn } from "@/lib/utils";
+import { seriesTabLabel, useT } from "@/i18n/ui-lang";
 import { PanelHeader } from "./PanelHeader";
 import {
   ReportArticle,
@@ -81,28 +82,31 @@ function EmptyHint({
 }) {
   const isCalendarToday = date === calendarToday;
   const isExpectedLatest = date === expectedLatest;
+  const t = useT();
   const label =
-    kind === "voice" ? "voice" : kind === "brief" ? "brief" : "full report";
+    kind === "voice"
+      ? t("market.label.voice")
+      : kind === "brief"
+        ? t("market.label.brief")
+        : t("market.label.report");
 
   return (
     <div className="space-y-2 text-[11px] leading-relaxed text-muted-foreground">
       {isCalendarToday ? (
         <p>
-          No {label} for calendar today ({date} / {lang}). Daily batch runs
-          around <span className="font-mono">22:30 UTC</span>, so today&apos;s
-          market_date is usually published tomorrow. Newest is typically{" "}
-          <span className="font-mono text-foreground">{expectedLatest}</span>.
+          {t("market.emptyToday", {
+            label,
+            date,
+            lang,
+            latest: expectedLatest,
+          })}
         </p>
       ) : isExpectedLatest ? (
         <p>
-          No completed {label} for expected latest ({date} / {lang}). The
-          pipeline may still be running after{" "}
-          <span className="font-mono">~22:30 UTC</span>.
+          {t("market.emptyLatest", { label, date, lang })}
         </p>
       ) : (
-        <p>
-          No completed {label} for {date} / {lang}.
-        </p>
+        <p>{t("market.emptyOther", { label, date, lang })}</p>
       )}
       {!isExpectedLatest && (
         <button
@@ -114,7 +118,7 @@ function EmptyHint({
             "hover:bg-accent",
           )}
         >
-          Open latest · {expectedLatest}
+          {t("market.openLatest", { date: expectedLatest })}
         </button>
       )}
     </div>
@@ -209,6 +213,7 @@ export function MarketPanel({
   onMarketFocusSeriesChange?: (seriesId: string) => void;
 }) {
   const lang = contentLang ?? "ko";
+  const t = useT();
   const calendarToday = seoulYmd();
   const calendarYesterday = calendarYesterdayYmd();
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
@@ -358,7 +363,7 @@ export function MarketPanel({
       setCopied(which);
       window.setTimeout(() => setCopied(null), 1500);
     } catch {
-      setError("Clipboard copy failed");
+      setError(t("market.clipboardFailed"));
     }
   };
 
@@ -391,7 +396,7 @@ export function MarketPanel({
 
   const reportCollapsedSummary =
     reportItem?.title ??
-    (hasReportCandidate ? "Tap to load full report" : null);
+    (hasReportCandidate ? t("market.tapToLoadReport") : null);
 
   const reportSections = reportItem?.content
     ? extractReportSections(reportItem.content)
@@ -407,7 +412,10 @@ export function MarketPanel({
     : null;
   const reportDateMismatch =
     reportItem?.market_date && reportItem.market_date !== date
-      ? `Report market_date ${reportItem.market_date} ≠ panel ${date}`
+      ? t("market.dateMismatch", {
+          reportDate: reportItem.market_date,
+          panelDate: date ?? "",
+        })
       : null;
 
   useEffect(() => {
@@ -432,7 +440,7 @@ export function MarketPanel({
     <section>
       <PanelHeader
         icon={Newspaper}
-        title="Market"
+        title={t("market.title")}
         trailing={
           <div className="flex items-center gap-1.5">
             <div
@@ -444,7 +452,7 @@ export function MarketPanel({
               <button
                 type="button"
                 aria-expanded={helpOpen}
-                aria-label="Market panel help"
+                aria-label={t("market.help")}
                 onClick={() => setHelpOpen((v) => !v)}
                 className={cn(
                   "rounded-md p-1 text-muted-foreground transition-colors",
@@ -463,17 +471,13 @@ export function MarketPanel({
                   )}
                 >
                   <div className="space-y-1.5 text-[10px] leading-relaxed text-muted-foreground">
+                    <p>{t("market.helpLang")}</p>
                     <p>
-                      Language follows Settings → Market content language. Not
-                      chat reply language.
-                    </p>
-                    <p>
-                      Latest = newest day with a final brief (not always Seoul
-                      yesterday — weekends/holidays may be empty)
+                      {t("market.helpLatest")}
                       {showingExpectedLatest && date ? (
                         <>
                           {" "}
-                          · showing{" "}
+                          · {t("market.helpShowing")}{" "}
                           <span className="font-mono text-foreground">
                             {date}
                           </span>
@@ -500,7 +504,7 @@ export function MarketPanel({
                 "hover:bg-accent hover:text-foreground",
                 "disabled:cursor-not-allowed disabled:opacity-50",
               )}
-              title="Refresh"
+              title={t("common.refresh")}
             >
               <RefreshCw
                 className={cn(
@@ -519,7 +523,7 @@ export function MarketPanel({
           disabled={loading || !date}
           onClick={() => setDate((d) => (d ? shiftYmd(d, -1) : d))}
           className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
-          title="Previous day"
+          title={t("market.prevDay")}
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -542,7 +546,7 @@ export function MarketPanel({
           disabled={loading || !date}
           onClick={() => setDate((d) => (d ? shiftYmd(d, 1) : d))}
           className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
-          title="Next day"
+          title={t("market.nextDay")}
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -556,9 +560,9 @@ export function MarketPanel({
               ? "cursor-not-allowed text-muted-foreground/40"
               : "text-muted-foreground hover:bg-accent hover:text-foreground",
           )}
-          title={`Newest market_date with a final brief · ${effectiveLatest}`}
+          title={t("market.latestTitle", { date: effectiveLatest })}
         >
-          Latest
+          {t("common.latest")}
         </button>
         <button
           type="button"
@@ -569,9 +573,9 @@ export function MarketPanel({
             "hover:bg-accent hover:text-foreground",
             "disabled:cursor-not-allowed disabled:opacity-40",
           )}
-          title="Seoul calendar today (often not published yet)"
+          title={t("market.todayTitle")}
         >
-          Today
+          {t("common.today")}
         </button>
       </div>
 
@@ -579,7 +583,7 @@ export function MarketPanel({
         <div
           className="mb-2 flex gap-1 overflow-x-auto pb-0.5"
           role="tablist"
-          aria-label="Reports for this day"
+          aria-label={t("market.dayReports")}
         >
           {daySlots.map((slot) => {
             const selected = slot.seriesId === activeSeriesId;
@@ -599,7 +603,11 @@ export function MarketPanel({
                 )}
                 title={slot.seriesTitle}
               >
-                {slot.seriesTabLabel || slot.seriesTitle}
+                {seriesTabLabel(
+                  t,
+                  slot.seriesSlug,
+                  slot.seriesTabLabel || slot.seriesTitle,
+                )}
               </button>
             );
           })}
@@ -614,19 +622,19 @@ export function MarketPanel({
             "text-muted-foreground hover:text-primary",
           )}
         >
-          이 리포트 크게 보기
+          {t("market.openWide")}
           <ArrowUpRight className="h-3 w-3" />
         </a>
       ) : null}
 
       {enabledSeriesIds.length === 0 ? (
         <p className="panel-empty px-3 py-6 text-center text-xs italic">
-          Turn on at least one series under Settings → Market → Content.
+          {t("helper.enableSeries")}
         </p>
       ) : (latestLoading && !date) || (loading && daySlots.length === 0) ? (
         <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted-foreground">
           <LoaderCircle className="size-3.5 animate-spin" />
-          Loading…
+          {t("market.loading")}
         </div>
       ) : date && !SHOW_MARKET_WORKBENCH ? (
         <div className="space-y-3">
@@ -636,14 +644,14 @@ export function MarketPanel({
                 {briefItem?.title ??
                   reportItem?.title ??
                   activeSlot?.seriesTitle ??
-                  "Market Memory"}
+                  t("market.memory")}
               </p>
               <p className="font-mono text-[10px] text-muted-foreground">
                 {[
                   date,
                   lang,
-                  hasVoice ? "voice" : null,
-                  hasReport ? "report" : null,
+                  hasVoice ? t("market.meta.voice") : null,
+                  hasReport ? t("market.meta.report") : null,
                 ]
                   .filter(Boolean)
                   .join(" · ")}
@@ -652,7 +660,7 @@ export function MarketPanel({
             {hasVoice && playPath ? (
               <div className="space-y-1.5">
                 <p className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
-                  Voice
+                  {t("market.voice")}
                 </p>
                 <audio
                   className="w-full"
@@ -661,7 +669,7 @@ export function MarketPanel({
                   src={playPath}
                 >
                   <a href={playPath} target="_blank" rel="noreferrer">
-                    Download MP3
+                    {t("market.downloadMp3")}
                   </a>
                 </audio>
               </div>
@@ -687,7 +695,7 @@ export function MarketPanel({
                 )}
               >
                 <p className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
-                  Brief
+                  {t("market.brief")}
                 </p>
                 <div className="max-h-[min(32rem,calc(100dvh-20rem))] overflow-y-auto whitespace-pre-wrap text-[11px] leading-relaxed text-foreground">
                   {briefItem!.content}
@@ -714,7 +722,7 @@ export function MarketPanel({
             {showReportSummaryBlurb ? (
               <div className="space-y-1.5 border-t border-border/60 pt-2">
                 <p className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
-                  Report
+                  {t("market.report")}
                 </p>
                 <p className="text-[10px] leading-relaxed text-muted-foreground">
                   {reportItem!.summary}
@@ -722,7 +730,7 @@ export function MarketPanel({
               </div>
             ) : reportCheckedMissing ? (
               <p className="border-t border-border/60 pt-2 text-[10px] text-muted-foreground">
-                Report not published for this day.
+                {t("market.reportMissing")}
               </p>
             ) : null}
           </div>
@@ -735,12 +743,12 @@ export function MarketPanel({
                 "hover:border-primary/40 hover:bg-accent hover:text-primary",
               )}
             >
-              이 리포트 크게 보기
+              {t("market.openWide")}
               <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
           ) : (
             <p className="text-center text-[10px] text-muted-foreground">
-              Reading page not registered for this series.
+              {t("market.noReadingPage")}
             </p>
           )}
         </div>
@@ -756,7 +764,7 @@ export function MarketPanel({
           ) : null}
           <MarketSection
             icon={Newspaper}
-            title="Brief"
+            title={t("market.brief")}
             collapsible={hasBrief}
             open={briefOpen}
             onToggle={() => setBriefOpen((v) => !v)}
@@ -773,9 +781,9 @@ export function MarketPanel({
                       "text-muted-foreground hover:bg-accent hover:text-foreground",
                       "disabled:opacity-50",
                     )}
-                    title="Open full report reader"
+                    title={t("market.openReader")}
                   >
-                    Report
+                    {t("market.report")}
                   </button>
                 ) : null}
                 {briefItem?.content ? (
@@ -785,7 +793,7 @@ export function MarketPanel({
                       void copyText("brief", briefItem.title, briefItem.content)
                     }
                     className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                    title="Copy title + content"
+                    title={t("market.copyBrief")}
                   >
                     {copied === "brief" ? (
                       <Check className="h-3.5 w-3.5 text-primary" />
@@ -801,7 +809,7 @@ export function MarketPanel({
               <div className="space-y-2">
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <p className="text-[11px] font-medium leading-snug">
-                    {briefItem!.title ?? "Untitled brief"}
+                    {briefItem!.title ?? t("market.untitledBrief")}
                   </p>
                   <p className="font-mono text-[10px] text-muted-foreground">
                     {briefItem!.brief_type} · {briefItem!.lang_code}
@@ -825,7 +833,7 @@ export function MarketPanel({
 
           <MarketSection
             icon={Volume2}
-            title="Voice"
+            title={t("market.voice")}
             collapsible={hasVoice}
             open={voiceOpen}
             onToggle={() => setVoiceOpen((v) => !v)}
@@ -833,7 +841,7 @@ export function MarketPanel({
             trailing={
               briefItem && !voiceItem ? (
                 <span className="text-[10px] text-muted-foreground">
-                  Brief ready · Voice pending
+                  {t("market.briefReadyVoicePending")}
                 </span>
               ) : null
             }
@@ -841,7 +849,7 @@ export function MarketPanel({
             {hasVoice ? (
               <div className="space-y-2">
                 <p className="text-[11px] leading-snug text-foreground">
-                  {voiceItem!.title ?? "Voice briefing"}
+                  {voiceItem!.title ?? t("market.voiceBriefing")}
                 </p>
                 <p className="font-mono text-[10px] text-muted-foreground">
                   {voiceItem!.duration_seconds != null
@@ -857,7 +865,7 @@ export function MarketPanel({
                   src={playPath!}
                 >
                   <a href={playPath!} target="_blank" rel="noreferrer">
-                    Download MP3
+                    {t("market.downloadMp3")}
                   </a>
                 </audio>
               </div>
@@ -875,7 +883,7 @@ export function MarketPanel({
 
           <MarketSection
             icon={FileText}
-            title="Report"
+            title={t("market.report")}
             collapsible={hasReportCandidate || hasReport}
             open={reportOpen}
             onToggle={toggleReport}
@@ -886,7 +894,7 @@ export function MarketPanel({
                   <a
                     href={readingHrefFull}
                     className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                    title="이 리포트 크게 보기"
+                    title={t("market.openWide")}
                   >
                     <ArrowUpRight className="h-3.5 w-3.5" />
                   </a>
@@ -897,7 +905,7 @@ export function MarketPanel({
                     disabled={loading || !hasReport}
                     onClick={() => void openReportReader()}
                     className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
-                    title="Open wide reader"
+                    title={t("market.openWideReader")}
                   >
                     <Maximize2 className="h-3.5 w-3.5" />
                   </button>
@@ -913,7 +921,7 @@ export function MarketPanel({
                       )
                     }
                     className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                    title="Copy title + full report"
+                    title={t("market.copyReport")}
                   >
                     {copied === "report" ? (
                       <Check className="h-3.5 w-3.5 text-primary" />
@@ -928,12 +936,12 @@ export function MarketPanel({
             {reportOpen && loading && !hasReport ? (
               <div className="flex items-center gap-2 py-3 text-[11px] text-muted-foreground">
                 <LoaderCircle className="size-3.5 animate-spin" />
-                Loading full report…
+                {t("market.loadingReport")}
               </div>
             ) : hasReport ? (
               <div className="space-y-2">
                 <p className="text-[11px] font-medium leading-snug">
-                  {reportItem!.title ?? "Untitled report"}
+                  {reportItem!.title ?? t("market.untitledReport")}
                 </p>
                 <p className="font-mono text-[10px] text-muted-foreground">
                   {reportMeta}
@@ -970,7 +978,7 @@ export function MarketPanel({
                       "hover:border-foreground/30 hover:bg-accent hover:text-foreground",
                     )}
                   >
-                    이 리포트 크게 보기
+                    {t("market.openWide")}
                     <ArrowUpRight className="h-3 w-3" />
                   </a>
                 ) : (
@@ -983,13 +991,13 @@ export function MarketPanel({
                       "hover:border-foreground/30 hover:bg-accent hover:text-foreground",
                     )}
                   >
-                    Open wide reader
+                    {t("market.openWideReader")}
                   </button>
                 )}
               </div>
             ) : reportCheckedMissing && hasBrief ? (
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Brief ready · Full report missing for this day / language.
+                {t("market.briefReadyReportMissing")}
               </p>
             ) : (
               <EmptyHint
@@ -1015,7 +1023,7 @@ export function MarketPanel({
         <ReportReaderModal
           open={reportModalOpen}
           onClose={() => setReportModalOpen(false)}
-          title={reportItem.title ?? "Untitled report"}
+          title={reportItem.title ?? t("market.untitledReport")}
           meta={reportMeta}
           summary={showReportSummaryBlurb ? reportItem.summary : null}
           content={reportItem.content}

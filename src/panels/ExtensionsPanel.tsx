@@ -19,6 +19,7 @@ import { Puzzle, X } from "lucide-react";
 import type { ExtensionView } from "../../worker/chat-agent";
 import { PanelHeader } from "./PanelHeader";
 import { Badge } from "@/components/ui/badge";
+import { useT } from "@/i18n/ui-lang";
 
 export function ExtensionsPanel({
   extensions,
@@ -27,11 +28,12 @@ export function ExtensionsPanel({
   extensions: ExtensionView[];
   onUnload: (name: string) => Promise<void> | void;
 }) {
+  const t = useT();
   return (
     <section>
       <PanelHeader
         icon={Puzzle}
-        title="Extensions"
+        title={t("panels.extensions")}
         trailing={
           <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
             {extensions.length}
@@ -40,8 +42,7 @@ export function ExtensionsPanel({
       />
       {extensions.length === 0 ? (
         <p className="panel-empty px-3 py-6 text-center text-xs italic">
-          Ask the agent for a tool it doesn't have — it can write one for
-          itself.
+          {t("extensions.empty")}
         </p>
       ) : (
         <ul className="space-y-1.5">
@@ -74,7 +75,7 @@ export function ExtensionsPanel({
               <button
                 type="button"
                 onClick={() => void onUnload(ext.name)}
-                title="Unload"
+                title={t("extensions.unload")}
                 className="rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
               >
                 <X className="h-3 w-3" />

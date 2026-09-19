@@ -261,3 +261,22 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **의도적으로 안 함:** 브리프 자동 생성; for-you 빈 상태 개편
 
 ---
+
+## 42. 화면+데이터 언어 (`content_lang`) — 챗 회신과 분리 *(완료)*
+
+* **목적:** Settings 언어를 Market 접힌 블록 밖으로 꺼내 **화면 크롬 + Supabase Market Memory**에 같이 쓴다. 챗 회신 언어는 설정 없이 그 턴의 사용자 말(직접 입력 또는 칩)을 따른다.
+* **수정 및 추가 파일:**
+  * `src/i18n/messages.ts` *(신규)* — ko/en 사전
+  * `src/i18n/ui-lang.tsx` *(신규)* — `UiLangProvider` / `useT` / 시리즈·관심사 라벨 헬퍼; `document.documentElement.lang`
+  * `src/panels/SettingsPanel.tsx` — Language를 최상위 블록으로 이동; Market는 Content만
+  * `worker/chat-agent/settings.ts` — `content_lang` 주석을 UI+콘텐츠로 확장 (컬럼 유지)
+  * `src/lib/market-suggestions.ts` — 칩 라벨·프롬프트가 `content_lang`을 따름
+  * `src/App.tsx` / `src/reports/ReportSurface.tsx` / `src/live/LiveMarketRoom.tsx` — Provider
+  * 화면 크롬: `src/chat/*`, `src/panels/*`, `src/reports/*`
+  * `docs/CLAUDE.md` — settings / i18n 행
+  * `docs/ARCHITECTURE.md` — frontend 표 i18n 행
+  * docs: 본 소절
+* **확인 (로컬 `localhost:5173`):** Settings Language가 최상위. ko: 탭 「설정/마켓」, 칩 「리스크」, 브리프 `· ko ·`. en 전환 후 `html lang=en`, 슬로건 “Your world…”, 탭 Market/Settings, 칩 Risks/Report core, Market 접힘 `2/2 series`(lang 없음), 브리프 `Weekly AI Issue Digest` · `en · report`. 기존 한글 챗 히스토리는 그대로. (해요체 회신은 soul 규칙 — 이번 세션에서 새 한글 턴은 보내지 않음)
+* **의도적으로 안 함:** 챗 회신 언어 토글; `content_lang` 컬럼 리네임; i18next; soul 한국어 문장을 UI 언어에 묶기; ko/en 이외 로케일
+
+---

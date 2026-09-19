@@ -17,16 +17,19 @@ import { Wrench } from "lucide-react";
 import type { ToolView } from "../../worker/chat-agent";
 import { PanelHeader } from "./PanelHeader";
 import { Badge } from "@/components/ui/badge";
+import { useT } from "@/i18n/ui-lang";
+import type { MessageKey } from "@/i18n/messages";
 
-const GROUP_LABELS: Record<ToolView["source"], string> = {
-  custom: "Custom",
-  workspace: "Workspace",
-  session: "Session",
-  extension: "Extensions",
-  mcp: "MCP",
+const GROUP_LABEL_KEYS: Record<ToolView["source"], MessageKey> = {
+  custom: "tools.custom",
+  workspace: "tools.workspace",
+  session: "tools.session",
+  extension: "tools.extension",
+  mcp: "tools.mcp",
 };
 
 export function ToolsPanel({ tools }: { tools: ToolView[] }) {
+  const t = useT();
   const grouped = tools.reduce<Record<ToolView["source"], ToolView[]>>(
     (acc, t) => {
       (acc[t.source] ??= []).push(t);
@@ -47,7 +50,7 @@ export function ToolsPanel({ tools }: { tools: ToolView[] }) {
     <section>
       <PanelHeader
         icon={Wrench}
-        title="Tools"
+        title={t("panels.tools")}
         trailing={
           <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
             {tools.length}
@@ -61,7 +64,7 @@ export function ToolsPanel({ tools }: { tools: ToolView[] }) {
           return (
             <div key={src}>
               <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                {GROUP_LABELS[src]}
+                {t(GROUP_LABEL_KEYS[src])}
               </p>
               <div className="space-y-1">
                 {items.map((t) => (

@@ -32,6 +32,7 @@ import {
 } from "@/lib/topic-preference";
 import { topicChipAskPrompt } from "@/lib/market-suggestions";
 import { cn } from "@/lib/utils";
+import { interestKindLabel, useT, useUiLang } from "@/i18n/ui-lang";
 
 export type ForYouReport = {
   tags?: unknown;
@@ -58,13 +59,6 @@ type ForYouResponse = {
   message?: string;
 };
 
-const KIND_LABEL: Record<string, string> = {
-  theme: "Tag",
-  company: "Company",
-  industry: "Industry",
-  asset: "Asset",
-};
-
 export function ReportForYou({
   seriesId,
   marketDate,
@@ -83,6 +77,7 @@ export function ReportForYou({
   const [error, setError] = useState<string | null>(null);
   const [preferences, setPreferences] = useState<PreferenceRow[]>([]);
   const [labelMap, setLabelMap] = useState<Record<string, string> | null>(null);
+  const t = useT();
 
   const load = useCallback(
     async (refresh = false) => {
@@ -106,7 +101,7 @@ export function ReportForYou({
         setData(json);
       } catch (err) {
         setData(null);
-        setError(err instanceof Error ? err.message : "Failed to load summary");
+        setError(err instanceof Error ? err.message : t("forYou.loadFailed"));
       } finally {
         setLoading(false);
       }
@@ -166,7 +161,7 @@ export function ReportForYou({
         // summary, so this refetch is a cache miss by construction.
         await load();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to save interest");
+        setError(err instanceof Error ? err.message : t("forYou.saveFailed"));
       }
     },
     [preferences, load],
@@ -180,7 +175,7 @@ export function ReportForYou({
       {loading && !data ? (
         <div className="flex items-center gap-2.5 py-16 text-sm text-muted-foreground">
           <LoaderCircle className="size-4 animate-spin" />
-          관심 키워드로 이 리포트를 다시 읽는 중…
+          {t("forYou.loading")}
         </div>
       ) : state === "ready" ? (
         <div className="space-y-4">
@@ -195,7 +190,7 @@ export function ReportForYou({
                   {section.interest.display}
                 </h2>
                 <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {KIND_LABEL[section.interest.kind] ?? section.interest.kind}
+                  {interestKindLabel(t, section.interest.kind)}
                 </span>
               </div>
               <p className="mt-2 text-[15px] leading-7 text-foreground/80">
@@ -207,9 +202,9 @@ export function ReportForYou({
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <Sparkles className="h-3 w-3 shrink-0" />
             <span className="min-w-0 flex-1">
-              이 리포트 본문에서 찾은 내용만 요약합니다
-              {data?.degraded ? " · 문단 검색 사용" : null}
-              {data?.cached ? " · 저장된 결과" : null}
+              {t("forYou.grounded")}
+              {data?.degraded ? t("forYou.degraded") : null}
+              {data?.cached ? t("forYou.cached") : null}
             </span>
             <button
               type="button"
@@ -219,38 +214,38 @@ export function ReportForYou({
                 "flex shrink-0 items-center gap-1 rounded-full px-2 py-1",
                 "hover:bg-accent hover:text-foreground disabled:opacity-50",
               )}
-              title="Regenerate"
+              title={t("forYou.regenerate")}
             >
               <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
-              다시 만들기
+              {t("forYou.regenerate")}
             </button>
           </div>
         </div>
       ) : state === "no-interest" ? (
         <Pitch
-          title="아직 관심 키워드가 없습니다"
-          body="아래 키워드에 별을 달면, 같은 리포트를 그 주제 중심으로 다시 읽어 드립니다. 매일 그 부분만 골라 보게 됩니다."
+          title={t("forYou.noInterestTitle")}
+          body={t("forYou.noInterestBody")}
         />
       ) : state === "no-match" ? (
         <Pitch
-          title="이번 리포트에는 관심 키워드가 없습니다"
+          title={t("forYou.noMatchTitle")}
           body={
             data?.interests && data.interests.length > 0
-              ? `저장한 키워드(${data.interests
-                  .map((i) => i.display)
-                  .join(", ")})가 이 날 리포트에 등장하지 않습니다. 없는 내용을 만들어 내지는 않습니다.`
-              : "이 날 리포트에서 관심 키워드를 찾지 못했습니다."
+              ? t("forYou.noMatchBody", {
+                  list: data.interests.map((i) => i.display).join(", "),
+                })
+              : t("forYou.noMatchEmpty")
           }
         />
       ) : state === "no-report" ? (
         <Pitch
-          title="이 날은 풀리포트가 없습니다"
-          body="관심사 요약은 확정된 풀리포트를 다시 읽는 방식이라, 리포트가 올라온 날에만 만들 수 있습니다."
+          title={t("forYou.noReportTitle")}
+          body={t("forYou.noReportBody")}
         />
       ) : state === "failed" ? (
         <Pitch
-          title="요약을 만들지 못했습니다"
-          body="이 리포트에 관심 키워드가 있는 것은 확인했지만 요약 생성이 실패했습니다. 다시 시도해 주세요."
+          title={t("forYou.failedTitle")}
+          body={t("forYou.failedBody")}
           action={
             <button
               type="button"
@@ -263,7 +258,7 @@ export function ReportForYou({
               )}
             >
               <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
-              다시 시도
+              {t("forYou.retry")}
             </button>
           }
         />
@@ -324,6 +319,7 @@ function TuningChips({
   onToggle: (source: TopicPreferenceSource) => void;
   onAsk?: (prompt: string) => void;
 }) {
+  const t = useT();
   const lexicon = buildTagLexicon(report.metadata);
   const tags = Array.isArray(report.tags)
     ? report.tags.filter(
@@ -351,11 +347,11 @@ function TuningChips({
   return (
     <div className="mt-10 border-t border-border pt-6">
       <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-        요약 조정
+        {t("forYou.tune")}
       </p>
       <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-        별을 누르면 관심사로 저장되고 위 요약이 다시 만들어집니다
-        {onAsk ? " · 키워드를 누르면 채팅으로 물어봅니다" : null}
+        {t("forYou.tuneHelp")}
+        {onAsk ? t("forYou.tuneAsk") : null}
       </p>
 
       <div className="mt-4 flex flex-wrap gap-1.5">
@@ -364,7 +360,7 @@ function TuningChips({
             key={`tag:${tag}`}
             label={topicDisplayLabel(tag, lexicon, labelMap)}
             rawLabel={tag}
-            kindLabel="Tag"
+            kindLabel={t("forYou.kind.tag")}
             source={{ source: "tag", label: tag }}
             marketDate={marketDate}
             askKind="tag"
@@ -416,6 +412,8 @@ function Chip({
   const saved =
     mapped != null && isPreferenceSaved(preferences, mapped.kind, mapped.target);
   const shown = label.trim() || rawLabel;
+  const { lang } = useUiLang();
+  const t = useT();
 
   return (
     <span
@@ -427,8 +425,10 @@ function Chip({
       <button
         type="button"
         disabled={!onAsk}
-        onClick={() => onAsk?.(topicChipAskPrompt(askKind, shown, marketDate))}
-        title={onAsk ? `채팅으로 물어보기: ${rawLabel}` : rawLabel}
+        onClick={() =>
+          onAsk?.(topicChipAskPrompt(askKind, shown, marketDate, lang))
+        }
+        title={onAsk ? `${t("topics.askChip")}: ${rawLabel}` : rawLabel}
         className={cn(
           "min-w-0 truncate rounded-l-full py-1 pl-3 pr-1.5 text-xs",
           onAsk && "hover:text-primary",

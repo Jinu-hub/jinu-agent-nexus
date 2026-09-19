@@ -185,6 +185,7 @@ worker/
 src/
   main.tsx             React entry — pathname switch (/live, /<series-slug>, shell)
   App.tsx              Main shell + helper rail + tab registry (PANELS array)
+  i18n/                Screen chrome ko/en (`messages.ts`, `ui-lang.tsx`) — not chat reply language
   chat/                Chat UI (Chat, ChatHelperRail, Message, Markdown)
   panels/              One panel per file (+ `report-topics.tsx` for Market Topics)
   reports/             Standalone `/<report_series.slug>` reading pages
@@ -222,7 +223,8 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Content briefs (today) | `worker/content-briefs.ts` + `worker/lib/market-date.ts` → `GET /api/briefs/today` + `GET /api/briefs/latest-date`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`; omit date = data-backed latest) |
 | Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today`; primary `item_contents` + `item_content_i18n` overlay when `lang` ≠ primary `lang_code`; chat tool `getTodayMarketReport.ts` (excerpt + compact `keywords` via `worker/lib/report-keywords.ts`; lang = Settings `content_lang`) |
 | Market panel (sidebar) | `MarketPanel.tsx` (`SHOW_MARKET_WORKBENCH=false` → slim card: pulse/takeaway + brief body + report blurb + voice + reading CTA; `true` → Brief/Voice/Report folds) + `ReportReader.tsx` + `report-topics.tsx` + `MyInterestsFold.tsx` + `BriefForYou.tsx` + `src/lib/market-date.ts` + `src/lib/market-tag-lexicon.ts` + `src/lib/market-fetch.ts` + `use-market-day-data.ts` + `use-market-preferences.ts` (shared with home helper rail; Ask 「」 uses display, save/target stays slug/name); Topics chips/Keywords in `report-topics.tsx` (re-exported by ReportReader); home Topics + Ask live in `ChatHelperRail`; off-switches unchanged; wired in `App.tsx`; registered series: 「이 리포트 크게 보기」 → `readingHrefForSeriesSlug` (`report-pages.ts`) |
-| ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) + `hidden_panels` (tab strip) + `disabled_report_series` (Market content opt-out) + `market_focus_series_id` (Market panel tab → chat vector scope); UI `SettingsPanel` (Content/Language); Market tab sync in `App.tsx` |
+| ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en; **screen chrome + Market Memory content**, not chat reply language) + `hidden_panels` (tab strip) + `disabled_report_series` (Market content opt-out) + `market_focus_series_id` (Market panel tab → chat vector scope); UI `SettingsPanel` (Language at top, Market Content fold); Market tab sync in `App.tsx` |
+| UI language (ko/en) | `src/i18n/messages.ts` + `src/i18n/ui-lang.tsx` (`UiLangProvider` / `useT`); wraps App / ReportSurface / LiveMarketRoom; `document.documentElement.lang` follows `content_lang` |
 | report_series catalog | `worker/report-series.ts` → `GET /api/report-series` (+ `groups`: weekly+daily market issues 한 토글; service_role) |
 | Market day (panel) | `worker/market-day.ts` → `GET /api/market/day` + `/api/market/latest-date` (`series_id`); MarketPanel tabs when 2+ slots |
 | Market Memory intent | `market-turn-hooks.ts` + `market-intent.ts` + `market-prefetch.ts` + `market-vector-search.ts` + `soul-market.ts` + `market-memory-load.ts` — prefetch (`toolChoice: none`); 「keyword」 → `vectorSearch` (expand via report tag lexicon; empty → keywords/highlights literal fallback); ★ `interestHits` string match; beforeStep fallback for weather / no prefetch |

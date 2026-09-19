@@ -9,7 +9,7 @@
 
 import type { SqlAgentHost } from "./agent-host";
 
-/** Market Memory (Supabase) content language — not chat UI language. */
+/** App display + Market Memory (Supabase) content language — not chat reply language. */
 export type ContentLang = "ko" | "en";
 
 export const CONTENT_LANGS = ["ko", "en"] as const;
@@ -82,7 +82,7 @@ export type ChatSettings = {
   message_cleanup_enabled: boolean;
   message_retention_seconds: number;
   alarm_interval_seconds: number;
-  /** Preferred lang_code for content_briefs / content_audio reads. */
+  /** Screen chrome + preferred lang_code for content_briefs / content_audio. */
   content_lang: ContentLang;
   /** Panel tab values omitted from the App tab strip (Settings always shown). */
   hidden_panels: ToggleablePanel[];

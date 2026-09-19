@@ -23,11 +23,14 @@ import {
   type ReportPage,
 } from "@/lib/report-pages";
 import { cn } from "@/lib/utils";
+import { useT, type TFn } from "@/i18n/ui-lang";
+import type { MessageKey } from "@/i18n/messages";
 
 export function ReportNavLinks({ className }: { className?: string }) {
+  const t = useT();
   return (
     <nav
-      aria-label="Report categories"
+      aria-label={t("chat.navCategories")}
       className={cn("flex items-center gap-3", className)}
     >
       {REPORT_NAV_CATEGORIES.map((category) => (
@@ -42,6 +45,8 @@ function ReportCategoryMenu({ category }: { category: ReportNavCategory }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+  const t = useT();
+  const categoryLabel = navCategoryLabel(t, category);
 
   useEffect(() => {
     if (!open) return;
@@ -92,7 +97,7 @@ function ReportCategoryMenu({ category }: { category: ReportNavCategory }) {
           open && "text-primary",
         )}
       >
-        {category.label}
+        {categoryLabel}
         <ChevronDown
           className={cn(
             "h-3 w-3 transition-transform",
@@ -104,7 +109,7 @@ function ReportCategoryMenu({ category }: { category: ReportNavCategory }) {
         <div
           id={menuId}
           role="menu"
-          aria-label={category.label}
+          aria-label={categoryLabel}
           className={cn(
             "absolute left-0 top-full z-40 pt-1",
             "min-w-44",
@@ -126,7 +131,7 @@ function ReportCategoryMenu({ category }: { category: ReportNavCategory }) {
                 )}
                 onClick={() => setOpen(false)}
               >
-                {reportPageNavLabel(page)}
+                {pageNavLabel(t, page)}
               </a>
             ))}
           </div>
@@ -138,6 +143,7 @@ function ReportCategoryMenu({ category }: { category: ReportNavCategory }) {
 
 export function ReportLandingCards() {
   const dates = useLatestReportDates();
+  const t = useT();
   const categorized = new Set(
     REPORT_NAV_CATEGORIES.flatMap((c) => c.pageSlugs),
   );
@@ -146,7 +152,7 @@ export function ReportLandingCards() {
   return (
     <section className="space-y-5 self-stretch">
       <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
-        준비된 테마
+        {t("chat.themesHeading")}
       </h2>
       {REPORT_NAV_CATEGORIES.map((category) => {
         const pages = reportPagesForCategory(category);
@@ -154,7 +160,7 @@ export function ReportLandingCards() {
         return (
           <div key={category.id} className="space-y-2">
             <h3 className="text-[11px] font-semibold tracking-tight text-foreground">
-              {category.label}
+              {navCategoryLabel(t, category)}
             </h3>
             <div className="grid gap-2">
               {pages.map((page) => (
@@ -190,6 +196,7 @@ function ReportLandingCard({
   page: ReportPage;
   latest?: string;
 }) {
+  const t = useT();
   return (
     <a
       href={reportPagePath(page.slug)}
@@ -200,14 +207,14 @@ function ReportLandingCard({
     >
       <span className="min-w-0 flex-1">
         <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
-          {page.eyebrow}
+          {pageEyebrow(t, page)}
         </span>
         <span className="mt-1 block text-sm font-semibold tracking-tight">
-          {page.fallbackTitle}
+          {pageTitle(t, page)}
         </span>
         {latest ? (
           <span className="mt-1 block font-mono text-[10px] text-muted-foreground">
-            Latest · {latest}
+            {t("chat.latestDate", { date: latest })}
           </span>
         ) : null}
       </span>
@@ -278,4 +285,46 @@ function useLatestReportDates(): Record<string, string> {
   }, []);
 
   return dates;
+}
+
+function navCategoryLabel(t: TFn, category: ReportNavCategory): string {
+  if (category.id === "market") return t("chat.nav.market");
+  return category.label;
+}
+
+function pageKeys(slug: string): {
+  eyebrow: MessageKey;
+  nav: MessageKey;
+  title: MessageKey;
+} | null {
+  if (slug === "daily-market-issues") {
+    return {
+      eyebrow: "chat.page.daily.eyebrow",
+      nav: "chat.page.daily.nav",
+      title: "chat.page.daily.title",
+    };
+  }
+  if (slug === "weekly-ai-issues") {
+    return {
+      eyebrow: "chat.page.weeklyAi.eyebrow",
+      nav: "chat.page.weeklyAi.nav",
+      title: "chat.page.weeklyAi.title",
+    };
+  }
+  return null;
+}
+
+function pageEyebrow(t: TFn, page: ReportPage): string {
+  const keys = pageKeys(page.slug);
+  return keys ? t(keys.eyebrow) : page.eyebrow;
+}
+
+function pageNavLabel(t: TFn, page: ReportPage): string {
+  const keys = pageKeys(page.slug);
+  return keys ? t(keys.nav) : reportPageNavLabel(page);
+}
+
+function pageTitle(t: TFn, page: ReportPage): string {
+  const keys = pageKeys(page.slug);
+  return keys ? t(keys.title) : page.fallbackTitle;
 }
