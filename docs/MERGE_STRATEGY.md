@@ -56,7 +56,7 @@
 | Market day reads | `worker/market-day.ts` — enabled `series_id` → mmi → item_contents |
 | Report pages | `src/lib/report-pages.ts` (`REPORT_PAGES` + `REPORT_NAV_CATEGORIES`), `src/lib/brief-format.ts`, `src/reports/ReportSurface.tsx`, `ReportChat.tsx`, `ReportForYou.tsx`, `ReportFullText.tsx` — `/<slug>` 리딩 화면 + 쉘 카테고리 메뉴 |
 | Report For you | `worker/market-for-you.ts` — 관심사 ∩ 리포트 → 벡터 문단 → LLM 요약; 캐시는 MyMemory `for_you_summaries` |
-| Chat parts | `src/chat/ChatParts.tsx`, `src/chat/use-client-tools.ts`, `src/chat/HomeReportExits.tsx` — transcript/입력부 공용 + 홈→리포트 카테고리 출구 |
+| Chat parts | `src/chat/ChatParts.tsx`, `src/chat/use-client-tools.ts`, `src/chat/HomeReportExits.tsx`, `src/chat/ChatHelperRail.tsx` — transcript/입력부 공용 + 홈→리포트 카테고리 출구 + 홈 왼쪽 Topics/Ask 레일 |
 | Market item resolve | `worker/market-item-resolve.ts`, `worker/market-settings.ts` — ingest/query resolve without brief |
 | Briefs / reports | `worker/content-briefs.ts`, `worker/item-contents.ts` (+ `item_content_i18n` localize), `worker/lib/report-keywords.ts`, `worker/lib/market-date.ts` |
 | Market vectors | `worker/market-vector.ts`, `worker/market-vector-routes.ts`, `worker/market-vector-cron.ts` |
@@ -71,7 +71,7 @@
 
 | 영역 | 경로 |
 |------|------|
-| Panel | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `report-topics.tsx`, `MyInterestsFold.tsx`, `BriefForYou.tsx` — inspect workbench; registered series → reading page helper |
+| Panel | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `report-topics.tsx`, `MyInterestsFold.tsx`, `BriefForYou.tsx` — inspect workbench; Topics/Ask는 홈 `ChatHelperRail`; registered series → reading page helper |
 | Libs | `src/lib/market-date.ts`, `market-suggestions.ts`, `topic-preference.ts`, `brief-for-you.ts` |
 
 ### Docs (포팅 후 선택)
@@ -91,9 +91,9 @@
 | `worker/chat-agent/ChatAgent.ts` | `marketBeforeTurn` / `marketBeforeStep` 위임; settings cleanup (이미 있으면 유지) |
 | `configure-session.ts` | `MARKET_SOUL_RULES` compose (`soul-market.ts`) |
 | `tools-registry.ts` | `...getMarketMemoryTools(agent, env)` merge |
-| `src/App.tsx` | Market + Settings 패널 탭 / Ask bridge / `hidden_panels` → tab strip filter |
+| `src/App.tsx` | Market + Settings 패널 탭 / Ask bridge / `hidden_panels` → tab strip filter / 홈 왼쪽 `ChatHelperRail` (`helperOpen`) |
 | `src/main.tsx` | `/live` → `LiveMarketRoom`, `matchReportPage()` → `ReportSurface` 분기 |
-| `src/chat/Chat.tsx` | 서버 툴은 `onToolCall`에서 가로채지 않기 |
+| `src/chat/Chat.tsx` | 서버 툴은 `onToolCall`에서 가로채지 않기; 헬퍼 드로어 토글 |
 | `src/chat/Message.tsx` | Voice `playPath` `<audio>` |
 | `package.json` | `@supabase/supabase-js` 등 |
 | `worker-env.d.ts` / `.dev.vars.example` | `SUPABASE_*`, `LIVE_ROOM_TOKEN` |
@@ -119,7 +119,7 @@
 
 1. `GET /api/supabase/health`
 2. `GET /api/briefs/today` · `/api/briefs/latest-date` · `/api/reports/today` · `/api/audio/today`
-3. UI: Market Brief / Voice / Topics / Report + Settings `content_lang`
+3. UI: 홈 왼쪽 Topics/Ask 레일 · Market Brief / Voice / Report + Settings `content_lang`
 4. Chat: Latest 해석 (prefetch, hang 없음) · ★ interests · For you
 5. `/live` Market Pulse (토큰 있으면)
 6. `/daily-market-issues` 3탭 (브리프 / 나를 위한 요약 / 전문) + `POST /api/market/for-you` (§26.5)
@@ -181,3 +181,4 @@
 | 2026-09-17 | 좁은 폭 패널 드로어 — B `App`/`Chat` ([`WORK_NOTES_2` §34.4](./WORK_NOTES_2.md)) |
 | 2026-09-17 | 작업노트 → `WORK_NOTES_3` (§35~) — docs ([`WORK_NOTES_3` §35](./WORK_NOTES_3.md)) |
 | 2026-09-17 | 헤더 Market 카테고리 메뉴 — A `report-pages` / `HomeReportExits` ([`WORK_NOTES_3` §36](./WORK_NOTES_3.md)) |
+| 2026-09-19 | 홈 왼쪽 Chat helper 레일 — A `ChatHelperRail` + B `App`/`Chat` ([`WORK_NOTES_3` §41](./WORK_NOTES_3.md)) |

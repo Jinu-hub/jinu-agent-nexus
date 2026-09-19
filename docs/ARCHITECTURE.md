@@ -29,17 +29,13 @@ and connect to external MCP servers.
 LYRA warm paper (cream + orange accent) is global — shell and report pages share `src/index.css` tokens.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  LYRA — Your world, a little closer.                            │
-├──────────────────────────────┬──────────────────────────────────┤
-│                              │  [Memory][Skills][Files][Tools]… │
-│  Chat                        │                                  │
-│  • message list              │  One panel visible at a time     │
-│  • tool calls / approvals    │  (9 tabs on the right)           │
-│  • input                     │                                  │
-│                              │  Reads live `agent.state`        │
-└──────────────────────────────┴──────────────────────────────────┘
-         src/chat/Chat.tsx              src/panels/*.tsx
+┌────────────┬──────────────────────────┬──────────────────────────┐
+│  Ask rail  │  LYRA chat               │  [Market][Memory]…       │
+│  Topics +  │  • message list          │  One panel at a time     │
+│  prompts   │  • input                 │  (dock lg+; drawer below)│
+│  (xl+ dock)│                          │                          │
+└────────────┴──────────────────────────┴──────────────────────────┘
+ ChatHelperRail     src/chat/Chat.tsx         src/panels/*.tsx
                     ↑                           ↑
                     └──── useAgent (WebSocket + RPC) ────┘
                                     src/App.tsx
@@ -54,8 +50,10 @@ flowchart TB
   subgraph Browser["Browser (React)"]
     App["App.tsx"]
     Chat["Chat.tsx"]
+    Helper["ChatHelperRail"]
     Panels["Panels (9 tabs)"]
     App --> Chat
+    App --> Helper
     App --> Panels
   end
 
@@ -140,7 +138,7 @@ in `Message.tsx` → then server `execute` runs.
 
 | Feature | UI (panel) | Main code | Where data lives |
 |---------|------------|-----------|------------------|
-| Chat | Chat (left) | `worker/chat-agent/`, `src/chat/` | DO SQLite (messages) |
+| Chat | Chat (center) | `worker/chat-agent/`, `src/chat/` | DO SQLite (messages) |
 | Memory | Memory | session context block `"memory"` | DO SQLite (session) |
 | Skills | Skills | R2 skill provider, `skills/*.md` | R2 `skills/` |
 | Workspace files | Files | Think workspace tools (`read`, `write`, …) | DO SQLite |
@@ -156,7 +154,7 @@ in `Message.tsx` → then server `execute` runs.
 | Topic labels | `POST /api/market-labels/resolve` · `/memory/topic-labels` | `worker/market-labels.ts` + MyMemory | Body-grounded Tags/Keywords display (B안); post-ingest |
 | Report series catalog | Settings → Market Content; `GET /api/report-series` | `worker/report-series.ts`; opt-out in ChatAgent `disabled_report_series` | Supabase `report_series` |
 | Market day (multi-series) | `GET /api/market/day`, `/api/market/latest-date` | `worker/market-day.ts` — `market_memory_items` + enabled `series_id` | Same-day tabs in Market panel when 2+ slots |
-| Market panel | Market tab | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `src/lib/market-suggestions.ts` | `/api/market/day` + per-series tabs + wide reader modal + TOC; registered series get 「이 리포트 크게 보기」 → `/<slug>`
+| Market panel | Market tab | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `src/lib/market-suggestions.ts` | `/api/market/day` + per-series tabs + wide reader modal + TOC; registered series get 「이 리포트 크게 보기」 → `/<slug>`. Topics / Ask chips live in the home helper rail, not this tab.
 | Report page | `/daily-market-issues`, `/weekly-ai-issues` | `src/reports/ReportSurface.tsx`, `ReportForYou.tsx`, `ReportFullText.tsx`, `ReportChat.tsx`, `src/lib/report-pages.ts`, `src/lib/brief-format.ts` | Full-frame reader on `/api/market/day`; three depth tabs (`?tab=` brief / `for-you` / `full`) with the voice player above them; brief template reads `metadata` (`pulse` / `highlights` / `market_reaction` / `takeaway`); daily page may include weekly-market companion tabs; side chat scoped via `market_focus_series_id` |
 | Report "For you" | `POST /api/market/for-you` | `worker/market-for-you.ts` + `for_you_summaries` in `worker/my-memory.ts` | Saved interests ∩ report keys → `queryMarketVectors` passages → one grounded LLM call per interest; cached on (item, lang, interest-set hash); replaces the Brief `includes()` taste in `src/lib/brief-for-you.ts` |
 | Browser | Browser | `navigate.ts`, `screenshot.ts`, Puppeteer | Remote browser session + R2 screenshots |
@@ -183,7 +181,7 @@ All live under `worker/tools/` and register in `getTools()` inside
 | `screenshot.ts` | Capture page → R2 | Server |
 | `getTodayMarketBrief.ts` | Market-issue brief; `lang` = Settings `content_lang`. Chat often uses `beforeTurn` prefetch instead of a tool call | Server (Supabase) |
 | `getTodayMarketVoice.ts` | Voice meta + play URL; listen UI = Market panel; same prefetch path | Server (Supabase + R2) |
-| `getTodayMarketReport.ts` | Full report grounding (summary/excerpt/highlights + compact keywords); UI = Market panel Report / Topics | Server (Supabase) |
+| `getTodayMarketReport.ts` | Full report grounding (summary/excerpt/highlights + compact keywords); UI = Market panel Report; Topics = home helper rail | Server (Supabase) |
 
 Built-in **Think** tools (not in `worker/tools/`): `read`, `write`, `edit`,
 `list`, `find`, `grep`, `delete`, `set_context`, `load_context`,
@@ -294,8 +292,9 @@ previous-day `market_date` drain — empty pending is a no-op).
 | `src/reports/ReportSurface.tsx` | Standalone report reading page — voice player + three depth tabs |
 | `src/reports/ReportForYou.tsx` | "나를 위한 요약" tab — personalized summary + star chips that retune it |
 | `src/reports/ReportFullText.tsx` | Full report markdown at article typography + section jump chips (`ReportToc`) |
-| `src/App.tsx` | Layout, `useAgent`, panel tabs (`hidden_panels` filter; dock `lg+`, drawer below), Settings Market content toggles, theme |
-| `src/chat/Chat.tsx` | Shell chat — header report exits, LYRA intro empty state, composes `ChatParts` |
+| `src/App.tsx` | Layout (helper rail + chat + panels), `useAgent`, panel tabs (`hidden_panels` filter; panels dock `lg+`, helper dock `xl+`, drawers below), Settings Market content toggles, theme |
+| `src/chat/Chat.tsx` | Shell chat — header report exits, LYRA intro empty state, helper/panel drawer toggles, composes `ChatParts` |
+| `src/chat/ChatHelperRail.tsx` | Home left rail — Latest Topics + Ask-in-chat prompts; `xl+` docked, below `xl` a left drawer |
 | `src/chat/HomeReportExits.tsx` | Home → `/<slug>` via category menus + landing cards (`REPORT_NAV_CATEGORIES`) |
 | `src/chat/ChatParts.tsx` | Transcript + composer shared by shell and report pages |
 | `src/chat/Message.tsx` | Message rendering, tool UI, approvals |

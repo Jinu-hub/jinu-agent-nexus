@@ -16,10 +16,9 @@
 
 import { useEffect, useRef } from "react";
 import { useAgentChat } from "@cloudflare/ai-chat/react";
-import { Trash2, RotateCcw, Moon, Sun, PanelRight } from "lucide-react";
+import { Trash2, RotateCcw, Moon, Sun, PanelLeft, PanelRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { HOME_CHAT_SUGGESTIONS } from "@/lib/market-suggestions";
 import {
   ChatComposer,
   ChatMessageList,
@@ -38,17 +37,22 @@ export function Chat({
   onPendingAskConsumed,
   panelOpen = false,
   onTogglePanels,
+  helperOpen = false,
+  onToggleHelper,
 }: {
   agent: AgentForChat;
   theme: "light" | "dark";
   onToggleTheme: () => void;
   onReset: () => void;
-  /** Set by Market panel "Ask in chat" — Chat sends then clears via callback. */
+  /** Set by helper rail / Market modal "Ask in chat" — Chat sends then clears. */
   pendingAsk?: { text: string; nonce: number } | null;
   onPendingAskConsumed?: () => void;
   /** Narrow-viewport panel drawer open (lg+ dock ignores this). */
   panelOpen?: boolean;
   onTogglePanels?: () => void;
+  /** Narrow-viewport helper drawer open (xl+ dock ignores this). */
+  helperOpen?: boolean;
+  onToggleHelper?: () => void;
 }) {
   const onToolCall = useClientToolCall();
   const chat = useAgentChat({ agent, onToolCall });
@@ -73,11 +77,13 @@ export function Chat({
         onReset={onReset}
         panelOpen={panelOpen}
         onTogglePanels={onTogglePanels}
+        helperOpen={helperOpen}
+        onToggleHelper={onToggleHelper}
       />
       <ChatMessageList
         chat={chat}
         className="flex-1 overflow-y-auto px-4 py-6"
-        empty={<EmptyState onPick={(text) => chat.sendMessage({ text })} />}
+        empty={<EmptyState />}
       />
       <ChatComposer chat={chat} />
     </div>
@@ -130,6 +136,8 @@ function Header({
   onReset,
   panelOpen,
   onTogglePanels,
+  helperOpen,
+  onToggleHelper,
 }: {
   chat: ChatHelpers;
   theme: "light" | "dark";
@@ -137,10 +145,25 @@ function Header({
   onReset: () => void;
   panelOpen: boolean;
   onTogglePanels?: () => void;
+  helperOpen: boolean;
+  onToggleHelper?: () => void;
 }) {
   return (
     <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
       <div className="flex min-w-0 items-center gap-3">
+        {onToggleHelper ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="xl:hidden"
+            onClick={onToggleHelper}
+            aria-pressed={helperOpen}
+            title={helperOpen ? "Close helper" : "Open helper"}
+            aria-label={helperOpen ? "Close helper" : "Open helper"}
+          >
+            <PanelLeft className="size-4" />
+          </Button>
+        ) : null}
         <BrandMark />
         <div className="min-w-0">
           <h1 className="text-sm font-semibold tracking-tight">LYRA</h1>
@@ -204,8 +227,8 @@ function Header({
 }
 
 // ─── Empty state — shown before the first message ───────────────────────
-// Product intro + Cloudflare stack notes + a few starter prompts. Longer
-// than the old one-liner, so the list stays short and the column is wider.
+// Product intro + Cloudflare stack notes. Starter prompts live in the
+// left ChatHelperRail so the conversation column stays a reading intro.
 const INTRO_PARAS = [
   "LYRA는 매일 쏟아지는 많은 정보 속에서 자신에게 필요한 내용을 일일이 찾아보기 어려운 사람을 위한 개인화 정보 서비스입니다.",
   "현재는 글로벌 시장과 AI 관련 주요 이슈를 짧고 쉽게 정리해 보여주고, 사용자가 등록한 관심 키워드와 태그를 기준으로 관련 내용을 따로 요약해 제공합니다.",
@@ -241,7 +264,7 @@ const TECH_STACK = [
   },
 ] as const;
 
-function EmptyState({ onPick }: { onPick: (text: string) => void }) {
+function EmptyState() {
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col items-start gap-8 py-10 animate-fade-up [animation-delay:280ms]">
       <BrandMark size="lg" />
@@ -284,25 +307,6 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
           </table>
         </div>
       </section>
-
-      <div className="flex flex-col items-stretch gap-2 self-stretch">
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
-          이렇게 물어보세요
-        </p>
-        {HOME_CHAT_SUGGESTIONS.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => onPick(s.prompt)}
-            className="group flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left text-xs text-foreground hover:border-primary/50"
-          >
-            <span className="font-mono text-primary/70 group-hover:text-primary">
-              ›
-            </span>
-            <span>{s.prompt}</span>
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

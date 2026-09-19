@@ -630,10 +630,10 @@ export async function buildMarketPrefetchBlock(
       const baseInstruction = intent.fullText
         ? "User wants the FULL report. Do NOT paste content/excerpt into chat. Do NOT emit <tool_call> or XML. Reply in 1–2 short lines pointing to Market tab → Report (include marketDate)."
         : keywordsOnly && quoted.length === 0
-          ? "User wants KEYWORDS only. Answer from report.keywords (tags, places, companies, institutions, technologies, industries, products) — short bullet or comma list. Do NOT invent names missing from keywords. Do NOT paste excerpt/full report. Do NOT emit <tool_call>/XML. One short line: more detail in Market tab → Topics. If interestHits is non-empty, list those FIRST before other keywords."
+          ? "User wants KEYWORDS only. Answer from report.keywords (tags, places, companies, institutions, technologies, industries, products) — short bullet or comma list. Do NOT invent names missing from keywords. Do NOT paste excerpt/full report. Do NOT emit <tool_call>/XML. One short line: more detail in the home Topics rail. If interestHits is non-empty, list those FIRST before other keywords."
           : quoted.length > 0
             ? "User asked about a specific keyword in the full report. Prefer vectorSearch.hits when present."
-            : "Answer briefly using title/summary/excerpt/highlights/keywords in natural language. Do NOT paste the full report. Do NOT emit <tool_call> or XML — facts are already here. If interestHits is non-empty, lead with those themes (first bullet), then other highlights. One short line: Market tab → Report / Topics. Korean commentary: 해요체 ONLY for the whole reply (RULE 5b) — do not mix …다/…입니다/…습니다; no filler openers.";
+            : "Answer briefly using title/summary/excerpt/highlights/keywords in natural language. Do NOT paste the full report. Do NOT emit <tool_call> or XML — facts are already here. If interestHits is non-empty, lead with those themes (first bullet), then other highlights. One short line: Market tab → Report; Topics are in the home sidebar. Korean commentary: 해요체 ONLY for the whole reply (RULE 5b) — do not mix …다/…입니다/…습니다; no filler openers.";
       return JSON.stringify(
         await withVectorSearch(
           env,

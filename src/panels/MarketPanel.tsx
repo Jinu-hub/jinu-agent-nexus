@@ -21,10 +21,8 @@ import {
   FileText,
   LoaderCircle,
   Maximize2,
-  MessageSquare,
   Newspaper,
   RefreshCw,
-  Tags,
   Volume2,
 } from "lucide-react";
 import type { ContentLang } from "../../worker/chat-agent/settings";
@@ -34,33 +32,21 @@ import {
   type ReportSeriesRow,
 } from "../../worker/report-series";
 import { readingHrefForSeriesSlug } from "@/lib/report-pages";
-import { MARKET_SUGGESTIONS } from "@/lib/market-suggestions";
-import { buildTagLexicon } from "@/lib/market-tag-lexicon";
-import {
-  calendarYesterdayYmd,
-  metaString,
-  seoulYmd,
-  shiftYmd,
-} from "@/lib/market-date";
+import { calendarYesterdayYmd, metaString, seoulYmd, shiftYmd } from "@/lib/market-date";
 import { cn } from "@/lib/utils";
 import { PanelHeader } from "./PanelHeader";
 import {
   ReportArticle,
-  ReportKeywordChips,
   ReportReaderModal,
   ReportToc,
   SHOW_REPORT_TOPIC_CHIPS,
-  SHOW_TOPIC_CHIP_ASK,
   SHOW_TOPIC_CHIP_STAR,
-  SHOW_TOPICS_SECTION,
   extractReportSections,
-  hasTopKeywords,
   jumpToSection,
 } from "./ReportReader";
-import { MyInterestsFold, SHOW_MY_INTERESTS } from "./MyInterestsFold";
+import { SHOW_MY_INTERESTS } from "./MyInterestsFold";
 import { BriefForYou, SHOW_BRIEF_FOR_YOU } from "./BriefForYou";
 import {
-  collectReportPreferenceKeys,
   fetchPreferences,
   isPreferenceSaved,
   mapTopicToPreference,
@@ -276,11 +262,14 @@ function MarketSection({
 export function MarketPanel({
   contentLang,
   disabledReportSeries,
+  marketFocusSeriesId,
   onAskInChat,
   onMarketFocusSeriesChange,
 }: {
   contentLang: ContentLang | null;
   disabledReportSeries: string[];
+  /** Settings-backed series focus — stay in sync with the home helper rail. */
+  marketFocusSeriesId?: string | null;
   /** Send a Market Memory example prompt into the left chat. */
   onAskInChat?: (prompt: string) => void;
   /** Persist Market tab selection for chat vector / report prefetch scope. */
@@ -300,20 +289,19 @@ export function MarketPanel({
   const [copied, setCopied] = useState<"brief" | "report" | null>(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [briefOpen, setBriefOpen] = useState(true);
-  const [topicsOpen, setTopicsOpen] = useState(false);
-  const [topicsLoadKey, setTopicsLoadKey] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [preferences, setPreferences] = useState<PreferenceRow[]>([]);
-  const [preferencesLoading, setPreferencesLoading] = useState(true);
   const [topicLabelMap, setTopicLabelMap] = useState<Record<
     string,
     string
   > | null>(null);
-  const [interestsOnly, setInterestsOnly] = useState(false);
+  const [topicsLoadKey, setTopicsLoadKey] = useState<string | null>(null);
   const reportScrollRef = useRef<HTMLDivElement>(null);
   const helpWrapRef = useRef<HTMLDivElement>(null);
+  const marketFocusSeriesRef = useRef(marketFocusSeriesId);
+  marketFocusSeriesRef.current = marketFocusSeriesId;
 
   const enabledSeriesIds = useMemo(
     () =>
@@ -344,15 +332,12 @@ export function MarketPanel({
     if (!SHOW_MY_INTERESTS && !SHOW_TOPIC_CHIP_STAR && !SHOW_BRIEF_FOR_YOU) {
       return;
     }
-    setPreferencesLoading(true);
     try {
       setPreferences(await fetchPreferences());
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load interests",
       );
-    } finally {
-      setPreferencesLoading(false);
     }
   }, []);
 
@@ -401,25 +386,6 @@ export function MarketPanel({
       );
     }
   }, [preferences]);
-
-  const removeInterestRow = useCallback(async (row: PreferenceRow) => {
-    try {
-      await removeInterest(row.kind, row.target);
-      setPreferences((prev) =>
-        prev.filter(
-          (p) =>
-            !(
-              p.kind === row.kind &&
-              p.target.trim().toLowerCase() === row.target.trim().toLowerCase()
-            ),
-        ),
-      );
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to remove interest",
-      );
-    }
-  }, []);
 
   useEffect(() => {
     void loadPreferences();
@@ -503,6 +469,8 @@ export function MarketPanel({
         const slots = json.slots ?? [];
         setDaySlots(slots);
         setActiveSeriesId((prev) => {
+          const focus = marketFocusSeriesRef.current?.trim();
+          if (focus && slots.some((s) => s.seriesId === focus)) return focus;
           if (prev && slots.some((s) => s.seriesId === prev)) return prev;
           return slots[0]?.seriesId ?? null;
         });
@@ -523,6 +491,13 @@ export function MarketPanel({
     if (!activeSeriesId) return;
     onMarketFocusSeriesChange?.(activeSeriesId);
   }, [activeSeriesId, onMarketFocusSeriesChange]);
+
+  useEffect(() => {
+    const focus = marketFocusSeriesId?.trim();
+    if (!focus) return;
+    if (!daySlots.some((s) => s.seriesId === focus)) return;
+    setActiveSeriesId((prev) => (prev === focus ? prev : focus));
+  }, [marketFocusSeriesId, daySlots]);
 
   // Content key only — array identity of enabledSeriesIds changes when App
   // refreshes settings (e.g. market_focus_series_id), which must NOT reset date.
@@ -567,14 +542,6 @@ export function MarketPanel({
     !hidesReportSummaryBlurb(activeSlot?.seriesSlug);
   const hasReportCandidate = Boolean(activeSlot?.targetId);
   const hasReport = Boolean(reportItem?.content);
-  const reportKeys =
-    hasReport && reportItem
-      ? collectReportPreferenceKeys(reportItem)
-      : null;
-  const tagLexicon = useMemo(
-    () => (reportItem ? buildTagLexicon(reportItem.metadata) : null),
-    [reportItem],
-  );
   const reportCheckedMissing =
     Boolean(activeSlot) && hasReportCandidate && !hasReport;
   const readingHref = useMemo(
@@ -620,28 +587,23 @@ export function MarketPanel({
   const hasVoice = Boolean(voiceItem && playPath);
   const hasBrief = Boolean(briefItem);
 
-  // New day / series tab → Brief expanded; Voice / Topics / Report collapsed.
+  // New day / series tab → Brief expanded; Voice / Report collapsed.
   useEffect(() => {
     setVoiceOpen(false);
-    setTopicsOpen(false);
     setReportOpen(false);
-    setInterestsOnly(false);
     setTopicLabelMap(null);
     if (hasBrief) setBriefOpen(true);
   }, [date, lang, activeSeriesId, hasBrief]);
 
   useEffect(() => {
-    if (!SHOW_TOPICS_SECTION || !SHOW_REPORT_TOPIC_CHIPS) return;
-    // Topics fold, Report fold, or wide reader — same labelMap for chips.
-    if (!(topicsOpen || reportOpen || reportModalOpen)) return;
+    if (!SHOW_REPORT_TOPIC_CHIPS) return;
+    if (!reportModalOpen) return;
     if (!date || !activeSeriesId || !hasReport) return;
     const key = slotCacheKey(date, lang, activeSeriesId);
     if (topicsLoadKey === key) return;
     setTopicsLoadKey(key);
     void loadTopicLabels(lang);
   }, [
-    topicsOpen,
-    reportOpen,
     reportModalOpen,
     date,
     lang,
@@ -650,11 +612,6 @@ export function MarketPanel({
     topicsLoadKey,
     loadTopicLabels,
   ]);
-
-  const toggleTopics = () => {
-    if (!date) return;
-    setTopicsOpen((wasOpen) => !wasOpen);
-  };
 
   const toggleReport = () => {
     if (!date) return;
@@ -1037,124 +994,6 @@ export function MarketPanel({
             )}
           </MarketSection>
 
-          {SHOW_TOPICS_SECTION && SHOW_REPORT_TOPIC_CHIPS ? (
-            <MarketSection
-              icon={Tags}
-              title="Topics"
-              collapsible={hasReportCandidate || hasReport}
-              open={topicsOpen}
-              onToggle={toggleTopics}
-              summary={
-                hasReport
-                  ? "tags + rotated keywords"
-                  : hasReportCandidate
-                    ? "From full report"
-                    : null
-              }
-            >
-              {topicsOpen && loading && !hasReport ? (
-                <div className="space-y-3">
-                  {SHOW_MY_INTERESTS ? (
-                    <MyInterestsFold
-                      preferences={preferences}
-                      loading={preferencesLoading}
-                      onRemove={removeInterestRow}
-                      reportKeys={reportKeys}
-                      interestsOnly={interestsOnly}
-                      onInterestsOnlyChange={setInterestsOnly}
-                      tagLexicon={tagLexicon}
-                      labelMap={topicLabelMap}
-                      contentLang={lang}
-                    />
-                  ) : null}
-                  <div className="flex items-center gap-2 py-2 text-[11px] text-muted-foreground">
-                    <LoaderCircle className="size-3.5 animate-spin" />
-                    Loading topics…
-                  </div>
-                </div>
-              ) : hasReport ? (
-                <div className="space-y-3">
-                  {SHOW_MY_INTERESTS ? (
-                    <MyInterestsFold
-                      preferences={preferences}
-                      loading={preferencesLoading}
-                      onRemove={removeInterestRow}
-                      reportKeys={reportKeys}
-                      interestsOnly={interestsOnly}
-                      onInterestsOnlyChange={setInterestsOnly}
-                      tagLexicon={tagLexicon}
-                      labelMap={topicLabelMap}
-                      contentLang={lang}
-                    />
-                  ) : null}
-                  {hasTopKeywords(reportItem!) ? (
-                    <ReportKeywordChips
-                      tags={reportItem!.tags}
-                      countries={reportItem!.countries}
-                      regions={reportItem!.regions}
-                      metadata={reportItem!.metadata}
-                      marketDate={date}
-                      onAsk={onAskInChat}
-                      preferences={preferences}
-                      onToggleInterest={toggleInterest}
-                      interestsOnly={interestsOnly}
-                      labelMap={topicLabelMap}
-                    />
-                  ) : (
-                    <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      No keywords on this report.
-                    </p>
-                  )}
-                  {(onAskInChat && SHOW_TOPIC_CHIP_ASK) ||
-                  SHOW_TOPIC_CHIP_STAR ? (
-                    <p className="text-[10px] leading-relaxed text-muted-foreground/80">
-                      {onAskInChat && SHOW_TOPIC_CHIP_ASK
-                        ? "Tap a keyword to ask in chat"
-                        : null}
-                      {onAskInChat &&
-                      SHOW_TOPIC_CHIP_ASK &&
-                      SHOW_TOPIC_CHIP_STAR
-                        ? " · "
-                        : null}
-                      {SHOW_TOPIC_CHIP_STAR
-                        ? "Star to save an interest"
-                        : null}
-                    </p>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {SHOW_MY_INTERESTS ? (
-                    <MyInterestsFold
-                      preferences={preferences}
-                      loading={preferencesLoading}
-                      onRemove={removeInterestRow}
-                      reportKeys={reportKeys}
-                      interestsOnly={interestsOnly}
-                      onInterestsOnlyChange={setInterestsOnly}
-                      tagLexicon={tagLexicon}
-                      labelMap={topicLabelMap}
-                      contentLang={lang}
-                    />
-                  ) : null}
-                  {reportCheckedMissing && hasBrief ? (
-                    <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      No report keywords for this day / language.
-                    </p>
-                  ) : hasReportCandidate ? (
-                    <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      Expand to load keywords from the full report.
-                    </p>
-                  ) : (
-                    <p className="text-[11px] leading-relaxed text-muted-foreground">
-                      Keywords appear when a full report is linked to the brief.
-                    </p>
-                  )}
-                </div>
-              )}
-            </MarketSection>
-          ) : null}
-
           <MarketSection
             icon={FileText}
             title="Report"
@@ -1310,41 +1149,9 @@ export function MarketPanel({
           onAsk={onAskInChat}
           preferences={preferences}
           onToggleInterest={toggleInterest}
-          interestsOnly={interestsOnly}
           labelMap={topicLabelMap}
         />
       ) : null}
-
-      {onAskInChat && (
-        <div className="mt-4 border-t border-border pt-3">
-          <div className="mb-1.5 flex items-center gap-1.5">
-            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-            <p className="text-[11px] font-medium text-foreground">
-              Ask in chat
-            </p>
-          </div>
-          <p className="mb-2 text-[10px] leading-relaxed text-muted-foreground">
-            Chat interprets · full text / voice stay in this tab.
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {MARKET_SUGGESTIONS.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                title={s.prompt}
-                onClick={() => onAskInChat(s.prompt)}
-                className={cn(
-                  "rounded-md border border-border bg-background px-2 py-1",
-                  "text-[10px] text-muted-foreground",
-                  "hover:border-foreground/30 hover:bg-accent hover:text-foreground",
-                )}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </section>
   );
 }

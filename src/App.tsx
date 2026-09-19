@@ -2,9 +2,10 @@
 // App — main shell
 // ─────────────────────────────────────────────────────────────────────────
 //
-// Layout: two columns, full viewport.
-//   Left  — <Chat>                       (messages + input)
-//   Right — Tabs over panels             (one panel visible at a time)
+// Layout: three columns, full viewport.
+//   Left   — <ChatHelperRail>            (Topics + Ask prompts; xl+ dock)
+//   Center — <Chat>                      (messages + input)
+//   Right  — Tabs over panels            (one panel visible at a time)
 //
 // The agent connection lives here. We pass it down to <Chat> for chat
 // I/O, and read `agent.state` to power the right-side panels.
@@ -48,6 +49,7 @@ import type {
 } from "../worker/chat-agent/settings";
 import { isToggleablePanel } from "../worker/chat-agent/settings";
 import { Chat } from "@/chat/Chat";
+import { ChatHelperRail } from "@/chat/ChatHelperRail";
 import {
   Tabs,
   TabsList,
@@ -111,6 +113,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("market");
   /** Below lg the panel column is a drawer; lg+ it stays docked. */
   const [panelOpen, setPanelOpen] = useState(false);
+  /** Below xl the helper rail is a drawer; xl+ it stays docked. */
+  const [helperOpen, setHelperOpen] = useState(false);
 
   // ─── Theme toggle (lives in localStorage so it survives refresh) ───────
   // The matching inline script in index.html sets the `dark` class on
@@ -291,18 +295,59 @@ export default function App() {
   );
 
   useEffect(() => {
-    if (!panelOpen) return;
+    if (!panelOpen && !helperOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPanelOpen(false);
+      if (e.key !== "Escape") return;
+      if (helperOpen) setHelperOpen(false);
+      else setPanelOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [panelOpen]);
+  }, [panelOpen, helperOpen]);
+
+  const openHelper = useCallback(() => {
+    setPanelOpen(false);
+    setHelperOpen(true);
+  }, []);
+  const openPanels = useCallback(() => {
+    setHelperOpen(false);
+    setPanelOpen(true);
+  }, []);
 
   // ─── Render ────────────────────────────────────────────────────────────
   return (
     <div className="relative isolate flex h-full overflow-hidden">
-      {/* LEFT — chat */}
+      {/* Scrim — helper drawer below xl */}
+      {helperOpen ? (
+        <button
+          type="button"
+          aria-label="Close helper"
+          className="fixed inset-0 z-20 bg-foreground/20 xl:hidden"
+          onClick={() => setHelperOpen(false)}
+        />
+      ) : null}
+
+      {/* LEFT — Topics + Ask (docked xl+; drawer overlay below) */}
+      <aside
+        className={cn(
+          "flex flex-col border-border bg-card animate-fade-up",
+          "max-xl:fixed max-xl:inset-y-0 max-xl:left-0 max-xl:z-30",
+          "max-xl:w-full max-xl:max-w-80 max-xl:border-r max-xl:shadow-2xl",
+          helperOpen ? "max-xl:flex" : "max-xl:hidden",
+          "xl:relative xl:flex xl:h-full xl:w-80 xl:shrink-0 xl:border-r",
+        )}
+      >
+        <ChatHelperRail
+          contentLang={settings?.content_lang ?? null}
+          disabledReportSeries={settings?.disabled_report_series ?? []}
+          marketFocusSeriesId={settings?.market_focus_series_id ?? null}
+          onAskInChat={askInChat}
+          onMarketFocusSeriesChange={onMarketFocusSeriesChange}
+          onClose={() => setHelperOpen(false)}
+        />
+      </aside>
+
+      {/* CENTER — chat */}
       <main className="flex min-w-0 flex-1 flex-col animate-fade-up [animation-delay:120ms]">
         <Chat
           agent={agent}
@@ -312,7 +357,13 @@ export default function App() {
           pendingAsk={pendingAsk}
           onPendingAskConsumed={() => setPendingAsk(null)}
           panelOpen={panelOpen}
-          onTogglePanels={() => setPanelOpen((v) => !v)}
+          onTogglePanels={() =>
+            panelOpen ? setPanelOpen(false) : openPanels()
+          }
+          helperOpen={helperOpen}
+          onToggleHelper={() =>
+            helperOpen ? setHelperOpen(false) : openHelper()
+          }
         />
       </main>
 
@@ -373,6 +424,7 @@ export default function App() {
             <MarketPanel
               contentLang={settings?.content_lang ?? null}
               disabledReportSeries={settings?.disabled_report_series ?? []}
+              marketFocusSeriesId={settings?.market_focus_series_id ?? null}
               onAskInChat={askInChat}
               onMarketFocusSeriesChange={onMarketFocusSeriesChange}
             />

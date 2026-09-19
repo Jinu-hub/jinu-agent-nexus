@@ -27,7 +27,7 @@ import {
 // ── T1 topic chips (easy off-switches) ───────────────────────────────────
 /** Master: hide chips in Topics section AND report modal when false. */
 export const SHOW_REPORT_TOPIC_CHIPS = true;
-/** Sidebar Topics section (outside Report). Ignored when master is false. */
+/** Sidebar Topics section (home ChatHelperRail). Ignored when master is false. */
 export const SHOW_TOPICS_SECTION = true;
 
 // ── T2 entities fold (easy off-switches) ─────────────────────────────────

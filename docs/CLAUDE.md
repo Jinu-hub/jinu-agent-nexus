@@ -63,6 +63,7 @@ flowchart LR
   subgraph FE["src/"]
     App["App.tsx\nuseAgent"]
     Chat["chat/Chat.tsx"]
+    Helper["chat/ChatHelperRail"]
     Panels["panels/*.tsx"]
   end
 
@@ -80,6 +81,7 @@ flowchart LR
   end
 
   Chat --> App
+  Helper --> App
   Panels --> App
   App -->|"WS + RPC"| Index
   Index --> Agent
@@ -182,8 +184,8 @@ worker/
   tools/               One tool per file. See "Extension patterns" below.
 src/
   main.tsx             React entry — pathname switch (/live, /<series-slug>, shell)
-  App.tsx              Main shell + tab registry (PANELS array)
-  chat/                Chat UI (Chat, Message, Markdown)
+  App.tsx              Main shell + helper rail + tab registry (PANELS array)
+  chat/                Chat UI (Chat, ChatHelperRail, Message, Markdown)
   panels/              One panel per file (+ `report-topics.tsx` for Market Topics)
   reports/             Standalone `/<report_series.slug>` reading pages
   components/ui/       shadcn-style primitives
@@ -217,7 +219,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
 | Content briefs (today) | `worker/content-briefs.ts` + `worker/lib/market-date.ts` → `GET /api/briefs/today` + `GET /api/briefs/latest-date`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`; omit date = data-backed latest) |
 | Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today`; primary `item_contents` + `item_content_i18n` overlay when `lang` ≠ primary `lang_code`; chat tool `getTodayMarketReport.ts` (excerpt + compact `keywords` via `worker/lib/report-keywords.ts`; lang = Settings `content_lang`) |
-| Market panel (sidebar) | `MarketPanel.tsx` + `ReportReader.tsx` + `report-topics.tsx` + `MyInterestsFold.tsx` + `BriefForYou.tsx` + `src/lib/market-date.ts` + `src/lib/market-tag-lexicon.ts` (display/expand from `metadata.tags.core` + `metadata.entities` + `topic_labels`; Ask 「」 uses display, save/target stays slug/name); Topics chips/Keywords in `report-topics.tsx` (re-exported by ReportReader); off-switches unchanged; wired in `App.tsx`; registered series: 「이 리포트 크게 보기」 → `readingHrefForSeriesSlug` (`report-pages.ts`) |
+| Market panel (sidebar) | `MarketPanel.tsx` + `ReportReader.tsx` + `report-topics.tsx` + `MyInterestsFold.tsx` + `BriefForYou.tsx` + `src/lib/market-date.ts` + `src/lib/market-tag-lexicon.ts` (display/expand from `metadata.tags.core` + `metadata.entities` + `topic_labels`; Ask 「」 uses display, save/target stays slug/name); Topics chips/Keywords in `report-topics.tsx` (re-exported by ReportReader); home Topics + Ask live in `ChatHelperRail`; off-switches unchanged; wired in `App.tsx`; registered series: 「이 리포트 크게 보기」 → `readingHrefForSeriesSlug` (`report-pages.ts`) |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — alarm/cleanup + `content_lang` (ko\|en) + `hidden_panels` (tab strip) + `disabled_report_series` (Market content opt-out) + `market_focus_series_id` (Market panel tab → chat vector scope); UI `SettingsPanel` (Content/Language); Market tab sync in `App.tsx` |
 | report_series catalog | `worker/report-series.ts` → `GET /api/report-series` (+ `groups`: weekly+daily market issues 한 토글; service_role) |
 | Market day (panel) | `worker/market-day.ts` → `GET /api/market/day` + `/api/market/latest-date` (`series_id`); MarketPanel tabs when 2+ slots |
@@ -225,7 +227,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Voice audio pipeline | `content-audio.ts` barrel + `content-audio-domain.ts` / `content-audio-routes.ts` + `voice-audio-cron.ts` (UTC `0 0` + catch-up `0 1`) → `/api/audio/*`; today play + tool `getTodayMarketVoice.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
-| UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` + `HomeReportExits.tsx` — empty state = LYRA intro + report landing cards (`REPORT_NAV_CATEGORIES`) + CF stack + `HOME_CHAT_SUGGESTIONS`; header category menus (`Market` ▾ → pages, always shown); Reset/Clear labels `xl+`; right panels dock at `lg+`, drawer toggle below (`App.tsx` `panelOpen`) |
+| UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` + `HomeReportExits.tsx` + `ChatHelperRail.tsx` — empty state = LYRA intro + report landing cards (`REPORT_NAV_CATEGORIES`) + CF stack; helper rail = Topics + `MARKET_SUGGESTIONS`; header category menus (`Market` ▾ → pages, always shown); Reset/Clear labels `xl+`; helper rail docks at `xl+`, right panels at `lg+`, drawers below (`App.tsx` `helperOpen` / `panelOpen`) |
 | Chat transcript / input (shared) | `src/chat/ChatParts.tsx` (`ChatMessageList` + `ChatComposer`) + `src/chat/use-client-tools.ts`; each surface supplies its own header + `empty` state (shell = `Chat.tsx`, report page = `ReportChat.tsx`) |
 | Voice in-chat player | `src/chat/Message.tsx` — `<audio>` when `getTodayMarketVoice` returns `playPath` |
 

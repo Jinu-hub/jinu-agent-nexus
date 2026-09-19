@@ -161,4 +161,18 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **확인:** Clear chat → 「통화정책」「반도체」 — 전 문장 해요체, `- ` 불릿+빈줄, footer 정확히 `원문·리포트는 Market 탭.`
 * **의도적으로 안 함:** FE 어미 후처리; 쉽게 말하면 리드
 
+## 41. 홈 왼쪽 Chat helper 레일 *(완료)*
+
+* **목적:** 홈 `/`에서 챗이 주인공이 되도록 Topics + Ask-in-chat 추천을 **왼쪽 레일**로 분리. 리포트 상세(`/<slug>`)는 그대로.
+* **수정 및 추가 파일:**
+  * `src/chat/ChatHelperRail.tsx` *(신규)* — Latest 날짜 Topics(My interests + keywords) + `MARKET_SUGGESTIONS`; 칩 탭 → `pendingAsk`; 시리즈 탭은 `market_focus_series_id`와 동기화
+  * `src/App.tsx` — 3열: helper (`xl+` 도킹 / 아래는 왼쪽 드로어) · Chat · 오른쪽 패널; `helperOpen`
+  * `src/chat/Chat.tsx` — `PanelLeft` 토글(`xl` 미만); empty state에서 추천 질문 블록 제거(레일이 소유)
+  * `src/panels/MarketPanel.tsx` — Topics 섹션·Ask in chat 푸터 제거; `marketFocusSeriesId`를 따라감 (wide reader 칩 Ask는 유지)
+  * `src/panels/report-topics.tsx` — `SHOW_TOPICS_SECTION` 주석 (홈 레일)
+  * `worker/chat-agent/soul-market.ts` · `market-prefetch.ts` · `market-vector-search.ts` · `worker/tools/getTodayMarketReport.ts` — Topics 안내를 홈 사이드바로
+  * docs: `CLAUDE.md`, `ARCHITECTURE.md`, `MERGE_STRATEGY.md`, 본 절
+* **확인 (로컬 2026-09-19):** 홈 `1440`에서 왼쪽 Ask 레일(Topics + 추천 칩) · `키워드만` 클릭 시 가운데 챗으로 전송 · Market 탭은 Brief/Voice/Report만 · `900`폭에서 헤더 Open helper 드로어 · `/daily-market-issues`는 기존 Ask 헤더 버튼·읽기 레이아웃 유지
+* **의도적으로 안 함:** 리포트 페이지 왼쪽 레일; MarketPanel과 레일 fetch 훅 공유 (Wave 2); 홈 Market 패널 Brief/Voice/Report 슬림화; `HOME_CHAT_SUGGESTIONS` 삭제(레일은 전체 `MARKET_SUGGESTIONS` 사용)
+
 ---

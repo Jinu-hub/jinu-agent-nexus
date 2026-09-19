@@ -348,7 +348,7 @@ export function vectorSearchInstructionClause(
   const sourceNote = fromFallback
     ? " Hits are from report highlights/keywords (vector empty; literal match only). " +
       "If a hit is only a keyword label (e.g. companies: Intel) without a narrative highlight, " +
-      "say it appears in Topics and point to Market tab — do not invent story details.\n"
+      "say it appears in Topics (home sidebar) — do not invent story details.\n"
     : "";
   return (
     " CRITICAL: keyword ask — answer ONLY from vectorSearch.hits text. " +
