@@ -279,4 +279,24 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **확인 (로컬 `localhost:5173`):** Settings Language가 최상위. ko: 탭 「설정/마켓」, 칩 「리스크」, 브리프 `· ko ·`. en 전환 후 `html lang=en`, 슬로건 “Your world…”, 탭 Market/Settings, 칩 Risks/Report core, Market 접힘 `2/2 series`(lang 없음), 브리프 `Weekly AI Issue Digest` · `en · report`. 기존 한글 챗 히스토리는 그대로. (해요체 회신은 soul 규칙 — 이번 세션에서 새 한글 턴은 보내지 않음)
 * **의도적으로 안 함:** 챗 회신 언어 토글; `content_lang` 컬럼 리네임; i18next; soul 한국어 문장을 UI 언어에 묶기; ko/en 이외 로케일
 
+### 42.1 챗 회신 = 이번 턴 질문 언어 *(완료)*
+
+* **목적:** EN UI + 영어 질문인데 한국어로 답하던 문제 — prefetch/vector 지시의 “해요체 ONLY for the whole reply”가 soul RULE 5보다 세게 먹힘.
+* **수정 및 추가 파일:**
+  * `worker/chat-agent/soul-market.ts` — RULE 5 Language STRICT; RULE 5b는 한국어 회신에만; `REPLY_LANG_LOCK` export
+  * `worker/chat-agent/market-prefetch.ts` — 턴 instruction에 `REPLY_LANG_LOCK` (한국어 무조건 고정 문구 제거)
+  * `worker/chat-agent/market-vector-search.ts` — VOICE LOCK → `REPLY_LANG_LOCK`; explain 감지에 EN 패턴 추가
+  * docs: 본 소절
+* **확인:** Settings EN + 영어 칩/직접 입력 → 영어 회신. 한글 질문 → 해요체 유지. `content_lang`은 Market 데이터만.
+* **의도적으로 안 함:** 대화 히스토리 언어 리셋 UI; 다국어 자동 감지 라이브러리
+
+### 42.2 For you 관심사 라벨 = Topics와 동일 *(완료)*
+
+* **목적:** EN For you 헤더가 KO에서 찍은 `preferences.display`(예: 에너지)에 고정되던 버그. Topics My interests는 이미 lang-aware.
+* **수정 및 추가 파일:**
+  * `worker/market-for-you.ts` — `interestDisplayLabel` 사용; 캐시 hit 시 display 재해석; 검색 쿼리에 frozen display 유지
+  * docs: 본 소절
+* **확인:** Settings EN → For you `★ energy INDUSTRY` (Topics와 동일). KO → `에너지`. Regenerate 없이 캐시 hit여도 헤더만 언어에 맞게.
+* **의도적으로 안 함:** preferences.display 마이그레이션/삭제; Brief For you 경로 변경
+
 ---

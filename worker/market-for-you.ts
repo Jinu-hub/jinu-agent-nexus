@@ -27,6 +27,7 @@ import {
   preferenceKey,
   type PreferenceRow,
 } from "../src/lib/topic-preference";
+import { interestDisplayLabel } from "../src/lib/market-tag-lexicon";
 
 /** Interests summarized per request — keeps the prompt and latency bounded. */
 const MAX_INTERESTS = 6;
@@ -36,7 +37,7 @@ const PASSAGES_PER_INTEREST = 3;
 export type ForYouInterest = {
   kind: PreferenceRow["kind"];
   target: string;
-  /** UI label (preference display → topic_labels → target). */
+  /** UI label — same as Topics (`interestDisplayLabel` + content_lang). */
   display: string;
   level: number;
 };
@@ -244,10 +245,16 @@ export async function buildForYou(
     preferences.map((p) => p.target),
     resolved.lang,
   );
+  // Same lang-aware chip label as Topics My interests (skip Hangul frozen
+  // display when content_lang is en).
   const toInterest = (row: PreferenceRow): ForYouInterest => ({
     kind: row.kind,
     target: row.target,
-    display: row.display?.trim() || labels[row.target] || row.target,
+    display: interestDisplayLabel(row.target, {
+      preferenceDisplay: row.display,
+      labelMap: labels,
+      contentLang: resolved.lang,
+    }),
     level: row.level,
   });
 
@@ -256,10 +263,10 @@ export async function buildForYou(
     reportKeys.has(preferenceKey(row.kind, row.target)),
   );
   // Highest star level first — that is the order the sections appear in.
-  const matched = [...matchedRows]
-    .sort((a, b) => b.level - a.level || a.target.localeCompare(b.target))
-    .slice(0, MAX_INTERESTS)
-    .map(toInterest);
+  const matchedSorted = [...matchedRows].sort(
+    (a, b) => b.level - a.level || a.target.localeCompare(b.target),
+  );
+  const matched = matchedSorted.slice(0, MAX_INTERESTS).map(toInterest);
   const interests = preferences.map(toInterest);
 
   if (preferences.length === 0) {
@@ -282,12 +289,24 @@ export async function buildForYou(
           sections: ForYouSection[];
           degraded?: boolean;
         };
+        // Re-resolve displays for current lang (cached JSON may freeze KO labels).
+        const byKey = new Map(
+          matched.map((i) => [`${i.kind}:${i.target}`, i] as const),
+        );
+        const sections = cached.sections.map((section) => {
+          const fresh = byKey.get(
+            `${section.interest.kind}:${section.interest.target}`,
+          );
+          return fresh
+            ? { ...section, interest: { ...section.interest, display: fresh.display } }
+            : section;
+        });
         return {
           ...base,
           state: "ready",
           interests,
           matched,
-          sections: cached.sections,
+          sections,
           cached: true,
           ...(cached.degraded ? { degraded: true } : {}),
         };
@@ -298,14 +317,14 @@ export async function buildForYou(
   }
 
   // ── Retrieve report passages per interest ───────────────────────────────
-  // Both labels are queried: the report body says "OpenAI" while the saved
-  // display is "오픈AI", and either can be the one that retrieves.
+  // Query UI label + slug + any frozen star label (KO star / EN body, etc.).
   const interestByQuery = new Map<string, ForYouInterest>();
-  for (const interest of matched) {
+  for (const row of matchedSorted.slice(0, MAX_INTERESTS)) {
+    const interest = toInterest(row);
     interestByQuery.set(interest.display, interest);
-    if (!interestByQuery.has(interest.target)) {
-      interestByQuery.set(interest.target, interest);
-    }
+    interestByQuery.set(interest.target, interest);
+    const frozen = row.display?.trim();
+    if (frozen) interestByQuery.set(frozen, interest);
   }
 
   let hits: MarketVectorHit[];

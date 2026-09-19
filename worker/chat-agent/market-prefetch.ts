@@ -3,6 +3,7 @@
 // beforeTurn injects authoritative JSON so the model can answer without tools.
 
 import type { ChatAgent } from "./ChatAgent";
+import { REPLY_LANG_LOCK } from "./soul-market";
 import { getSettings } from "./settings";
 import { getTodayContentAudio } from "../content-audio";
 import { getTodayContentBrief } from "../content-briefs";
@@ -551,7 +552,8 @@ export async function buildMarketPrefetchBlock(
             seoulHints: hints,
             briefs: { earlier: a, later: b },
             instruction:
-              "Compare tone/themes using pulse/takeaway/title (and excerpts if needed). Explain what changed and why a reader should care — not a thin label list. Do NOT paste full content. Do NOT emit <tool_call> or XML tool markup — facts are already here. Optional quiet closer: full text in Market tab by date. later ≈ data-backed latest (not blindly calendar yesterday). Korean commentary: 해요체 ONLY for the whole reply (RULE 5b) — do not mix …다/…입니다/…습니다.",
+              "Compare tone/themes using pulse/takeaway/title (and excerpts if needed). Explain what changed and why a reader should care — not a thin label list. Do NOT paste full content. Do NOT emit <tool_call> or XML tool markup — facts are already here. Optional quiet closer: full text in Market tab by date (same language as the user). later ≈ data-backed latest (not blindly calendar yesterday). " +
+              REPLY_LANG_LOCK,
           },
           userInterests,
           { snippets, includeHits: true },
@@ -607,8 +609,8 @@ export async function buildMarketPrefetchBlock(
                 "(주요/추가 항목, companies/events, 마무리, 용어) + why it matters in one short clause; " +
                 "(2) optional one-line closer if they largely align. " +
                 "Keep total length near the risk-answer style (compact). No full dump. No <tool_call>/XML. " +
-                "Optional quiet closer: Market 탭 → Brief / Report. " +
-                "Korean: 해요체 ONLY (RULE 5b).",
+                "Optional quiet closer: Market tab → Brief / Report (user's language). " +
+                REPLY_LANG_LOCK,
             },
             userInterests,
             { keywords: reportKw, snippets, includeHits: true },
@@ -660,33 +662,37 @@ export async function buildMarketPrefetchBlock(
 
       const mapLines = formatChatUiTopicMapLines(uiTopicMap);
       const baseInstruction = intent.fullText
-        ? "User wants the FULL report. Do NOT paste content/excerpt into chat. Do NOT emit <tool_call> or XML. Reply in 1–2 short lines pointing to Market tab → Report (include marketDate)."
+        ? "User wants the FULL report. Do NOT paste content/excerpt into chat. Do NOT emit <tool_call> or XML. Reply in 1–2 short lines pointing to Market tab → Report (include marketDate). " +
+          REPLY_LANG_LOCK
         : keywordsOnly && quoted.length === 0
           ? "User wants KEYWORDS + optional story. " +
             "Use prefetch `uiTopicMap` (same Settings-lang display map as home Topics Keywords chips). " +
             "Copy kind+display as shown — do NOT invent translations, do NOT dump raw English slugs when display is KO. " +
-            "OUTPUT SHAPE (markdown; follow exactly):\n" +
-            "**태그 맵**\n" +
+            "OUTPUT SHAPE (markdown; follow exactly; section titles in the user's language):\n" +
+            "**Tag map** (KO: **태그 맵**)\n" +
             (mapLines.length > 0
               ? mapLines.join("\n") + "\n"
               : "- (no labeled chips — say so gently)\n") +
             "\n" +
-            "**한눈 스토리**\n" +
-            "- (1–2 해요체 bullets max — day's through-line from summary/highlights; do NOT explain each chip)\n" +
+            "**At a glance** (KO: **한눈 스토리**)\n" +
+            "- (1–2 bullets max — day's through-line from summary/highlights; do NOT explain each chip)\n" +
             "\n" +
-            "원문·리포트는 Market 탭.\n" +
+            "Quiet closer in the user's language (KO: 원문·리포트는 Market 탭 / EN: Full report → Market tab).\n" +
             "Forbidden: raw `tags:`/`places:` JSON dumps; per-chip lectures; meta headers. " +
-            "If interestHits is non-empty, lead those displays in the map. No <tool_call>/XML."
+            "If interestHits is non-empty, lead those displays in the map. No <tool_call>/XML. " +
+            REPLY_LANG_LOCK
           : quoted.length > 0
-            ? "User asked about a specific keyword in the full report. Prefer vectorSearch.hits when present. Explain what the hits mean for the reader (cause/effect), not a search-result dump."
+            ? "User asked about a specific keyword in the full report. Prefer vectorSearch.hits when present. Explain what the hits mean for the reader (cause/effect), not a search-result dump. " +
+              REPLY_LANG_LOCK
             : "Report CORE for beginners — same compactness as a good risk answer. " +
-              "OUTPUT: short lead (1–2 해요체 sentences) + exactly 3 \"- \" bullets (blank line between) " +
+              "OUTPUT: short lead (1–2 sentences) + exactly 3 \"- \" bullets (blank line between) " +
               "covering the main themes from summary/highlights/excerpt — each bullet 1–2 sentences: what + why it matters. " +
               "Then optional one-line takeaway. " +
               "HARD CAP: do NOT write 5–7 section essays; do NOT append parenthetical keyword dumps after each theme; " +
               "do NOT tour every highlight. Pick the top 3. " +
               "Do NOT paste the full report. No <tool_call>/XML. If interestHits is non-empty, prefer those themes in the 3. " +
-              "Optional quiet closer: Market 탭 → Report. Korean: 해요체 ONLY (RULE 5b).";
+              "Optional quiet closer: Market tab → Report (user's language). " +
+              REPLY_LANG_LOCK;
       return JSON.stringify(
         await withVectorSearch(
           env,
@@ -752,8 +758,10 @@ export async function buildMarketPrefetchBlock(
             seoulHints: hints,
             brief,
             instruction: fullTextAsk
-              ? "User wants the FULL brief. Do NOT paste content/excerpt into chat. Reply in 1–2 short lines pointing to Market tab → Brief / Latest (include marketDate). Tools unnecessary."
-              : "You are an understanding aide. Using title/pulse/takeaway/excerpt, explain the answer: what happened, why it matters, and a clear takeaway. Prefer 4–8 sentences or equivalent \"- \" bullets with blank lines — not a one-line echo of pulse. Do NOT paste the full brief. Optional quiet closer: Market tab → Brief. Do not call getTodayMarketBrief unless a needed date is missing. Korean commentary: 해요체 ONLY for the whole reply (RULE 5b) — do not mix …다/…입니다/…습니다.",
+              ? "User wants the FULL brief. Do NOT paste content/excerpt into chat. Reply in 1–2 short lines pointing to Market tab → Brief / Latest (include marketDate). Tools unnecessary. " +
+                REPLY_LANG_LOCK
+              : "You are an understanding aide. Using title/pulse/takeaway/excerpt, explain the answer: what happened, why it matters, and a clear takeaway. Prefer 4–8 sentences or equivalent \"- \" bullets with blank lines — not a one-line echo of pulse. Do NOT paste the full brief. Optional quiet closer: Market tab → Brief (user's language). Do not call getTodayMarketBrief unless a needed date is missing. " +
+                REPLY_LANG_LOCK,
           },
           userInterests,
           { snippets, includeHits: true },

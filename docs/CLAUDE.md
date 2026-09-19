@@ -166,7 +166,7 @@ worker/
   chat-agent/
     ChatAgent.ts       Class — lifecycle + @callable RPC
     configure-session.ts
-    soul-market.ts     Market RULE 5–7 (omit when porting without Market)
+    soul-market.ts     Market RULE 5–7 + REPLY_LANG_LOCK (chat reply = this-turn user language; 해요체 only when Korean)
     tools-registry.ts  getBoilerplateTools + getMarketMemoryTools
     refresh-state.ts
     market-turn-hooks.ts beforeTurn/beforeStep Market seam
