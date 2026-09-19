@@ -7,6 +7,10 @@
 // Publishing is a daily batch (~22:30 UTC). "Latest" is the newest
 // market_date that actually has a final brief (GET /api/briefs/latest-date),
 // not blindly Seoul yesterday — weekends/holidays often have no US-market row.
+//
+// Slim home (`SHOW_MARKET_WORKBENCH = false`): pulse/takeaway + brief body +
+// report blurb + voice + reading CTA. Topics/Ask live in ChatHelperRail;
+// full Brief/Voice/Report folds stay behind the flag for easy rollback.
 // ─────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -26,7 +30,7 @@ import {
   Volume2,
 } from "lucide-react";
 import type { ContentLang } from "../../worker/chat-agent/settings";
-import { hidesReportSummaryBlurb } from "../../worker/report-series";
+import { hidesBriefLeadSummary, hidesReportSummaryBlurb } from "../../worker/report-series";
 import { readingHrefForSeriesSlug } from "@/lib/report-pages";
 import { calendarYesterdayYmd, metaString, seoulYmd, shiftYmd } from "@/lib/market-date";
 import {
@@ -48,6 +52,9 @@ import {
 } from "./ReportReader";
 import { SHOW_MY_INTERESTS } from "./MyInterestsFold";
 import { BriefForYou, SHOW_BRIEF_FOR_YOU } from "./BriefForYou";
+
+/** Full Brief/Voice/Report workbench on the home Market tab. Off = slim card. */
+export const SHOW_MARKET_WORKBENCH = false;
 
 function slotCacheKey(
   marketDate: string,
@@ -293,6 +300,8 @@ export function MarketPanel({
   const showReportSummaryBlurb =
     Boolean(reportItem?.summary?.trim()) &&
     !hidesReportSummaryBlurb(activeSlot?.seriesSlug);
+  const showBriefLead =
+    !hidesBriefLeadSummary(activeSlot?.seriesSlug);
   const hasReportCandidate = Boolean(activeSlot?.targetId);
   const hasReport = Boolean(reportItem?.content);
   const reportCheckedMissing =
@@ -598,7 +607,7 @@ export function MarketPanel({
         </div>
       ) : null}
 
-      {readingHref ? (
+      {readingHref && SHOW_MARKET_WORKBENCH ? (
         <a
           href={readingHref}
           className={cn(
@@ -619,6 +628,121 @@ export function MarketPanel({
         <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted-foreground">
           <LoaderCircle className="size-3.5 animate-spin" />
           Loading…
+        </div>
+      ) : date && !SHOW_MARKET_WORKBENCH ? (
+        <div className="space-y-3">
+          <div className="paper-inset space-y-2.5 px-3 py-2.5">
+            <div className="space-y-1">
+              <p className="text-[11px] font-medium leading-snug text-foreground">
+                {briefItem?.title ??
+                  reportItem?.title ??
+                  activeSlot?.seriesTitle ??
+                  "Market Memory"}
+              </p>
+              <p className="font-mono text-[10px] text-muted-foreground">
+                {[
+                  date,
+                  lang,
+                  hasVoice ? "voice" : null,
+                  hasReport ? "report" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            </div>
+            {showBriefLead && pulse ? (
+              <p className="text-[11px] leading-relaxed text-foreground/90">
+                {pulse}
+              </p>
+            ) : null}
+            {showBriefLead && takeaway ? (
+              <p className="rounded-md bg-muted/40 px-2 py-1.5 text-[10px] leading-relaxed text-muted-foreground">
+                {takeaway}
+              </p>
+            ) : null}
+            {hasBrief ? (
+              <div
+                className={cn(
+                  "space-y-1.5",
+                  showBriefLead && (pulse || takeaway)
+                    ? "border-t border-border/60 pt-2"
+                    : null,
+                )}
+              >
+                <p className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
+                  Brief
+                </p>
+                <div className="max-h-[min(32rem,calc(100dvh-20rem))] overflow-y-auto whitespace-pre-wrap text-[11px] leading-relaxed text-foreground">
+                  {briefItem!.content}
+                </div>
+              </div>
+            ) : (
+              <EmptyHint
+                kind="brief"
+                date={date}
+                lang={lang}
+                calendarToday={calendarToday}
+                expectedLatest={effectiveLatest}
+                onOpenLatest={openLatest}
+              />
+            )}
+            {hasBrief ? (
+              <BriefForYou
+                preferences={preferences}
+                pulse={pulse}
+                takeaway={takeaway}
+                content={briefItem!.content}
+              />
+            ) : null}
+            {showReportSummaryBlurb ? (
+              <div className="space-y-1.5 border-t border-border/60 pt-2">
+                <p className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
+                  Report
+                </p>
+                <p className="text-[10px] leading-relaxed text-muted-foreground">
+                  {reportItem!.summary}
+                </p>
+              </div>
+            ) : reportCheckedMissing ? (
+              <p className="border-t border-border/60 pt-2 text-[10px] text-muted-foreground">
+                Report not published for this day.
+              </p>
+            ) : null}
+            {hasVoice && playPath ? (
+              <div className="space-y-1.5 border-t border-border/60 pt-2">
+                <p className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
+                  Voice
+                </p>
+                <audio
+                  className="w-full"
+                  controls
+                  preload="metadata"
+                  src={playPath}
+                >
+                  <a href={playPath} target="_blank" rel="noreferrer">
+                    Download MP3
+                  </a>
+                </audio>
+              </div>
+            ) : null}
+          </div>
+          {readingHref ? (
+            <a
+              href={readingHref}
+              className={cn(
+                "flex w-full items-center justify-center gap-1 rounded-md border border-border bg-background px-3 py-2",
+                "text-[11px] font-medium text-foreground",
+                "hover:border-primary/40 hover:bg-accent hover:text-primary",
+              )}
+            >
+              이 리포트 크게 보기
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </a>
+          ) : (
+            <p className="text-center text-[10px] text-muted-foreground">
+              Reading page not registered for this series.
+            </p>
+          )}
         </div>
       ) : date ? (
         <div className="space-y-3">
@@ -887,7 +1011,7 @@ export function MarketPanel({
         </p>
       )}
 
-      {hasReport && reportItem?.content ? (
+      {SHOW_MARKET_WORKBENCH && hasReport && reportItem?.content ? (
         <ReportReaderModal
           open={reportModalOpen}
           onClose={() => setReportModalOpen(false)}

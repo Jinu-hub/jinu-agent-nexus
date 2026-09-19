@@ -71,7 +71,7 @@
 
 | 영역 | 경로 |
 |------|------|
-| Panel | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `report-topics.tsx`, `MyInterestsFold.tsx`, `BriefForYou.tsx` — inspect workbench; Topics/Ask는 홈 `ChatHelperRail`; registered series → reading page helper |
+| Panel | `src/panels/MarketPanel.tsx` (`SHOW_MARKET_WORKBENCH` slim vs folds), `ReportReader.tsx`, `report-topics.tsx`, `MyInterestsFold.tsx`, `BriefForYou.tsx`; Topics/Ask는 홈 `ChatHelperRail`; registered series → reading page |
 | Libs | `src/lib/market-date.ts`, `market-suggestions.ts`, `topic-preference.ts`, `brief-for-you.ts`, `market-fetch.ts`, `use-market-day-data.ts`, `use-market-preferences.ts` |
 
 ### Docs (포팅 후 선택)
@@ -183,3 +183,4 @@
 | 2026-09-17 | 헤더 Market 카테고리 메뉴 — A `report-pages` / `HomeReportExits` ([`WORK_NOTES_3` §36](./WORK_NOTES_3.md)) |
 | 2026-09-19 | 홈 왼쪽 Chat helper 레일 — A `ChatHelperRail` + B `App`/`Chat` ([`WORK_NOTES_3` §41](./WORK_NOTES_3.md)) |
 | 2026-09-19 | 홈 Market fetch 훅 공유 — A `market-fetch` / `use-market-day-data` / `use-market-preferences`; Wave 2 일부 ([`WORK_NOTES_3` §41.1](./WORK_NOTES_3.md)) |
+| 2026-09-19 | 홈 Market 패널 슬림 — A `SHOW_MARKET_WORKBENCH` ([`WORK_NOTES_3` §41.2](./WORK_NOTES_3.md)) |

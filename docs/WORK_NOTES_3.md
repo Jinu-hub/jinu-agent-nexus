@@ -172,8 +172,8 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
   * `src/panels/report-topics.tsx` — `SHOW_TOPICS_SECTION` 주석 (홈 레일)
   * `worker/chat-agent/soul-market.ts` · `market-prefetch.ts` · `market-vector-search.ts` · `worker/tools/getTodayMarketReport.ts` — Topics 안내를 홈 사이드바로
   * docs: `CLAUDE.md`, `ARCHITECTURE.md`, `MERGE_STRATEGY.md`, 본 절
-* **확인 (로컬 2026-09-19):** 홈 `1440`에서 왼쪽 Ask 레일(Topics + 추천 칩) · `키워드만` 클릭 시 가운데 챗으로 전송 · Market 탭은 Brief/Voice/Report만 · `900`폭에서 헤더 Open helper 드로어 · `/daily-market-issues`는 기존 Ask 헤더 버튼·읽기 레이아웃 유지
-* **의도적으로 안 함:** 리포트 페이지 왼쪽 레일; 홈 Market 패널 Brief/Voice/Report 슬림화; `HOME_CHAT_SUGGESTIONS` 삭제(레일은 전체 `MARKET_SUGGESTIONS` 사용)
+* **확인 (로컬 2026-09-19):** 홈 `1440`에서 왼쪽 Ask 레일(Topics + 추천 칩) · `키워드만` 클릭 시 가운데 챗으로 전송 · Market 탭은 슬림 카드(§41.2) · `900`폭에서 헤더 Open helper 드로어 · `/daily-market-issues`는 기존 Ask 헤더 버튼·읽기 레이아웃 유지
+* **의도적으로 안 함:** 리포트 페이지 왼쪽 레일; `HOME_CHAT_SUGGESTIONS` 삭제(레일은 전체 `MARKET_SUGGESTIONS` 사용)
 
 ### 41.1 홈 Market fetch 훅 공유 *(완료)*
 
@@ -185,6 +185,16 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
   * `src/chat/ChatHelperRail.tsx` · `src/panels/MarketPanel.tsx` — 위 훅 사용; Market Refresh → 캐시 무효화 + prefs reload
   * docs: `CLAUDE.md`, `MERGE_STRATEGY.md` (Wave 2 일부), 본 소절
 * **확인:** 홈 로드 시 Network에서 `report-series` / `latest-date` / `day`가 레일·패널 합쳐 각 1회(동일 키); 레일에서 ★ → Market BriefForYou 반영; Market Refresh 후 레일 Topics도 재로드
-* **의도적으로 안 함:** 리포트 페이지 레일; Market 패널 섹션 컴포넌트 분리 / App panel-registry (Wave 2 나머지); Brief/Voice/Report 슬림화
+* **의도적으로 안 함:** 리포트 페이지 레일; Market 패널 섹션 컴포넌트 분리 / App panel-registry (Wave 2 나머지)
+
+### 41.2 홈 Market 패널 슬림 *(완료)*
+
+* **목적:** 홈 오른쪽 Market 탭은 **정보 카드 + 읽기 페이지 출구**. Brief/Voice/Report 접이식 워크벤치·인패널 Report reader는 플래그로 보관. Topics/Ask는 왼쪽 `ChatHelperRail`.
+* **수정 및 추가 파일:**
+  * `src/panels/MarketPanel.tsx` — `SHOW_MARKET_WORKBENCH = false`; 슬림 카드: title·meta·(시리즈별) pulse/takeaway·**Brief 본문**(`max-h` ≈ `min(32rem, 100dvh−20rem)`)·Report summary blurb·Voice·「이 리포트 크게 보기」 CTA; folds·ReportReaderModal은 `true`일 때만
+  * `worker/report-series.ts` — `hidesBriefLeadSummary` (`weekly-ai-issues` / `weekly-market-issues` / `daily-market-issues`는 pulse·takeaway 생략, Brief부터)
+  * docs: `CLAUDE.md`, `ARCHITECTURE.md`, `MERGE_STRATEGY.md`, 본 소절
+* **확인:** 홈 Market에 Brief/Voice/Report 접이 섹션 없음 · 위 3 시리즈는 title 다음 Brief · 다른 시리즈는 pulse/takeaway 유지 · CTA → `/<slug>` · `SHOW_MARKET_WORKBENCH = true`면 기존 워크벤치
+* **의도적으로 안 함:** 리포트 페이지 helper 레일; 워크벤치 코드 삭제(플래그만); Wave 2 섹션 분리
 
 ---

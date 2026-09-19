@@ -71,21 +71,34 @@ const SERIES_TAB_LABELS: Record<string, string> = {
 };
 
 /**
- * Series whose `item_contents.summary` usually repeats the report lead —
- * hide the gray summary blurb in Market Report UI (data/chat unchanged).
+ * Series whose lead copy (report `summary`, brief pulse/takeaway) usually
+ * repeats the body — hide those leads in Market UI (data/chat unchanged).
  */
-const HIDE_REPORT_SUMMARY_BLURB_SLUGS = new Set([
+const HIDE_REDUNDANT_LEAD_SLUGS = new Set([
   "weekly-ai-issues",
   "weekly-market-issues",
   "daily-market-issues",
 ]);
 
+function hidesRedundantLead(
+  seriesSlug: string | null | undefined,
+): boolean {
+  const slug = seriesSlug?.trim();
+  return Boolean(slug && HIDE_REDUNDANT_LEAD_SLUGS.has(slug));
+}
+
 /** True when Market Report UI should omit the gray summary block. */
 export function hidesReportSummaryBlurb(
   seriesSlug: string | null | undefined,
 ): boolean {
-  const slug = seriesSlug?.trim();
-  return Boolean(slug && HIDE_REPORT_SUMMARY_BLURB_SLUGS.has(slug));
+  return hidesRedundantLead(seriesSlug);
+}
+
+/** True when slim Market card should skip pulse/takeaway and start at Brief. */
+export function hidesBriefLeadSummary(
+  seriesSlug: string | null | undefined,
+): boolean {
+  return hidesRedundantLead(seriesSlug);
 }
 
 /** UI / API label for a catalog row (Settings Content rows). */
