@@ -247,7 +247,6 @@ export function MarketPanel({
   } = useMarketDayData({
     lang,
     enabledSeriesKey,
-    pinToLatest: false,
   });
 
   const error = dayError ?? preferencesError;

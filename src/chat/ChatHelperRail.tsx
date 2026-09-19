@@ -3,9 +3,9 @@
 // ─────────────────────────────────────────────────────────────────────────
 //
 // Chat is the hero on `/`. This rail is the sidekick: starred interests,
-// Latest-report keywords (tap → pendingAsk), and canned Market prompts.
-// It always reads the newest published day (not the Market panel date
-// picker) so "what can I ask right now" stays aligned with chat prefetch.
+// report keywords (tap → pendingAsk), and canned Market prompts.
+// Browse date + series tabs stay in sync with the Market panel (shared
+// date store + market_focus_series_id).
 //
 // Report pages (`/<slug>`) do not use this rail.
 // Fetch: shared `use-market-day-data` + `use-market-preferences` (cache).
@@ -15,7 +15,10 @@ import { useEffect, useMemo, useState } from "react";
 import { LoaderCircle, MessageSquare, Tags, X } from "lucide-react";
 
 import type { ContentLang } from "../../worker/chat-agent/settings";
-import { MARKET_SUGGESTIONS } from "@/lib/market-suggestions";
+import {
+  MARKET_SUGGESTIONS,
+  reportPageSuggestions,
+} from "@/lib/market-suggestions";
 import { buildTagLexicon } from "@/lib/market-tag-lexicon";
 import {
   useMarketDayData,
@@ -68,20 +71,20 @@ export function ChatHelperRail({
 
   const {
     latestDate,
+    date,
     slots,
     loading,
     error: dayError,
   } = useMarketDayData({
     lang,
     enabledSeriesKey,
-    pinToLatest: true,
   });
 
   const error = dayError ?? preferencesError;
 
   useEffect(() => {
     setInterestsOnly(false);
-  }, [latestDate, lang]);
+  }, [date, lang]);
 
   const activeSlot = useMemo(() => {
     if (slots.length === 0) return null;
@@ -117,6 +120,17 @@ export function ChatHelperRail({
   const seriesLabel =
     activeSlot?.seriesTabLabel || activeSlot?.seriesTitle || null;
 
+  const dateLabel = date
+    ? `${date === latestDate ? "Latest · " : ""}${date}${
+        seriesLabel ? ` · ${seriesLabel}` : ""
+      }`
+    : "Pick a day in Market";
+
+  const askSuggestions = useMemo(
+    () => (date ? reportPageSuggestions(date) : MARKET_SUGGESTIONS),
+    [date],
+  );
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-start gap-2 border-b border-border px-3 py-3">
@@ -124,9 +138,7 @@ export function ChatHelperRail({
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold tracking-tight">Ask</p>
           <p className="truncate font-mono text-[10px] text-muted-foreground">
-            {latestDate
-              ? `Latest · ${latestDate}${seriesLabel ? ` · ${seriesLabel}` : ""}`
-              : "Latest report topics"}
+            {dateLabel}
           </p>
         </div>
         {onClose ? (
@@ -208,7 +220,7 @@ export function ChatHelperRail({
                 countries={reportItem.countries}
                 regions={reportItem.regions}
                 metadata={reportItem.metadata}
-                marketDate={latestDate}
+                marketDate={date}
                 onAsk={onAskInChat}
                 preferences={preferences}
                 onToggleInterest={toggleInterest}
@@ -217,7 +229,7 @@ export function ChatHelperRail({
               />
             ) : (
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                {error ?? "No keywords on the latest report."}
+                {error ?? "No keywords for this day."}
               </p>
             )}
             {SHOW_TOPIC_CHIP_ASK || SHOW_TOPIC_CHIP_STAR ? (
@@ -246,7 +258,7 @@ export function ChatHelperRail({
           Chat interprets · full text stays in Market / the reading page.
         </p>
         <div className="flex flex-wrap gap-1.5">
-          {MARKET_SUGGESTIONS.map((s) => (
+          {askSuggestions.map((s) => (
             <button
               key={s.id}
               type="button"

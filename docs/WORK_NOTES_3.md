@@ -180,7 +180,7 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **목적:** `ChatHelperRail`과 `MarketPanel`이 같은 `/api/report-series` · `latest-date` · `day` · preferences · topic-labels를 **각자 호출**하던 중복을 제거. 코드 DRY + in-flight/TTL 캐시로 홈 마운트 시 네트워크 1회화. ★ interests는 모듈 스토어로 양쪽에 동기화.
 * **수정 및 추가 파일:**
   * `src/lib/market-fetch.ts` *(신규)* — 타입 + promise 캐시(`invalidateMarketFetch` / generation subscribe)
-  * `src/lib/use-market-day-data.ts` *(신규)* — `useReportSeriesCatalog` · `useMarketDayData`(`pinToLatest`) · `useTopicLabelMap`
+  * `src/lib/use-market-day-data.ts` *(신규)* — `useReportSeriesCatalog` · `useMarketDayData` · `useTopicLabelMap`
   * `src/lib/use-market-preferences.ts` *(신규)* — `useSyncExternalStore` 공유 preferences + toggle/remove
   * `src/chat/ChatHelperRail.tsx` · `src/panels/MarketPanel.tsx` — 위 훅 사용; Market Refresh → 캐시 무효화 + prefs reload
   * docs: `CLAUDE.md`, `MERGE_STRATEGY.md` (Wave 2 일부), 본 소절
@@ -196,5 +196,16 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
   * docs: `CLAUDE.md`, `ARCHITECTURE.md`, `MERGE_STRATEGY.md`, 본 소절
 * **확인:** 홈 Market에 Brief/Voice/Report 접이 섹션 없음 · 위 3 시리즈는 title 다음 Brief · 다른 시리즈는 pulse/takeaway 유지 · CTA → `/<slug>` · `SHOW_MARKET_WORKBENCH = true`면 기존 워크벤치
 * **의도적으로 안 함:** 리포트 페이지 helper 레일; 워크벤치 코드 삭제(플래그만); Wave 2 섹션 분리
+
+### 41.3 홈 Ask ↔ Market 날짜 동기화 *(완료)*
+
+* **목적:** Market 날짜 피커를 바꿔도 Ask 레일이 Latest에 고정되어 Topics/칩 날짜가 어긋나던 문제 해소. 시리즈 탭은 기존 `market_focus_series_id`로 맞춤.
+* **수정 및 추가 파일:**
+  * `src/lib/use-market-day-data.ts` — 모듈 `sharedBrowseDate` (`useSyncExternalStore`); `pinToLatest` 제거; Ask·Market 동일 `date`/`setDate`
+  * `src/chat/ChatHelperRail.tsx` — 공유 `date`로 Topics·칩·헤더·`reportPageSuggestions`; Latest일 때만 헤더에 `Latest ·`
+  * `src/panels/MarketPanel.tsx` — `pinToLatest` 인자 제거
+  * docs: 본 소절 · `CLAUDE.md` · `ARCHITECTURE.md` · `MERGE_STRATEGY.md`
+* **확인:** Market에서 날짜 이동 → Ask 헤더·Topics가 같은 `market_date` · 시리즈 탭 클릭 시 양쪽 포커스 유지 · Latest 버튼 시 Ask도 Latest
+* **의도적으로 안 함:** 리포트 페이지 레일; App으로 date lift; chat prefetch 날짜를 UI 피커에 강제
 
 ---

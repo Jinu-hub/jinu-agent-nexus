@@ -2,8 +2,9 @@
 // use-market-day-data — catalog + latest-date + day slots for home UI
 // ─────────────────────────────────────────────────────────────────────────
 //
-// ChatHelperRail pins to Latest; MarketPanel owns a date picker but shares
-// the same fetch helpers (and promise cache) so `/` does not double-load.
+// ChatHelperRail and MarketPanel share fetch helpers (promise cache) and a
+// module browse-date store so the Ask rail follows the Market date picker
+// (and series focus via settings.market_focus_series_id).
 // ─────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
@@ -23,6 +24,33 @@ import {
   subscribeMarketFetchGeneration,
   type MarketDaySlot,
 } from "@/lib/market-fetch";
+
+type DateUpdater =
+  | string
+  | null
+  | ((prev: string | null) => string | null);
+
+/** Home Ask + Market browse the same calendar day. */
+let sharedBrowseDate: string | null = null;
+const browseDateListeners = new Set<() => void>();
+
+function subscribeBrowseDate(listener: () => void): () => void {
+  browseDateListeners.add(listener);
+  return () => {
+    browseDateListeners.delete(listener);
+  };
+}
+
+function getBrowseDate(): string | null {
+  return sharedBrowseDate;
+}
+
+function setBrowseDate(next: DateUpdater): void {
+  const resolved = typeof next === "function" ? next(sharedBrowseDate) : next;
+  if (resolved === sharedBrowseDate) return;
+  sharedBrowseDate = resolved;
+  for (const listener of browseDateListeners) listener();
+}
 
 export function useReportSeriesCatalog(disabledReportSeries: string[]): {
   catalog: ReportSeriesRow[];
@@ -61,16 +89,13 @@ export function useReportSeriesCatalog(disabledReportSeries: string[]): {
 export function useMarketDayData({
   lang,
   enabledSeriesKey,
-  /** When true, always load Latest (helper rail). When false, date is controlled. */
-  pinToLatest = false,
 }: {
   lang: string;
   enabledSeriesKey: string;
-  pinToLatest?: boolean;
 }): {
   latestDate: string | null;
   date: string | null;
-  setDate: (next: string | null | ((prev: string | null) => string | null)) => void;
+  setDate: (next: DateUpdater) => void;
   slots: MarketDaySlot[];
   loading: boolean;
   latestLoading: boolean;
@@ -79,7 +104,14 @@ export function useMarketDayData({
   refresh: () => void;
 } {
   const [latestDate, setLatestDate] = useState<string | null>(null);
-  const [date, setDate] = useState<string | null>(null);
+  const date = useSyncExternalStore(
+    subscribeBrowseDate,
+    getBrowseDate,
+    getBrowseDate,
+  );
+  const setDate = useCallback((next: DateUpdater) => {
+    setBrowseDate(next);
+  }, []);
   const [slots, setSlots] = useState<MarketDaySlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [latestLoading, setLatestLoading] = useState(true);
@@ -95,23 +127,20 @@ export function useMarketDayData({
     [enabledSeriesKey],
   );
 
-  // Panel: reset the date picker when lang / enabled series change.
+  // Reset browse date when lang / enabled series change.
   useEffect(() => {
-    if (pinToLatest) return;
-    setDate(null);
+    setBrowseDate(null);
     setSlots([]);
-  }, [lang, enabledSeriesKey, pinToLatest]);
+  }, [lang, enabledSeriesKey]);
 
   // Resolve Latest whenever lang / enabled series / refresh changes.
   useEffect(() => {
     if (seriesIds.length === 0) {
       setLatestDate(null);
       setLatestLoading(false);
-      if (pinToLatest) {
-        setDate(null);
-        setSlots([]);
-        setLoading(false);
-      }
+      setBrowseDate(null);
+      setSlots([]);
+      setLoading(false);
       return;
     }
 
@@ -122,21 +151,13 @@ export function useMarketDayData({
       .then((next) => {
         if (!active) return;
         setLatestDate(next);
-        if (pinToLatest) {
-          setDate(next);
-        } else {
-          setDate((prev) => prev ?? next);
-        }
+        setBrowseDate((prev) => prev ?? next);
       })
       .catch((err) => {
         if (!active) return;
         const fallback = calendarYesterdayYmd();
         setLatestDate(fallback);
-        if (pinToLatest) {
-          setDate(fallback);
-        } else {
-          setDate((prev) => prev ?? fallback);
-        }
+        setBrowseDate((prev) => prev ?? fallback);
         setError(
           err instanceof Error
             ? err.message
@@ -152,9 +173,9 @@ export function useMarketDayData({
     };
     // seriesIds identity via enabledSeriesKey
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lang, enabledSeriesKey, pinToLatest, fetchGeneration]);
+  }, [lang, enabledSeriesKey, fetchGeneration]);
 
-  // Load day slots for the active date.
+  // Load day slots for the shared browse date.
   useEffect(() => {
     if (!date || seriesIds.length === 0) {
       if (!date) setSlots([]);

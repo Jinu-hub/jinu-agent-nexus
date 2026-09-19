@@ -192,7 +192,7 @@ src/
   lib/utils.ts         cn() helper
   lib/market-date.ts   Seoul YMD helpers for Market panel (mirrors worker/lib/market-date.ts)
   lib/market-fetch.ts  Shared Market HTTP + promise cache (home rail + Market panel)
-  lib/use-market-day-data.ts · use-market-preferences.ts  Hooks over market-fetch / MyMemory prefs
+  lib/use-market-day-data.ts · use-market-preferences.ts  Hooks over market-fetch / MyMemory prefs (shared browse date + interests)
 skills/                Markdown files seeded to R2 as on-demand context
 wrangler.jsonc         All Cloudflare bindings and vars
 worker-env.d.ts        Env augmentations (secrets + typed DO stub)
@@ -229,7 +229,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Voice audio pipeline | `content-audio.ts` barrel + `content-audio-domain.ts` / `content-audio-routes.ts` + `voice-audio-cron.ts` (UTC `0 0` + catch-up `0 1`) → `/api/audio/*`; today play + tool `getTodayMarketVoice.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
-| UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` + `HomeReportExits.tsx` + `ChatHelperRail.tsx` — empty state = LYRA intro + report landing cards (`REPORT_NAV_CATEGORIES`) + CF stack; helper rail = Topics + `MARKET_SUGGESTIONS`; header category menus (`Market` ▾ → pages, always shown); Reset/Clear labels `xl+`; helper rail docks at `xl+`, right panels at `lg+`, drawers below (`App.tsx` `helperOpen` / `panelOpen`) |
+| UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` + `HomeReportExits.tsx` + `ChatHelperRail.tsx` — empty state = LYRA intro + report landing cards (`REPORT_NAV_CATEGORIES`) + CF stack; helper rail = Topics + Ask for shared Market browse date (`reportPageSuggestions` when dated); header category menus (`Market` ▾ → pages, always shown); Reset/Clear labels `xl+`; helper rail docks at `xl+`, right panels at `lg+`, drawers below (`App.tsx` `helperOpen` / `panelOpen`) |
 | Chat transcript / input (shared) | `src/chat/ChatParts.tsx` (`ChatMessageList` + `ChatComposer`) + `src/chat/use-client-tools.ts`; each surface supplies its own header + `empty` state (shell = `Chat.tsx`, report page = `ReportChat.tsx`) |
 | Voice in-chat player | `src/chat/Message.tsx` — `<audio>` when `getTodayMarketVoice` returns `playPath` |
 

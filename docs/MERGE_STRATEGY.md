@@ -184,3 +184,4 @@
 | 2026-09-19 | 홈 왼쪽 Chat helper 레일 — A `ChatHelperRail` + B `App`/`Chat` ([`WORK_NOTES_3` §41](./WORK_NOTES_3.md)) |
 | 2026-09-19 | 홈 Market fetch 훅 공유 — A `market-fetch` / `use-market-day-data` / `use-market-preferences`; Wave 2 일부 ([`WORK_NOTES_3` §41.1](./WORK_NOTES_3.md)) |
 | 2026-09-19 | 홈 Market 패널 슬림 — A `SHOW_MARKET_WORKBENCH` ([`WORK_NOTES_3` §41.2](./WORK_NOTES_3.md)) |
+| 2026-09-19 | 홈 Ask ↔ Market 날짜 동기화 — A `use-market-day-data` sharedBrowseDate ([`WORK_NOTES_3` §41.3](./WORK_NOTES_3.md)) |
