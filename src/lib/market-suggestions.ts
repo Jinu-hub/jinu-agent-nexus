@@ -13,42 +13,42 @@ export const MARKET_SUGGESTIONS: MarketSuggestion[] = [
   {
     id: "risk",
     label: "리스크 정리",
-    prompt: "Latest 브리핑에서 가장 큰 리스크만 정리해줘",
+    prompt: "Latest 브리핑에서 가장 큰 리스크가 왜 중요한지 쉽게 설명해줘",
   },
   {
     id: "pulse",
     label: "pulse / takeaway",
-    prompt: "어제 pulse/takeaway 한 줄로 말해줘",
+    prompt: "어제 pulse/takeaway를 쉽게 풀어서 설명해줘",
   },
   {
     id: "compare",
     label: "톤 비교",
-    prompt: "그제랑 어제 브리핑 톤이 어떻게 달라졌지?",
+    prompt: "그제랑 어제 브리핑 톤이 어떻게 달라졌고 왜 그런지 설명해줘",
   },
   {
     id: "reportCore",
     label: "풀리포트 핵심",
-    prompt: "어제 풀리포트 핵심만 정리해줘",
+    prompt: "어제 풀리포트 핵심을 초보자도 이해하게 설명해줘",
   },
   {
     id: "keywords",
     label: "키워드만",
-    prompt: "Latest 풀리포트 키워드만 말해줘",
+    prompt: "Latest 풀리포트 키워드를 알려주고, 오늘 스토리가 뭔지 한눈에 설명해줘",
   },
   {
     id: "companies",
     label: "주요 기업",
-    prompt: "Latest 풀리포트에 나온 주요 기업·기관만 말해줘",
+    prompt: "Latest 풀리포트에 나온 주요 기업·기관이 왜 언급됐는지 설명해줘",
   },
   {
     id: "highlights",
     label: "하이라이트만",
-    prompt: "어제 풀리포트 하이라이트만 말해줘",
+    prompt: "어제 풀리포트 하이라이트를 짚어주고 왜 중요한지 설명해줘",
   },
   {
     id: "briefVsReport",
     label: "리포트가 더 담은 것",
-    prompt: "어제 브리프에 없는 풀리포트 내용만 짚어줘",
+    prompt: "어제 브리프에 없는 풀리포트 내용을 짚어주고 왜 중요한지 설명해줘",
   },
   {
     id: "voice",
@@ -86,22 +86,22 @@ export function reportPageSuggestions(
     {
       id: "risk",
       label: "리스크",
-      prompt: `${marketDate} 브리핑에서 가장 큰 리스크만 정리해줘`,
+      prompt: `${marketDate} 브리핑에서 가장 큰 리스크가 왜 중요한지 쉽게 설명해줘`,
     },
     {
       id: "reportCore",
       label: "풀리포트 핵심",
-      prompt: `${marketDate} 풀리포트 핵심만 정리해줘`,
+      prompt: `${marketDate} 풀리포트 핵심을 초보자도 이해하게 설명해줘`,
     },
     {
       id: "briefVsReport",
       label: "리포트가 더 담은 것",
-      prompt: `${marketDate} 브리프에 없는 풀리포트 내용만 짚어줘`,
+      prompt: `${marketDate} 브리프에 없는 풀리포트 내용을 짚어주고 왜 중요한지 설명해줘`,
     },
     {
       id: "keywords",
       label: "키워드만",
-      prompt: `${marketDate} 풀리포트 키워드만 말해줘`,
+      prompt: `${marketDate} 풀리포트 키워드를 알려주고, 오늘 스토리가 뭔지 한눈에 설명해줘`,
     },
   ];
 }

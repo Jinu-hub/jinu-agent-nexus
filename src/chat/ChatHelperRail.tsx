@@ -255,7 +255,7 @@ export function ChatHelperRail({
           <p className="text-[11px] font-medium text-foreground">Ask in chat</p>
         </div>
         <p className="mb-2 text-[10px] leading-relaxed text-muted-foreground">
-          Chat interprets · full text stays in Market / the reading page.
+          이해는 챗에서 · 원문은 Market / 읽기 페이지.
         </p>
         <div className="flex flex-wrap gap-1.5">
           {askSuggestions.map((s) => (

@@ -185,3 +185,4 @@
 | 2026-09-19 | 홈 Market fetch 훅 공유 — A `market-fetch` / `use-market-day-data` / `use-market-preferences`; Wave 2 일부 ([`WORK_NOTES_3` §41.1](./WORK_NOTES_3.md)) |
 | 2026-09-19 | 홈 Market 패널 슬림 — A `SHOW_MARKET_WORKBENCH` ([`WORK_NOTES_3` §41.2](./WORK_NOTES_3.md)) |
 | 2026-09-19 | 홈 Ask ↔ Market 날짜 동기화 — A `use-market-day-data` sharedBrowseDate ([`WORK_NOTES_3` §41.3](./WORK_NOTES_3.md)) |
+| 2026-09-19 | 홈 Ask 챗 이해 도우미 톤 — A soul/prefetch/vector + Ask 칩 ([`WORK_NOTES_3` §41.4](./WORK_NOTES_3.md)) |

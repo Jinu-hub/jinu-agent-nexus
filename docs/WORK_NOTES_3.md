@@ -208,4 +208,38 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **확인:** Market에서 날짜 이동 → Ask 헤더·Topics가 같은 `market_date` · 시리즈 탭 클릭 시 양쪽 포커스 유지 · Latest 버튼 시 Ask도 Latest
 * **의도적으로 안 함:** 리포트 페이지 레일; App으로 date lift; chat prefetch 날짜를 UI 피커에 강제
 
+### 41.4 홈 Ask 챗 = 이해 도우미 톤 *(완료)*
+
+* **목적:** Ask-in-chat이 검색 스니펫·한 줄 에코처럼 느껴지던 문제. 챗은 **이해를 돕는 설명**(왜 중요한지·인과)을 해요체로; 전문 덤프는 계속 Market.
+* **수정 및 추가 파일:**
+  * `worker/chat-agent/soul-market.ts` — RULE 5를 understanding aide로; 분석 답 깊이 권장; `쉽게 말하면` 브리지 허용
+  * `worker/chat-agent/market-prefetch.ts` — brief/report/compare/reportVsBrief instruction을 설명형으로
+  * `worker/chat-agent/market-vector-search.ts` — explain 감지 확대(리스크·핵심·정리 등); lead + 더 긴 불릿
+  * `src/lib/market-suggestions.ts` — Ask 칩 프롬프트를 「쉽게 설명해줘」계열로
+  * `src/chat/ChatHelperRail.tsx` — 푸터 카피 “이해는 챗에서…”
+  * `worker/tools/getTodayMarketBrief.ts` · `getTodayMarketReport.ts` — tool 후 지시문도 설명형
+  * docs: 본 소절
+* **확인:** Clear chat → Ask `리스크` / `풀리포트 핵심` — 4–8문장급 설명·해요체 · Market으로만 회피하지 않음 · 전문 붙여넣기 없음
+* **의도적으로 안 함:** 전문을 챗에 붙여넣기; FE 후처리; prefetch 구조 개편
+
+### 41.5 Ask 답 길이·포맷 튜닝 *(완료)*
+
+* **목적:** 리스크 설명은 유지. 풀리포트 **핵심**은 장황함 억제(3불릿). **브리프 vs 리포트**는 제품/비유 강의 금지·델타만. **키워드+스토리**는 **태그 맵** + 짧은 한눈 스토리.
+* **수정 및 추가 파일:**
+  * `worker/chat-agent/market-prefetch.ts` — report / keywordsOnly / reportVsBrief instruction OUTPUT SHAPE
+  * `worker/tools/getTodayMarketReport.ts` — tool 후 지시 정렬
+  * docs: 본 소절
+* **확인:** Clear chat → 동일 3칩 — 핵심≈리스크 길이 · 브리프대비 서론 비유 없음 · 키워드는 태그 맵+짧은 스토리
+* **의도적으로 안 함:** FE 태그 UI 렌더; soul 전면 재작성
+
+### 41.5b 키워드 Ask = Topics와 같은 display 맵 *(완료)*
+
+* **목적:** “태그 맵” = Settings `content_lang`용 **topic_labels + lexicon** (홈 Keywords 칩과 동일). 모델이 영어 slug를 임의 번역·나열하지 않게 `uiTopicMap`을 prefetch에 심음.
+* **수정 및 추가 파일:**
+  * `worker/lib/chat-ui-topic-map.ts` *(신규)* — `loadTopicLabelMap` · `buildChatUiTopicMap` · `formatChatUiTopicMapLines`
+  * `worker/chat-agent/market-prefetch.ts` — keywordsOnly 시 `uiTopicMap` + OUTPUT에 KIND·display 고정
+  * docs: 본 소절
+* **확인:** Clear chat → 키워드 칩 — `INSTITUTION 일본은행` 식 (Topics와 같은 display) · 한눈 스토리 짧음
+* **의도적으로 안 함:** FE pickTopKeywords 라운드로빈을 worker에 완전 복제; INDICATOR/PERSON metadata 전 그룹 확장
+
 ---

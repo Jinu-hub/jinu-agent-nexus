@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 // Reuses getTodayContentBrief() from worker/content-briefs.ts (Phase A).
 // lang_code comes from ChatAgent Settings (content_lang), not chat UI language.
-// Chat answers briefly; full text lives in the Market sidebar panel.
+// Chat explains for understanding; full text lives in the Market sidebar panel.
 // ─────────────────────────────────────────────────────────────────────────
 
 import { tool } from "ai";
@@ -23,7 +23,7 @@ export function createGetTodayMarketBriefTool(agent: ChatAgent, env: Env) {
 
   return tool({
     description:
-      `Fetch Market Memory brief text (content_briefs) for grounding. Use for interpret/compare/checklist questions about market briefs — not as a full reprint. Language = Settings content_lang. Dates: Asia/Seoul today=${today}, calendar yesterday=${yesterday}. Omit date → newest market_date that has a final brief (often ${latestHint} on weekdays; earlier after weekends/holidays). After the tool returns: answer the user's question briefly; do NOT paste the full content; point to Market tab Latest for the full text.`,
+      `Fetch Market Memory brief text (content_briefs) for grounding. Use for interpret/compare/checklist questions about market briefs — not as a full reprint. Language = Settings content_lang. Dates: Asia/Seoul today=${today}, calendar yesterday=${yesterday}. Omit date → newest market_date that has a final brief (often ${latestHint} on weekdays; earlier after weekends/holidays). After the tool returns: explain the user's question with cause/effect and why it matters; do NOT paste the full content; optional quiet closer → Market tab Latest.`,
     inputSchema: z.object({
       date: z
         .string()
@@ -91,7 +91,7 @@ export function createGetTodayMarketBriefTool(agent: ChatAgent, env: Env) {
           usedExpectedLatest: resolved.usedExpectedLatest,
           usedDataBackedLatest: resolved.usedDataBackedLatest,
           presentation:
-            `Answer the user's question briefly using title/pulse/takeaway/content as evidence. Do NOT paste the full content into chat. One short line: full text is in Market tab (date ${result.marketDate}). Keep quoted snippets in lang=${result.lang}.`,
+            `Explain the user's question using title/pulse/takeaway/content as evidence (why it matters — not a one-line echo). Do NOT paste the full content into chat. Optional quiet closer: full text is in Market tab (date ${result.marketDate}). Keep quoted snippets in lang=${result.lang}.`,
         };
       } catch (error) {
         return {

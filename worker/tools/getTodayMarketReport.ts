@@ -50,7 +50,7 @@ export function createGetTodayMarketReportTool(agent: ChatAgent, env: Env) {
 
   return tool({
     description:
-      `Fetch Market Memory full report grounding (item_contents via brief.target_id). Use for 풀리포트 / digest / highlight / keyword questions — NOT a full reprint. Language = Settings content_lang. Dates: Asia/Seoul today=${today}, calendar yesterday=${yesterday}. Omit date → newest market_date with a final brief (often ${latestHint} on weekdays; earlier after weekends). After the tool returns: answer briefly from title/summary/excerpt/highlights/keywords; do NOT paste the full content; point to Market tab → Report, Topics on the home sidebar.`,
+      `Fetch Market Memory full report grounding (item_contents via brief.target_id). Use for 풀리포트 / digest / highlight / keyword questions — NOT a full reprint. Language = Settings content_lang. Dates: Asia/Seoul today=${today}, calendar yesterday=${yesterday}. Omit date → newest market_date with a final brief (often ${latestHint} on weekdays; earlier after weekends). After the tool returns: explain what happened and why it matters from title/summary/excerpt/highlights/keywords (understanding aide); do NOT paste the full content; optional quiet closer → Market tab → Report, Topics on the home sidebar.`,
     inputSchema: z.object({
       date: z
         .string()
@@ -121,7 +121,7 @@ export function createGetTodayMarketReportTool(agent: ChatAgent, env: Env) {
           usedExpectedLatest: resolved.usedExpectedLatest,
           usedDataBackedLatest: resolved.usedDataBackedLatest,
           presentation:
-            `Answer the user's question briefly using title/summary/excerpt/highlights/keywords. For keyword/tag/company asks, prefer the keywords object (tags, places, companies, …) — do not invent names. Do NOT paste the full markdown into chat. One short line: full report is in Market tab (date ${result.marketDate}); Topics are in the home sidebar. Keep quoted snippets in lang=${result.lang}.`,
+            `Explain using title/summary/excerpt/highlights/keywords. For CORE asks: short lead + exactly 3 bullets (what + why), no long section tours, no parenthetical tag dumps. For KEYWORD/스토리 asks: **태그 맵** (bucket · names) then at most 1–2 story bullets — never lecture each tag. For keyword/tag/company name lists, prefer the keywords object — do not invent names. Do NOT paste the full markdown. Optional quiet closer: Market tab (date ${result.marketDate}). Keep quoted snippets in lang=${result.lang}.`,
         };
       } catch (error) {
         return {

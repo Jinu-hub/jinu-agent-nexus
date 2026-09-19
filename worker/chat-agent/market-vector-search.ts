@@ -340,32 +340,40 @@ export function vectorSearchInstructionClause(
   const explain = isVectorExplainAsk(userText);
   const fromFallback = search.fallback === "keywords_highlights";
   const bulletHint = explain
-    ? Math.min(Math.max(search.hits.length + 1, 3), 5)
+    ? Math.min(Math.max(search.hits.length + 1, 3), 6)
     : Math.min(Math.max(search.hits.length, 2), 4);
   const depth = explain
-    ? `${bulletHint} markdown bullets (min 3, max 5); each bullet 1–2 sentences; cover cause/effect when present in hits`
-    : `${bulletHint} markdown bullets (min 2, max 4); each bullet = one line / one sentence`;
+    ? `${bulletHint} markdown bullets (min 3, max 6); each bullet 1–2 sentences; cover cause/effect and why it matters when present in hits`
+    : `${bulletHint} markdown bullets (min 2, max 4); each bullet = one clear sentence`;
   const sourceNote = fromFallback
     ? " Hits are from report highlights/keywords (vector empty; literal match only). " +
       "If a hit is only a keyword label (e.g. companies: Intel) without a narrative highlight, " +
       "say it appears in Topics (home sidebar) — do not invent story details.\n"
     : "";
+  const leadHint = explain
+    ? "After the heading, write 1–2 해요체 lead sentences that teach what this means for the reader, then the bullets.\n"
+    : "";
   return (
     " CRITICAL: keyword ask — answer ONLY from vectorSearch.hits text. " +
     "Do NOT invent. Do NOT pad with unrelated highlights/추가 항목. " +
     "Do NOT mention scores, hit counts, vectorSearch, embeddings, fallback, or prefetch JSON.\n" +
-    "When hits are non-empty you MUST summarize concrete facts from those texts. " +
+    "When hits are non-empty you MUST explain concrete facts from those texts " +
+    "(understanding aide — not a search snippet dump). " +
     "Never deflect with '내용이 많아요 / 직접 확인하세요 / Market 팀' instead of answering. " +
     "Prefer narrative / highlight sentences over glossary lines (- **TERM**: …).\n" +
     "VOICE LOCK (RULE 5b): Korean commentary = 해요체 ONLY for the whole reply " +
     "(…해요/…예요/…이에요/…졌어요). " +
     "Do NOT mix …다/…이다/…습니다/…었다 in the same answer. " +
     "Do NOT change the Market footer into …확인할 수 있습니다. " +
-    "No filler openers. Never collapse into one paragraph.\n" +
+    "One short '쉽게 말하면,' bridge is OK if it helps. Never collapse into one paragraph.\n" +
     sourceNote +
+    leadHint +
     "OUTPUT SHAPE (markdown; follow exactly):\n" +
     `**「${label}」**\n` +
     "\n" +
+    (explain
+      ? "(1–2 sentence lead, ends with …해요/…예요)\n\n"
+      : "") +
     "- (fact from hits, ends with …해요/…예요)\n" +
     "\n" +
     "- (fact from hits, ends with …해요/…예요)\n" +
@@ -373,14 +381,14 @@ export function vectorSearchInstructionClause(
     `(use ${depth}; each bullet on its own "- " line; blank line between bullets)\n` +
     "\n" +
     "원문·리포트는 Market 탭.\n" +
-    "Forbidden: paragraph walls; ★ heading; nested headers; 습니다 footer variants; score footnotes."
+    "Forbidden: paragraph walls without bullets; ★ heading; nested headers; 습니다 footer variants; score footnotes."
   );
 }
 
-/** True when the user asked for explanation (not a short tip). */
+/** True when the user asked for explanation / understanding help (not a one-liner tip). */
 export function isVectorExplainAsk(userText?: string): boolean {
   if (!userText?.trim()) return false;
-  return /관련\s*내용에\s*대해\s*설명|설명해\s*줘|자세히|상세히|풀어\s*줘/.test(
+  return /관련\s*내용에\s*대해\s*설명|설명해\s*줘|자세히|상세히|풀어\s*줘|쉽게|왜\s*중요|의미|핵심|리스크|정리해\s*줘|짚어\s*줘/.test(
     userText,
   );
 }
