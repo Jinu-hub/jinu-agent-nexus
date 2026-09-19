@@ -16,7 +16,17 @@ export const CONTENT_LANGS = ["ko", "en"] as const;
 export const DEFAULT_CONTENT_LANG: ContentLang = "ko";
 
 export function isContentLang(value: unknown): value is ContentLang {
-  return value === "ko" || value === "en";
+  return (
+    typeof value === "string" &&
+    (CONTENT_LANGS as readonly string[]).includes(value)
+  );
+}
+
+/** Cycle KO → EN → … for header toggles (grows with CONTENT_LANGS). */
+export function nextContentLang(lang: ContentLang): ContentLang {
+  const i = CONTENT_LANGS.indexOf(lang);
+  const next = CONTENT_LANGS[(i + 1) % CONTENT_LANGS.length];
+  return next ?? DEFAULT_CONTENT_LANG;
 }
 
 /**

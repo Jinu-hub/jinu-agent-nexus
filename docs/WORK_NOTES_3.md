@@ -299,4 +299,47 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **확인:** Settings EN → For you `★ energy INDUSTRY` (Topics와 동일). KO → `에너지`. Regenerate 없이 캐시 hit여도 헤더만 언어에 맞게.
 * **의도적으로 안 함:** preferences.display 마이그레이션/삭제; Brief For you 경로 변경
 
+### 42.3 헤더 언어 토글 (테마 옆) *(완료)*
+
+* **목적:** Settings를 열지 않고도 화면 언어(`content_lang`)를 바꿀 수 있게. 테마와 같은 글로벌 크롬 설정으로 헤더에 둔다.
+* **수정 및 추가 파일:**
+  * `src/chat/Chat.tsx` — 테마 오른쪽 `KO`/`EN` 버튼; `contentLang` / `onContentLangChange` / `contentLangUpdating` props
+  * `src/App.tsx` — Settings와 동일 `updateSettings({ content_lang })` 경로로 연결
+  * `src/i18n/messages.ts` — `chat.toggleLanguage`
+  * `docs/CLAUDE.md` — UI chat shell 행
+  * `docs/ARCHITECTURE.md` — Chat.tsx 행
+  * docs: 본 소절
+* **확인:** 헤더 `KO` 클릭 → `EN` + `html lang=en` + 슬로건/탭 영문; Settings Language도 같이 갱신. 반대도 동일. 업데이트 중 버튼 disabled.
+* **의도적으로 안 함:** Settings Language 섹션 제거; Report 페이지 헤더 토글; 챗 회신 언어 연동
+
+### 42.4 리포트 헤더도 같은 `content_lang` 토글 *(완료)*
+
+* **목적:** `/daily-market-issues` · `/weekly-ai-issues` 헤더의 언어 배지를 읽기 전용이 아니라 셸과 **같은 사이클·같은 Settings 행**으로 바꾸기. 화면마다 다른 로직을 두지 않음.
+* **수정 및 추가 파일:**
+  * `worker/chat-agent/settings.ts` — `nextContentLang()`; `isContentLang`이 `CONTENT_LANGS` 기준
+  * `src/i18n/content-lang.ts` *(신규)* — `patchContentLang` (`PATCH /settings`) + `nextContentLang` re-export
+  * `src/i18n/ContentLangToggle.tsx` *(신규)* — 공통 UI (`ghost` 셸 / `pill` 리포트)
+  * `src/chat/Chat.tsx` — 인라인 버튼 → `ContentLangToggle`
+  * `src/reports/ReportSurface.tsx` — 배지 → 토글; 저장 후 `?lang=` 핀 제거
+  * `src/i18n/messages.ts` — `common.toggleLanguage` (chat 키 제거)
+  * docs: `CLAUDE.md`, `ARCHITECTURE.md`, 본 소절
+* **확인:** 리포트 헤더 `KO`→`EN` → 크롬·브리프 lang 갱신; 홈 헤더/Settings도 같은 값. `?lang=en` 로드 후 토글하면 URL에서 `lang` 제거 + Settings 저장.
+* **의도적으로 안 함:** `/live` 헤더 토글; JA 추가 시 드롭다운 전환; Settings Language 섹션 제거
+
+### 42.5 테마+언어 ChromePrefs — 전 화면 동일 *(완료)*
+
+* **목적:** 달/해 + `KO`/`EN` 페어를 홈·리포트·`/live`에서 **같은 컴포넌트·같은 룩**으로. 테마는 `ThemeProvider`(localStorage), 언어는 기존 Settings 행.
+* **수정 및 추가 파일:**
+  * `src/lib/theme.tsx` *(신규)* — `ThemeProvider` / `useTheme` (`index.html` 부트 스크립트와 동일)
+  * `src/components/ChromePrefs.tsx` *(신규)* — Moon/Sun + `ContentLangToggle`
+  * `src/main.tsx` — 전 라우트 `ThemeProvider` 래핑
+  * `src/App.tsx` / `src/chat/Chat.tsx` — 로컬 theme 상태 제거 → `ChromePrefs`
+  * `src/reports/ReportSurface.tsx` — pill 배지 대신 `ChromePrefs`
+  * `src/live/LiveMarketRoom.tsx` — Gate/Room 헤더에 `ChromePrefs` + `patchContentLang`
+  * `src/i18n/ContentLangToggle.tsx` — pill appearance 제거 (단일 ghost)
+  * `src/i18n/messages.ts` — `common.toggleTheme`
+  * docs: `CLAUDE.md`, `ARCHITECTURE.md`, 본 소절
+* **확인:** `/` · `/daily-market-issues` · `/weekly-ai-issues` · `/live` 헤더에 동일 Moon+KO; 테마·언어가 화면 간 유지.
+* **의도적으로 안 함:** JA 드롭다운; Settings Language 섹션 제거
+
 ---

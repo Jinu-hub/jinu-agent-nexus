@@ -16,9 +16,11 @@
 
 import { useEffect, useRef } from "react";
 import { useAgentChat } from "@cloudflare/ai-chat/react";
-import { Trash2, RotateCcw, Moon, Sun, PanelLeft, PanelRight } from "lucide-react";
+import { Trash2, RotateCcw, PanelLeft, PanelRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { ChromePrefs } from "@/components/ChromePrefs";
+import type { ContentLang } from "../../worker/chat-agent/settings";
 import {
   ChatComposer,
   ChatMessageList,
@@ -31,8 +33,9 @@ import { useT } from "@/i18n/ui-lang";
 
 export function Chat({
   agent,
-  theme,
-  onToggleTheme,
+  contentLang = "ko",
+  onContentLangChange,
+  contentLangUpdating = false,
   onReset,
   pendingAsk = null,
   onPendingAskConsumed,
@@ -42,8 +45,10 @@ export function Chat({
   onToggleHelper,
 }: {
   agent: AgentForChat;
-  theme: "light" | "dark";
-  onToggleTheme: () => void;
+  /** Settings content_lang — screen chrome + Market Memory (not chat reply). */
+  contentLang?: ContentLang;
+  onContentLangChange?: (lang: ContentLang) => void;
+  contentLangUpdating?: boolean;
   onReset: () => void;
   /** Set by helper rail / Market modal "Ask in chat" — Chat sends then clears. */
   pendingAsk?: { text: string; nonce: number } | null;
@@ -73,8 +78,9 @@ export function Chat({
     <div className="flex h-full flex-col">
       <Header
         chat={chat}
-        theme={theme}
-        onToggleTheme={onToggleTheme}
+        contentLang={contentLang}
+        onContentLangChange={onContentLangChange}
+        contentLangUpdating={contentLangUpdating}
         onReset={onReset}
         panelOpen={panelOpen}
         onTogglePanels={onTogglePanels}
@@ -126,14 +132,16 @@ function BrandMark({ size = "sm" }: { size?: "sm" | "lg" }) {
 }
 
 // ─── Header bar ──────────────────────────────────────────────────────────
-// Hosts theme toggle and clear-chat. Reset session (sources/files/schedules/
-// extensions/MCP) stays wired but hidden until the action has clearer UX.
+// Hosts theme / content_lang toggles and clear-chat. Reset session
+// (sources/files/schedules/extensions/MCP) stays wired but hidden until
+// the action has clearer UX.
 const SHOW_RESET_SESSION = false;
 
 function Header({
   chat,
-  theme,
-  onToggleTheme,
+  contentLang,
+  onContentLangChange,
+  contentLangUpdating,
   onReset,
   panelOpen,
   onTogglePanels,
@@ -141,8 +149,9 @@ function Header({
   onToggleHelper,
 }: {
   chat: ChatHelpers;
-  theme: "light" | "dark";
-  onToggleTheme: () => void;
+  contentLang: ContentLang;
+  onContentLangChange?: (lang: ContentLang) => void;
+  contentLangUpdating: boolean;
   onReset: () => void;
   panelOpen: boolean;
   onTogglePanels?: () => void;
@@ -192,18 +201,11 @@ function Header({
             <PanelRight className="size-4" />
           </Button>
         ) : null}
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={onToggleTheme}
-          title={t("chat.toggleTheme")}
-        >
-          {theme === "light" ? (
-            <Moon className="size-4" />
-          ) : (
-            <Sun className="size-4" />
-          )}
-        </Button>
+        <ChromePrefs
+          lang={contentLang}
+          onContentLangChange={onContentLangChange}
+          contentLangUpdating={contentLangUpdating}
+        />
         <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block" />
         {SHOW_RESET_SESSION ? (
           <Button

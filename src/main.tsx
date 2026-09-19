@@ -5,6 +5,7 @@ import LiveMarketRoom from "./live/LiveMarketRoom";
 import ReportSurface from "./reports/ReportSurface";
 import { LIVE_ROOM_PATH } from "./lib/live-room";
 import { matchReportPage } from "./lib/report-pages";
+import { ThemeProvider } from "./lib/theme";
 
 // Minimal path switch instead of a router dependency: `/live` is its own
 // surface (poll room, no chat), `/<report-series-slug>` is a full-frame
@@ -30,11 +31,13 @@ const reportPage = matchReportPage(pathname);
 // dev. If a future version of @cloudflare/ai-chat fixes the
 // double-subscription, re-add <StrictMode>.
 createRoot(document.getElementById("root")!).render(
-  isLiveRoom ? (
-    <LiveMarketRoom />
-  ) : reportPage ? (
-    <ReportSurface page={reportPage} />
-  ) : (
-    <App />
-  ),
+  <ThemeProvider>
+    {isLiveRoom ? (
+      <LiveMarketRoom />
+    ) : reportPage ? (
+      <ReportSurface page={reportPage} />
+    ) : (
+      <App />
+    )}
+  </ThemeProvider>,
 );

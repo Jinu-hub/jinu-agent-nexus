@@ -289,12 +289,12 @@ previous-day `market_date` drain — empty pending is a no-op).
 | Path | Role |
 |------|------|
 | `src/main.tsx` | React entry — pathname switch (`/live`, `/<report-series-slug>`, else shell) |
-| `src/reports/ReportSurface.tsx` | Standalone report reading page — voice player + three depth tabs |
+| `src/reports/ReportSurface.tsx` | Standalone report reading page — voice player + three depth tabs; header `ChromePrefs` → theme + `PATCH /settings` lang |
 | `src/reports/ReportForYou.tsx` | "나를 위한 요약" tab — personalized summary + star chips that retune it |
 | `src/reports/ReportFullText.tsx` | Full report markdown at article typography + section jump chips (`ReportToc`) |
-| `src/i18n/` | Screen chrome ko/en (`messages.ts`, `ui-lang.tsx`); `content_lang` drives UI + Market Memory, not chat reply language |
-| `src/App.tsx` | Layout (helper rail + chat + panels), `useAgent`, panel tabs (`hidden_panels` filter; panels dock `lg+`, helper dock `xl+`, drawers below), Settings Language + Market Content, theme |
-| `src/chat/Chat.tsx` | Shell chat — header report exits, LYRA intro empty state, helper/panel drawer toggles, composes `ChatParts` |
+| `src/i18n/` | Screen chrome ko/en (`messages.ts`, `ui-lang.tsx`); `ContentLangToggle` + `content-lang.ts`; pair with `ChromePrefs` / `ThemeProvider` (`src/lib/theme.tsx`); `content_lang` drives UI + Market Memory, not chat reply language |
+| `src/App.tsx` | Layout (helper rail + chat + panels), `useAgent`, panel tabs (`hidden_panels` filter; panels dock `lg+`, helper dock `xl+`, drawers below), Settings Language + Market Content |
+| `src/chat/Chat.tsx` | Shell chat — header report exits, `ChromePrefs`, LYRA intro empty state, helper/panel drawer toggles, composes `ChatParts` |
 | `src/chat/ChatHelperRail.tsx` | Home left rail — Topics + Ask prompts for the Market browse day (shared date store); `xl+` docked, below `xl` a left drawer |
 | `src/chat/HomeReportExits.tsx` | Home → `/<slug>` via category menus + landing cards (`REPORT_NAV_CATEGORIES`) |
 | `src/chat/ChatParts.tsx` | Transcript + composer shared by shell and report pages |

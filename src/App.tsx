@@ -122,23 +122,6 @@ export default function App() {
   /** Below xl the helper rail is a drawer; xl+ it stays docked. */
   const [helperOpen, setHelperOpen] = useState(false);
 
-  // ─── Theme toggle (lives in localStorage so it survives refresh) ───────
-  // The matching inline script in index.html sets the `dark` class on
-  // <html> before React mounts so there's no theme flash. We mirror its
-  // logic here so React's view of the theme stays in sync.
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window === "undefined") return "light";
-    const saved = localStorage.getItem("theme") as "light" | "dark" | null;
-    if (saved) return saved;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-  });
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("theme", theme);
-  }, [theme]);
-
   // Market panel → left chat example prompts
   const [pendingAsk, setPendingAsk] = useState<{
     text: string;
@@ -364,8 +347,11 @@ export default function App() {
       <main className="flex min-w-0 flex-1 flex-col animate-fade-up [animation-delay:120ms]">
         <Chat
           agent={agent}
-          theme={theme}
-          onToggleTheme={() => setTheme(theme === "light" ? "dark" : "light")}
+          contentLang={settings?.content_lang ?? "ko"}
+          onContentLangChange={(lang: ContentLang) =>
+            void updateSettings({ content_lang: lang })
+          }
+          contentLangUpdating={settingsUpdating}
           onReset={() => void agent.stub.resetSession()}
           pendingAsk={pendingAsk}
           onPendingAskConsumed={() => setPendingAsk(null)}

@@ -16,6 +16,7 @@
 //
 // It reads the same HTTP APIs as the Market panel:
 //   GET  /settings               → content_lang (unless `?lang=` overrides)
+//   PATCH /settings              → persist content_lang (header KO/EN toggle)
 //   GET  /api/report-series      → slug(s) → series rows
 //   GET  /api/market/latest-date → newest market_date across page series
 //   GET  /api/market/day         → brief + voice + full report slots
@@ -60,6 +61,8 @@ import type { ReportPage } from "@/lib/report-pages";
 import { reportPageSeriesSlugs } from "@/lib/report-pages";
 import { fetchTopicLabels } from "@/lib/topic-preference";
 import { cn } from "@/lib/utils";
+import { ChromePrefs } from "@/components/ChromePrefs";
+import { patchContentLang } from "@/i18n/content-lang";
 import {
   seriesTabLabel,
   reportPageEyebrow,
@@ -165,6 +168,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
     nonce: number;
   } | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [langUpdating, setLangUpdating] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
 
   // Topic chip → chat. Opening the panel is part of the action; a prompt
@@ -173,6 +177,24 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
     setChatOpen(true);
     setPendingAsk({ text, nonce: Date.now() });
   };
+
+  // Same ChatAgent settings row as shell Settings / header toggle.
+  const onContentLangChange = useCallback(async (next: ContentLang) => {
+    setLangUpdating(true);
+    try {
+      const saved = await patchContentLang(next);
+      setLang(saved);
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("lang")) {
+        url.searchParams.delete("lang");
+        window.history.replaceState({}, "", url);
+      }
+    } catch {
+      // Keep current lang; user can retry.
+    } finally {
+      setLangUpdating(false);
+    }
+  }, []);
 
   // Shareable depth tab — and the depth survives date / series navigation.
   useEffect(() => {
@@ -474,9 +496,11 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
             <span className="min-w-0 flex-1 truncate text-xs font-semibold tracking-tight">
               {title}
             </span>
-            <span className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-              {lang ?? "…"}
-            </span>
+            <ChromePrefs
+              lang={lang}
+              onContentLangChange={(next) => void onContentLangChange(next)}
+              contentLangUpdating={langUpdating}
+            />
             {!chatOpen ? (
               <button
                 type="button"

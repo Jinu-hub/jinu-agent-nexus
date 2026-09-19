@@ -11,7 +11,7 @@
 // spectator: results stream in, votes are refused server-side.
 // ─────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAgent } from "agents/react";
 import { Eye, Lock, Plus, Radio, RotateCcw, Timer } from "lucide-react";
 
@@ -26,8 +26,10 @@ import {
   UNAUTHORIZED_CLOSE_CODE,
 } from "@/lib/live-room";
 import { Button } from "@/components/ui/button";
+import { ChromePrefs } from "@/components/ChromePrefs";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { patchContentLang } from "@/i18n/content-lang";
 import { UiLangProvider, useT, type TFn } from "@/i18n/ui-lang";
 import type { ContentLang } from "../../worker/chat-agent/settings";
 import { isContentLang } from "../../worker/chat-agent/settings";
@@ -54,6 +56,8 @@ function refusalText(
 
 export default function LiveMarketRoom() {
   const [lang, setLang] = useState<ContentLang>("ko");
+  const [langUpdating, setLangUpdating] = useState(false);
+
   useEffect(() => {
     let active = true;
     void fetch("/settings")
@@ -70,14 +74,33 @@ export default function LiveMarketRoom() {
     };
   }, []);
 
+  const onContentLangChange = useCallback(async (next: ContentLang) => {
+    setLangUpdating(true);
+    try {
+      setLang(await patchContentLang(next));
+    } catch {
+      /* keep current */
+    } finally {
+      setLangUpdating(false);
+    }
+  }, []);
+
+  const prefs = (
+    <ChromePrefs
+      lang={lang}
+      onContentLangChange={(next) => void onContentLangChange(next)}
+      contentLangUpdating={langUpdating}
+    />
+  );
+
   return (
     <UiLangProvider lang={lang}>
-      <LiveMarketRoomBody />
+      <LiveMarketRoomBody prefs={prefs} />
     </UiLangProvider>
   );
 }
 
-function LiveMarketRoomBody() {
+function LiveMarketRoomBody({ prefs }: { prefs: ReactNode }) {
   const params = new URLSearchParams(window.location.search);
   const token = params.get("token")?.trim() ?? "";
   const readonly = params.get("readonly") === "true";
@@ -85,16 +108,24 @@ function LiveMarketRoomBody() {
 
   if (!token) {
     return (
-      <Gate title={t("live.tokenRequired")}>
+      <Gate title={t("live.tokenRequired")} prefs={prefs}>
         {t("live.tokenRequiredBody")}
       </Gate>
     );
   }
 
-  return <Room token={token} readonly={readonly} />;
+  return <Room token={token} readonly={readonly} prefs={prefs} />;
 }
 
-function Room({ token, readonly }: { token: string; readonly: boolean }) {
+function Room({
+  token,
+  readonly,
+  prefs,
+}: {
+  token: string;
+  readonly: boolean;
+  prefs: ReactNode;
+}) {
   const [unauthorized, setUnauthorized] = useState(false);
   const [handshakeExpired, setHandshakeExpired] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -161,12 +192,18 @@ function Room({ token, readonly }: { token: string; readonly: boolean }) {
 
   if (!poll && (unauthorized || handshakeExpired)) {
     return (
-      <Gate title={t("live.invalidToken")}>
+      <Gate title={t("live.invalidToken")} prefs={prefs}>
         {t("live.invalidTokenBody")}
       </Gate>
     );
   }
-  if (!poll) return <Gate title={t("live.joining")}>{t("live.opening")}</Gate>;
+  if (!poll) {
+    return (
+      <Gate title={t("live.joining")} prefs={prefs}>
+        {t("live.opening")}
+      </Gate>
+    );
+  }
 
   const total = poll.options.reduce((sum, o) => sum + o.votes, 0);
   const leader = poll.options.reduce(
@@ -195,19 +232,22 @@ function Room({ token, readonly }: { token: string; readonly: boolean }) {
               {t("live.spectator")}
             </span>
           )}
-          <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
-            {poll.closed ? (
-              <>
-                <Lock className="size-3" />
-                {t("live.closed")}
-              </>
-            ) : (
-              <>
-                <Timer className="size-3" />
-                {formatCountdown(secondsLeft)}
-              </>
-            )}
-          </span>
+          <div className="ml-auto flex items-center gap-1">
+            {prefs}
+            <span className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+              {poll.closed ? (
+                <>
+                  <Lock className="size-3" />
+                  {t("live.closed")}
+                </>
+              ) : (
+                <>
+                  <Timer className="size-3" />
+                  {formatCountdown(secondsLeft)}
+                </>
+              )}
+            </span>
+          </div>
         </header>
 
         <h1 className="text-lg font-semibold leading-snug">{poll.question}</h1>
@@ -317,12 +357,17 @@ function Room({ token, readonly }: { token: string; readonly: boolean }) {
 function Gate({
   title,
   children,
+  prefs,
 }: {
   title: string;
   children: React.ReactNode;
+  prefs?: ReactNode;
 }) {
   return (
-    <div className="flex h-full items-center justify-center p-6">
+    <div className="relative flex h-full items-center justify-center p-6">
+      {prefs ? (
+        <div className="absolute right-3 top-3 z-10">{prefs}</div>
+      ) : null}
       <div className="paper-inset max-w-md px-5 py-4 text-center animate-fade-up">
         <p className="text-sm font-semibold">{title}</p>
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">

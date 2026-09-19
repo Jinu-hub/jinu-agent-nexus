@@ -21,6 +21,8 @@ export const en = {
   "common.stop": "Stop",
   "common.never": "never",
   "common.unknown": "unknown",
+  "common.toggleLanguage": "Toggle display language",
+  "common.toggleTheme": "Toggle theme",
 
   // Panels / tabs
   "panels.market": "Market",
@@ -84,7 +86,6 @@ export const en = {
 
   // Chat shell
   "chat.slogan": "Your world, a little closer.",
-  "chat.toggleTheme": "Toggle theme",
   "chat.resetSession": "Reset session",
   "chat.resetSessionTitle":
     "Wipe sources, files, schedules, extensions, MCP connections",
@@ -376,6 +377,8 @@ export const ko: { [K in MessageKey]: string } = {
   "common.stop": "중지",
   "common.never": "없음",
   "common.unknown": "알 수 없음",
+  "common.toggleLanguage": "화면 언어 전환",
+  "common.toggleTheme": "테마 전환",
 
   "panels.market": "마켓",
   "panels.memory": "메모리",
@@ -434,7 +437,6 @@ export const ko: { [K in MessageKey]: string } = {
   "series.tab.marketKr": "마켓 (KR)",
 
   "chat.slogan": "당신의 세상을, 조금 더 가깝게.",
-  "chat.toggleTheme": "테마 전환",
   "chat.resetSession": "세션 초기화",
   "chat.resetSessionTitle":
     "소스, 파일, 스케줄, 확장, MCP 연결을 모두 지웁니다",
