@@ -13,7 +13,7 @@ export const MARKET_SUGGESTIONS: MarketSuggestion[] = [
   {
     id: "risk",
     label: "리스크 정리",
-    prompt: "Latest 브리핑에서 가장 큰 리스크가 왜 중요한지 쉽게 설명해줘",
+    prompt: "Latest 브리핑에서 주요한 리스크를 선별하고 중요성에 대해 쉽게 설명해줘",
   },
   {
     id: "pulse",
@@ -86,7 +86,7 @@ export function reportPageSuggestions(
     {
       id: "risk",
       label: "리스크",
-      prompt: `${marketDate} 브리핑에서 가장 큰 리스크가 왜 중요한지 쉽게 설명해줘`,
+      prompt: `${marketDate} 브리핑에서 주요한 리스크를 선별하고 중요성에 대해 쉽게 설명해줘`,
     },
     {
       id: "reportCore",

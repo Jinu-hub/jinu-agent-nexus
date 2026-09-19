@@ -242,4 +242,22 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **확인:** Clear chat → 키워드 칩 — `INSTITUTION 일본은행` 식 (Topics와 같은 display) · 한눈 스토리 짧음
 * **의도적으로 안 함:** FE pickTopKeywords 라운드로빈을 worker에 완전 복제; INDICATOR/PERSON metadata 전 그룹 확장
 
+### 41.6 챗 답변 준비 중 표시 *(완료)*
+
+* **목적:** 질문 후 prefetch/첫 토큰까지 빈 공간이 길어 “멈춘 것처럼” 보임 → UI에 준비 중 힌트.
+* **수정 및 추가 파일:**
+  * `src/chat/ChatParts.tsx` — `submitted` / streaming인데 assistant 본문 없을 때 `PreparingReply` (스피너·도트만)
+  * docs: 본 소절
+* **확인:** Ask 칩 전송 → 사용자 버블 아래 스피너 → 스트림 시작 시 사라짐 (홈·리포트 챗 공통)
+* **의도적으로 안 함:** 단계별 prefetch 진행률; 영문 카피 분기
+
+### 41.7 리포트 페이지 — 브리프 미생성 안내 *(완료)*
+
+* **목적:** 전문만 있고 30초 브리프가 비어 있으면 탭이 허전해 보임 → 안내 문구 + 전문 탭 링크.
+* **수정 및 추가 파일:**
+  * `src/reports/ReportSurface.tsx` — brief 탭에서 `briefMissing` 시 `Notice` (“30초 브리프가 아직 없어요”)
+  * docs: 본 소절
+* **확인:** 브리프 없는 날짜 → 30초 브리프 탭에 안내 · 전문 있으면 「전문」링크 · 브리프 있는 날은 기존 BriefBody
+* **의도적으로 안 함:** 브리프 자동 생성; for-you 빈 상태 개편
+
 ---

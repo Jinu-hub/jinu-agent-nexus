@@ -13,10 +13,11 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 // the canonical home is `@cloudflare/ai-chat/react`, so import there
 // directly to keep the console clean.
 import type { useAgentChat } from "@cloudflare/ai-chat/react";
-import { Send, Square } from "lucide-react";
+import { LoaderCircle, Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Message } from "./Message";
+import { cn } from "@/lib/utils";
 
 // useAgentChat returns a value whose shape includes `messages`,
 // `status`, `sendMessage`, etc. The SDK doesn't export the type
@@ -39,6 +40,23 @@ export function ChatMessageList({
   className?: string;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isSubmitted = chat.status === "submitted";
+  const isStreaming = chat.status === "streaming";
+  const isBusy = isSubmitted || isStreaming;
+  const last = chat.messages[chat.messages.length - 1];
+  const assistantHasVisibleText =
+    last?.role === "assistant" &&
+    last.parts.some(
+      (part) =>
+        part.type === "text" &&
+        typeof part.text === "string" &&
+        part.text.trim().length > 0,
+    );
+  // Prefetch / first tokens can leave a long empty gap after the user bubble.
+  const showPreparing =
+    isBusy &&
+    chat.messages.length > 0 &&
+    (isSubmitted || last?.role === "user" || !assistantHasVisibleText);
 
   // Auto-scroll to the bottom on every new message. We pin to the
   // bottom unless the user has manually scrolled up — track that via
@@ -50,7 +68,7 @@ export function ChatMessageList({
     if (nearBottom) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [chat.messages]);
+  }, [chat.messages, showPreparing]);
 
   const handleApprove = (toolCallId: string, approved: boolean) => {
     chat.addToolApprovalResponse({
@@ -69,8 +87,31 @@ export function ChatMessageList({
           {chat.messages.map((m) => (
             <Message key={m.id} message={m} onApprove={handleApprove} />
           ))}
+          {showPreparing ? <PreparingReply /> : null}
         </div>
       )}
+    </div>
+  );
+}
+
+function PreparingReply() {
+  return (
+    <div className="flex justify-start" aria-live="polite" aria-busy="true">
+      <div
+        className={cn(
+          "inline-flex max-w-[85%] items-center gap-1.5 rounded-2xl rounded-bl-sm",
+          "border border-border bg-card px-3.5 py-2.5 shadow-sm",
+        )}
+        title="Preparing reply"
+        aria-label="Preparing reply"
+      >
+        <LoaderCircle className="size-3.5 shrink-0 animate-spin text-primary" />
+        <span className="inline-flex gap-0.5" aria-hidden>
+          <span className="size-1 animate-pulse rounded-full bg-muted-foreground/70 [animation-delay:0ms]" />
+          <span className="size-1 animate-pulse rounded-full bg-muted-foreground/70 [animation-delay:150ms]" />
+          <span className="size-1 animate-pulse rounded-full bg-muted-foreground/70 [animation-delay:300ms]" />
+        </span>
+      </div>
     </div>
   );
 }

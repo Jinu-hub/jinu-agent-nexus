@@ -391,6 +391,13 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
   const title =
     activeSlot?.seriesTitle ?? pageSeries?.title ?? page.fallbackTitle;
   const hasReport = Boolean(report?.content?.trim());
+  const briefHasBody =
+    lead.length > 0 ||
+    highlights.length > 0 ||
+    parts.reactions.length > 0 ||
+    Boolean(parts.takeaway?.trim()) ||
+    Boolean(brief?.content?.trim());
+  const briefMissing = !brief || !briefHasBody;
   const headline = brief?.title ?? report?.title ?? title;
   const tagLexicon = report ? buildTagLexicon(report.metadata) : null;
   const tags = Array.isArray(report?.tags)
@@ -672,6 +679,25 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
                       onAsk={askInChat}
                     />
                   ) : null
+                ) : briefMissing ? (
+                  <Notice title="30초 브리프가 아직 없어요">
+                    이 날짜에는 브리프가 아직 생성되지 않았어요.
+                    {hasReport ? (
+                      <>
+                        {" "}
+                        <button
+                          type="button"
+                          onClick={() => setTab("full")}
+                          className="font-medium text-foreground underline decoration-border underline-offset-2 hover:text-primary"
+                        >
+                          전문
+                        </button>
+                        에서 리포트를 읽어 보세요.
+                      </>
+                    ) : (
+                      <> 나중에 다시 확인해 주세요.</>
+                    )}
+                  </Notice>
                 ) : (
                   <BriefBody
                     lead={lead}
@@ -929,9 +955,9 @@ function Notice({
   return (
     <div className="mt-6 rounded-xl border border-dashed border-border bg-card px-5 py-8">
       <p className="text-sm font-bold tracking-tight text-foreground">{title}</p>
-      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+      <div className="mt-2 text-xs leading-relaxed text-muted-foreground">
         {children}
-      </p>
+      </div>
     </div>
   );
 }
