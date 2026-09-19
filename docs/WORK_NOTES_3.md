@@ -173,6 +173,18 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
   * `worker/chat-agent/soul-market.ts` · `market-prefetch.ts` · `market-vector-search.ts` · `worker/tools/getTodayMarketReport.ts` — Topics 안내를 홈 사이드바로
   * docs: `CLAUDE.md`, `ARCHITECTURE.md`, `MERGE_STRATEGY.md`, 본 절
 * **확인 (로컬 2026-09-19):** 홈 `1440`에서 왼쪽 Ask 레일(Topics + 추천 칩) · `키워드만` 클릭 시 가운데 챗으로 전송 · Market 탭은 Brief/Voice/Report만 · `900`폭에서 헤더 Open helper 드로어 · `/daily-market-issues`는 기존 Ask 헤더 버튼·읽기 레이아웃 유지
-* **의도적으로 안 함:** 리포트 페이지 왼쪽 레일; MarketPanel과 레일 fetch 훅 공유 (Wave 2); 홈 Market 패널 Brief/Voice/Report 슬림화; `HOME_CHAT_SUGGESTIONS` 삭제(레일은 전체 `MARKET_SUGGESTIONS` 사용)
+* **의도적으로 안 함:** 리포트 페이지 왼쪽 레일; 홈 Market 패널 Brief/Voice/Report 슬림화; `HOME_CHAT_SUGGESTIONS` 삭제(레일은 전체 `MARKET_SUGGESTIONS` 사용)
+
+### 41.1 홈 Market fetch 훅 공유 *(완료)*
+
+* **목적:** `ChatHelperRail`과 `MarketPanel`이 같은 `/api/report-series` · `latest-date` · `day` · preferences · topic-labels를 **각자 호출**하던 중복을 제거. 코드 DRY + in-flight/TTL 캐시로 홈 마운트 시 네트워크 1회화. ★ interests는 모듈 스토어로 양쪽에 동기화.
+* **수정 및 추가 파일:**
+  * `src/lib/market-fetch.ts` *(신규)* — 타입 + promise 캐시(`invalidateMarketFetch` / generation subscribe)
+  * `src/lib/use-market-day-data.ts` *(신규)* — `useReportSeriesCatalog` · `useMarketDayData`(`pinToLatest`) · `useTopicLabelMap`
+  * `src/lib/use-market-preferences.ts` *(신규)* — `useSyncExternalStore` 공유 preferences + toggle/remove
+  * `src/chat/ChatHelperRail.tsx` · `src/panels/MarketPanel.tsx` — 위 훅 사용; Market Refresh → 캐시 무효화 + prefs reload
+  * docs: `CLAUDE.md`, `MERGE_STRATEGY.md` (Wave 2 일부), 본 소절
+* **확인:** 홈 로드 시 Network에서 `report-series` / `latest-date` / `day`가 레일·패널 합쳐 각 1회(동일 키); 레일에서 ★ → Market BriefForYou 반영; Market Refresh 후 레일 Topics도 재로드
+* **의도적으로 안 함:** 리포트 페이지 레일; Market 패널 섹션 컴포넌트 분리 / App panel-registry (Wave 2 나머지); Brief/Voice/Report 슬림화
 
 ---

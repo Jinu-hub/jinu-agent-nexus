@@ -72,7 +72,7 @@
 | 영역 | 경로 |
 |------|------|
 | Panel | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `report-topics.tsx`, `MyInterestsFold.tsx`, `BriefForYou.tsx` — inspect workbench; Topics/Ask는 홈 `ChatHelperRail`; registered series → reading page helper |
-| Libs | `src/lib/market-date.ts`, `market-suggestions.ts`, `topic-preference.ts`, `brief-for-you.ts` |
+| Libs | `src/lib/market-date.ts`, `market-suggestions.ts`, `topic-preference.ts`, `brief-for-you.ts`, `market-fetch.ts`, `use-market-day-data.ts`, `use-market-preferences.ts` |
 
 ### Docs (포팅 후 선택)
 
@@ -133,7 +133,7 @@
 | Wave | 상태 | 요지 | 노트 |
 |------|------|------|------|
 | **1** | 완료 | Market seams / content-audio split / `market-memory-load` / topics+FE date | [`WORK_NOTES_2` §11](./WORK_NOTES_2.md) |
-| **2** | 예정 | MarketPanel fetch 훅·섹션 분리; optional App registry / upload routes | 완료 시 A/B 표 갱신 |
+| **2** | 진행 중 | Market fetch 훅 공유 완료; 섹션 분리·App registry는 남음 | fetch: [`WORK_NOTES_3` §41.1](./WORK_NOTES_3.md) |
 
 ### 갱신 규칙
 
@@ -182,3 +182,4 @@
 | 2026-09-17 | 작업노트 → `WORK_NOTES_3` (§35~) — docs ([`WORK_NOTES_3` §35](./WORK_NOTES_3.md)) |
 | 2026-09-17 | 헤더 Market 카테고리 메뉴 — A `report-pages` / `HomeReportExits` ([`WORK_NOTES_3` §36](./WORK_NOTES_3.md)) |
 | 2026-09-19 | 홈 왼쪽 Chat helper 레일 — A `ChatHelperRail` + B `App`/`Chat` ([`WORK_NOTES_3` §41](./WORK_NOTES_3.md)) |
+| 2026-09-19 | 홈 Market fetch 훅 공유 — A `market-fetch` / `use-market-day-data` / `use-market-preferences`; Wave 2 일부 ([`WORK_NOTES_3` §41.1](./WORK_NOTES_3.md)) |
