@@ -545,7 +545,7 @@ export async function buildMarketPrefetchBlock(
             seoulHints: hints,
             briefs: { earlier: a, later: b },
             instruction:
-              "Compare tone/themes using pulse/takeaway/title (and excerpts if needed). Answer the comparison only — short natural language. Do NOT paste full content. Do NOT emit <tool_call> or XML tool markup — facts are already here. One line: full text in Market tab by date. later ≈ data-backed latest (not blindly calendar yesterday).",
+              "Compare tone/themes using pulse/takeaway/title (and excerpts if needed). Answer the comparison only — short natural language. Do NOT paste full content. Do NOT emit <tool_call> or XML tool markup — facts are already here. One line: full text in Market tab by date. later ≈ data-backed latest (not blindly calendar yesterday). Korean commentary: 해요체 ONLY for the whole reply (RULE 5b) — do not mix …다/…입니다/…습니다; no filler openers.",
           },
           userInterests,
           { snippets, includeHits: true },
@@ -593,7 +593,7 @@ export async function buildMarketPrefetchBlock(
                 report as Record<string, unknown>,
               ),
               instruction:
-                "Same-day Brief vs Report — content only, not format. Product fact: Brief is usually distilled FROM Report highlights (pulse/takeaway ≈ highlight themes), so do NOT say 'Brief is short / Report is long' or 'Brief compresses, Report expands' — that is empty. Instead: (1) name 1–2 themes both share; (2) name what Report adds beyond Brief (e.g. 주요/추가 항목, extra companies/events, 마무리, 용어) using summary/excerpt/highlights vs brief pulse/takeaway/excerpt; (3) if they largely align, say so in one line. Short natural language. No full markdown dump. No <tool_call>/XML. One line: details in Market tab → Brief / Report.",
+                "Same-day Brief vs Report — content only, not format. Product fact: Brief is usually distilled FROM Report highlights (pulse/takeaway ≈ highlight themes), so do NOT say 'Brief is short / Report is long' or 'Brief compresses, Report expands' — that is empty. Instead: (1) name 1–2 themes both share; (2) name what Report adds beyond Brief (e.g. 주요/추가 항목, extra companies/events, 마무리, 용어) using summary/excerpt/highlights vs brief pulse/takeaway/excerpt; (3) if they largely align, say so in one line. Short natural language. No full markdown dump. No <tool_call>/XML. One line: details in Market tab → Brief / Report. Korean commentary: 해요체 ONLY for the whole reply (RULE 5b) — do not mix …다/…입니다/…습니다; no filler openers.",
             },
             userInterests,
             { keywords: reportKw, snippets, includeHits: true },
@@ -633,7 +633,7 @@ export async function buildMarketPrefetchBlock(
           ? "User wants KEYWORDS only. Answer from report.keywords (tags, places, companies, institutions, technologies, industries, products) — short bullet or comma list. Do NOT invent names missing from keywords. Do NOT paste excerpt/full report. Do NOT emit <tool_call>/XML. One short line: more detail in Market tab → Topics. If interestHits is non-empty, list those FIRST before other keywords."
           : quoted.length > 0
             ? "User asked about a specific keyword in the full report. Prefer vectorSearch.hits when present."
-            : "Answer briefly using title/summary/excerpt/highlights/keywords in natural language. Do NOT paste the full report. Do NOT emit <tool_call> or XML — facts are already here. If interestHits is non-empty, lead with those themes (first bullet), then other highlights. One short line: Market tab → Report / Topics.";
+            : "Answer briefly using title/summary/excerpt/highlights/keywords in natural language. Do NOT paste the full report. Do NOT emit <tool_call> or XML — facts are already here. If interestHits is non-empty, lead with those themes (first bullet), then other highlights. One short line: Market tab → Report / Topics. Korean commentary: 해요체 ONLY for the whole reply (RULE 5b) — do not mix …다/…입니다/…습니다; no filler openers.";
       return JSON.stringify(
         await withVectorSearch(
           env,
@@ -699,7 +699,7 @@ export async function buildMarketPrefetchBlock(
             brief,
             instruction: fullTextAsk
               ? "User wants the FULL brief. Do NOT paste content/excerpt into chat. Reply in 1–2 short lines pointing to Market tab → Brief / Latest (include marketDate). Tools unnecessary."
-              : "Answer the user's question briefly using title/pulse/takeaway/excerpt as evidence. Do NOT paste the full brief. One short line: Market tab → Latest for the full text. Do not call getTodayMarketBrief unless a needed date is missing.",
+              : "Answer the user's question briefly using title/pulse/takeaway/excerpt as evidence. Do NOT paste the full brief. One short line: Market tab → Latest for the full text. Do not call getTodayMarketBrief unless a needed date is missing. Korean commentary: 해요체 ONLY for the whole reply (RULE 5b) — do not mix …다/…입니다/…습니다; no filler openers.",
           },
           userInterests,
           { snippets, includeHits: true },

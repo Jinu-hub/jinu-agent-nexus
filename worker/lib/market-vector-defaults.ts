@@ -23,3 +23,32 @@ export const DEFAULT_TOP_K_PER_QUERY = 2;
 
 /** HTTP query default when body omits hit_limit. */
 export const DEFAULT_HIT_LIMIT = 3;
+
+/**
+ * Extra chat 「keyword」 expand variants (user phrase ↔ report slug / body terms).
+ * Merged after lexicon expand — keeps broad KO asks (e.g. 통화정책) from
+ * only retrieving overview/glossary chunks.
+ */
+export const CHAT_VECTOR_QUERY_ALIASES: Record<string, string[]> = {
+  통화정책: [
+    "monetary-policy-shifts",
+    "monetary policy",
+    "기준금리",
+    "정책금리",
+    "금리 인상",
+    "일본은행",
+    "연준",
+  ],
+  "monetary-policy-shifts": [
+    "통화정책",
+    "기준금리",
+    "정책금리",
+    "금리 인상",
+    "central-bank-moves",
+    "policy-shifts",
+  ],
+  "monetary policy": ["통화정책", "monetary-policy-shifts", "기준금리"],
+  국제금리: ["기준금리", "정책금리", "금리", "yields", "통화정책"],
+  기준금리: ["정책금리", "통화정책", "금리 인상", "policy rate"],
+};
+

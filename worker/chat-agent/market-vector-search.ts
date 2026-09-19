@@ -7,6 +7,7 @@ import { isMarketDateYmd } from "../lib/market-date";
 import {
   CHAT_VECTOR_HIT_LIMIT,
   CHAT_VECTOR_MIN_SCORE,
+  CHAT_VECTOR_QUERY_ALIASES,
   CHAT_VECTOR_TOP_K_PER_QUERY,
 } from "../lib/market-vector-defaults";
 import type { ReportChatKeywords } from "../lib/report-keywords";
@@ -31,11 +32,37 @@ export function expandChatVectorQueries(
   tagLexicon?: TagLexeme[] | null,
   labelMap?: Record<string, string> | null,
 ): string[] {
-  return expandQueriesFromLexicon(
+  const fromLexicon = expandQueriesFromLexicon(
     raw,
     tagLexiconFromEntries(tagLexicon ?? undefined),
     labelMap,
   );
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (s: string) => {
+    const v = s.trim();
+    if (!v) return;
+    const key = v.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(v);
+  };
+  for (const v of fromLexicon) push(v);
+  const aliasKey = raw.trim().toLowerCase();
+  const aliases =
+    CHAT_VECTOR_QUERY_ALIASES[raw.trim()] ??
+    CHAT_VECTOR_QUERY_ALIASES[aliasKey] ??
+    [];
+  for (const a of aliases) push(a);
+  // Also expand aliases of already-expanded lexicon forms (slug → KO).
+  for (const v of [...out]) {
+    const more =
+      CHAT_VECTOR_QUERY_ALIASES[v] ??
+      CHAT_VECTOR_QUERY_ALIASES[v.toLowerCase()] ??
+      [];
+    for (const a of more) push(a);
+  }
+  return out;
 }
 
 export type ChatVectorHit = {
@@ -295,15 +322,15 @@ export function vectorSearchInstructionClause(
     return (
       " vectorSearch failed (" +
       search.error +
-      "). Say lookup failed briefly; do not invent keyword content."
+      "). Say lookup failed in one friendly line; do not invent keyword content."
     );
   }
   if (search.empty || search.hits.length === 0) {
     return (
-      " CRITICAL: vectorSearch.hits is empty for queries " +
+      " vectorSearch.hits is empty for queries " +
       JSON.stringify(search.queries) +
-      ". Tell the user this report has no close match for that keyword. " +
-      "Do NOT invent facts. Do NOT use unrelated report fields to fake a match."
+      ". Tell the user gently that this report has no close match for that keyword. " +
+      "Do not invent facts. Do not use unrelated report fields to fake a match."
     );
   }
   const label =
@@ -316,25 +343,37 @@ export function vectorSearchInstructionClause(
     ? Math.min(Math.max(search.hits.length + 1, 3), 5)
     : Math.min(Math.max(search.hits.length, 2), 4);
   const depth = explain
-    ? `${bulletHint} bullets (min 3, max 5); each bullet may be 1–2 sentences; cover cause/effect when present in hits`
-    : `${bulletHint} bullets (min 2, max 4); each bullet = one line / one sentence`;
+    ? `${bulletHint} markdown bullets (min 3, max 5); each bullet 1–2 sentences; cover cause/effect when present in hits`
+    : `${bulletHint} markdown bullets (min 2, max 4); each bullet = one line / one sentence`;
   const sourceNote = fromFallback
     ? " Hits are from report highlights/keywords (vector empty; literal match only). " +
       "If a hit is only a keyword label (e.g. companies: Intel) without a narrative highlight, " +
-      "say it appears in Topics and point to Market tab — do NOT invent story details.\n"
+      "say it appears in Topics and point to Market tab — do not invent story details.\n"
     : "";
   return (
     " CRITICAL: keyword ask — answer ONLY from vectorSearch.hits text. " +
     "Do NOT invent. Do NOT pad with unrelated highlights/추가 항목. " +
     "Do NOT mention scores, hit counts, vectorSearch, embeddings, fallback, or prefetch JSON.\n" +
+    "When hits are non-empty you MUST summarize concrete facts from those texts. " +
+    "Never deflect with '내용이 많아요 / 직접 확인하세요 / Market 팀' instead of answering. " +
+    "Prefer narrative / highlight sentences over glossary lines (- **TERM**: …).\n" +
+    "VOICE LOCK (RULE 5b): Korean commentary = 해요체 ONLY for the whole reply " +
+    "(…해요/…예요/…이에요/…졌어요). " +
+    "Do NOT mix …다/…이다/…습니다/…었다 in the same answer. " +
+    "Do NOT change the Market footer into …확인할 수 있습니다. " +
+    "No filler openers. Never collapse into one paragraph.\n" +
     sourceNote +
-    "OUTPUT SHAPE (markdown; blank lines required):\n" +
-    `1) First line only: **「${label}」** (use this display phrase; not an English slug unless the user typed one)\n` +
-    "2) Blank line\n" +
-    `3) ${depth}\n` +
-    "4) Blank line between bullets\n" +
-    "5) Final line only: 원문·리포트는 Market 탭.\n" +
-    "No other sections, no nested headers, no score footnotes."
+    "OUTPUT SHAPE (markdown; follow exactly):\n" +
+    `**「${label}」**\n` +
+    "\n" +
+    "- (fact from hits, ends with …해요/…예요)\n" +
+    "\n" +
+    "- (fact from hits, ends with …해요/…예요)\n" +
+    "\n" +
+    `(use ${depth}; each bullet on its own "- " line; blank line between bullets)\n` +
+    "\n" +
+    "원문·리포트는 Market 탭.\n" +
+    "Forbidden: paragraph walls; ★ heading; nested headers; 습니다 footer variants; score footnotes."
   );
 }
 

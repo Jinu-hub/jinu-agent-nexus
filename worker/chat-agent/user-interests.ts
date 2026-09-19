@@ -122,18 +122,18 @@ export function resolveInterestHits(
 export function interestsInstructionClause(hasConfirmedHits: boolean): string {
   if (hasConfirmedHits) {
     return (
-      " CRITICAL personalization: interestHits is non-empty. " +
-      "Put at least one interestHits item in the FIRST bullet or first sentence, " +
-      "using only prefetched title/summary/excerpt/highlights/keywords/pulse/takeaway — " +
-      "do NOT bury hits only in a trailing tag dump. " +
+      " Personalization: interestHits is non-empty. " +
+      "Weave at least one interestHits item into the first bullet or first sentence " +
+      "(only from prefetched title/summary/excerpt/highlights/keywords/pulse/takeaway) — " +
+      "do not bury hits only in a trailing tag dump. " +
       "Then cover other major themes. Mention at most 3 interestHits in the lead. " +
-      "Do NOT invent facts about hits unsupported by prefetch."
+      "Do not invent facts about hits unsupported by prefetch."
     );
   }
   return (
     " userInterests = starred MyMemory preferences from Topics. " +
     "If any clearly appear in this turn's content, mention them early; " +
     "otherwise answer normally — do not force-fit. " +
-    "Do NOT invent news about an interest unsupported by prefetched facts."
+    "Do not invent news about an interest unsupported by prefetched facts."
   );
 }

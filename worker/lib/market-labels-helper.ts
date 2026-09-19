@@ -57,6 +57,15 @@ export const LABEL_BODY_HINTS: Record<string, string[]> = {
   finance: ["금융 규제", "금융"],
   "trade-friction": ["무역 갈등", "무역 마찰", "무역"],
   "trade friction": ["무역 갈등", "무역 마찰", "무역"],
+  "monetary-policy-shifts": [
+    "통화정책",
+    "기준금리",
+    "정책금리",
+    "금리 인상",
+    "일본은행",
+  ],
+  "monetary policy": ["통화정책", "기준금리", "정책금리"],
+  통화정책: ["통화정책", "기준금리", "정책금리", "금리 인상"],
 };
 
 /**
@@ -79,6 +88,8 @@ export const TAG_SOFT_DISPLAY_KO: Record<string, string> = {
   finance: "금융",
   "trade-friction": "무역 갈등",
   "trade friction": "무역 갈등",
+  "monetary-policy-shifts": "통화정책",
+  "monetary policy": "통화정책",
 };
 
 export function looseKey(s: string): string {

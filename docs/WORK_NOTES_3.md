@@ -127,4 +127,38 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
   * Tags: tokenization→hint(토큰화…), finance→hint(금융…), trade-friction→hint(무역…), regulatory-recalibration→hint/soft — EN fallback 제거
 * **의도적으로 안 함:** Keywords soft(본문 없으면 탈락 유지); 전역 영한 사전
 
+## 39. Market chat 톤 — 말투만 해요체 *(완료)*
+
+* **목적:** 구조(`「제목」`+불릿+Market 탭)는 유지하고, 뉴스체 어미(…다/…이다)만 해요체로 부드럽게. “쉽게 말하면”·빈 오프너 강제는 어색해서 **의도적으로 안 함**.
+* **수정 및 추가 파일:**
+  * `worker/chat-agent/soul-market.ts` — RULE 5b = **어미만** (구조 변경·필러 금지)
+  * `worker/chat-agent/market-vector-search.ts` — OUTPUT SHAPE 유지 + 해요체/필러 금지 한 줄
+  * `worker/chat-agent/market-prefetch.ts` — brief/report 등 instruction 끝에 해요체 한 줄만 추가
+  * `worker/chat-agent/user-interests.ts` — interestHits CRITICAL 완화(기존)
+  * docs: 본 절
+* **확인:** Clear chat → 「기준금리」 — 내용은 같고 어미만 ~해요/~예요인지; 불릿·제목 구조 유지
+* **의도적으로 안 함:** 쉽게 말하면 리드 강제; 샘플 shape; 구조/섹션 개편
+
+## 40. 벡터 답 줄바꿈 + 「통화정책」 회피 수정 *(완료)*
+
+* **목적:** (1) 키워드 답이 한 덩어리 문단으로 나와 가독성 나쁨 → `- ` 불릿 + 불릿 사이 빈 줄 강제. (2) 「통화정책」은 Vectorize hit이 있는데도 모델이 “가까운 내용이 많아요 / Market 확인”으로 회피 — hit 있으면 반드시 요약; 쿼리 expand로 `monetary-policy-shifts`·기준금리 등 보강.
+* **수정 및 추가 파일:**
+  * `worker/lib/market-vector-defaults.ts` — `CHAT_VECTOR_QUERY_ALIASES` (통화정책↔monetary-policy-shifts 등)
+  * `worker/chat-agent/market-vector-search.ts` — expand에 alias 병합; instruction에 줄바꿈·회피 금지·★ 금지
+  * `worker/chat-agent/soul-market.ts` — hits 있을 때 Market 회피 금지
+  * `worker/lib/market-labels-helper.ts` — monetary-policy-shifts soft/hint
+  * docs: 본 절
+* **확인:** Clear chat → `2026-09-18 … 「통화정책」` — BOJ/금리 사실이 불릿+빈줄로; 「희토류」도 동일 포맷
+* **의도적으로 안 함:** glossary 청크 하드 필터; FE 마크다운 후처리
+
+### 40.1 톤 흔들림 — 해요체 단일 레지스터 *(완료)*
+
+* **목적:** 같은 세션에서 …어요 / …다 / …습니다가 섞이고, footer가 `확인할 수 있습니다`로 변형되며, 불릿이 문단으로 붕괴.
+* **수정:**
+  * `soul-market.ts` RULE 5b — **ONE register** (해요체 only; 다/이다/습니다 혼용 금지)
+  * `market-vector-search.ts` — VOICE LOCK + OUTPUT SHAPE를 실제 마크다운 골격으로 제시; footer 문구 고정
+  * `market-prefetch.ts` — brief/report instruction의 해요체 문구를 “ONLY / no mix”로 강화
+* **확인:** Clear chat → 「통화정책」「반도체」 — 전 문장 해요체, `- ` 불릿+빈줄, footer 정확히 `원문·리포트는 Market 탭.`
+* **의도적으로 안 함:** FE 어미 후처리; 쉽게 말하면 리드
+
 ---

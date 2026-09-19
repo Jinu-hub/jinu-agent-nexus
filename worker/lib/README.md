@@ -17,6 +17,6 @@ entrypoints. Keeps `worker/` root for routes, domain modules, and crons.
 | `voice-lang-filter.ts` | Voice cron lang include/exclude |
 | `report-keywords.ts` | Compact report keywords for chat/prefetch |
 | `market-labels-helper.ts` | Topic label body hints + span/polish |
-| `market-vector-defaults.ts` | Vectorize query knobs (chat topK/minScore + HTTP defaults) |
+| `market-vector-defaults.ts` | Vectorize query knobs (chat topK/minScore + HTTP defaults + 「keyword」 query aliases) |
 
 FE-shared code stays in `src/lib/` (e.g. `market-tag-lexicon.ts`, FE `market-date.ts` mirror).
