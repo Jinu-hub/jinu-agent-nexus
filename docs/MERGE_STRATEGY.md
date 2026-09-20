@@ -186,3 +186,4 @@
 | 2026-09-19 | 홈 Market 패널 슬림 — A `SHOW_MARKET_WORKBENCH` ([`WORK_NOTES_3` §41.2](./WORK_NOTES_3.md)) |
 | 2026-09-19 | 홈 Ask ↔ Market 날짜 동기화 — A `use-market-day-data` sharedBrowseDate ([`WORK_NOTES_3` §41.3](./WORK_NOTES_3.md)) |
 | 2026-09-19 | 홈 Ask 챗 이해 도우미 톤 — A soul/prefetch/vector + Ask 칩 ([`WORK_NOTES_3` §41.4](./WORK_NOTES_3.md)) |
+| 2026-09-20 | Phase 1 guest 인스턴스 — A `agent-identity` / B App·settings·memory ([`WORK_NOTES_3` §46](./WORK_NOTES_3.md)) |

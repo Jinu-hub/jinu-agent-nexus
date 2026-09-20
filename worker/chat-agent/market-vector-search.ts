@@ -22,6 +22,7 @@ import {
   type TagLexeme,
 } from "../../src/lib/market-tag-lexicon";
 import { DEFAULT_INSTANCE_NAME } from "../../src/lib/agent-identity";
+import { loadTopicLabelMap } from "../lib/chat-ui-topic-map";
 import { REPLY_LANG_LOCK } from "./soul-market";
 
 /** Re-export — weak matches below this are treated as no hit (unless lexical). */
@@ -242,6 +243,8 @@ export async function runChatVectorSearch(
     itemId?: string;
     /** From item_contents.metadata.tags.core (+ label_ko when present). */
     tagLexicon?: TagLexeme[] | null;
+    /** ChatAgent / MyMemory instance (guest id). */
+    instanceName?: string;
   },
 ): Promise<ChatVectorSearchResult> {
   const userQueries = opts.queries.map((q) => q.trim()).filter(Boolean);
@@ -256,18 +259,12 @@ export async function runChatVectorSearch(
     };
   }
 
-  const labelMap = await (async () => {
-    try {
-      const id = env.MyMemory.idFromName(DEFAULT_INSTANCE_NAME);
-      const stub = env.MyMemory.get(id);
-      return await stub.getTopicLabelsByKeys(
-        userQueries,
-        opts.lang ?? undefined,
-      );
-    } catch {
-      return {} as Record<string, string>;
-    }
-  })();
+  const labelMap = await loadTopicLabelMap(
+    env,
+    userQueries,
+    opts.lang,
+    opts.instanceName ?? DEFAULT_INSTANCE_NAME,
+  );
 
   const expanded: string[] = [];
   const seen = new Set<string>();

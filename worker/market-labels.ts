@@ -29,6 +29,7 @@ import {
 import { MyMemory } from "./my-memory";
 import { buildTagLexicon } from "../src/lib/market-tag-lexicon";
 import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
+import { myMemoryStub } from "./lib/my-memory-stub";
 
 // Re-export helpers for callers / tests that imported from this module.
 export {
@@ -60,6 +61,11 @@ export type ResolveMarketLabelsOptions = {
   /** Ignore topic_labels cache (re-pick + overwrite). */
   force?: boolean;
   bodyExcerptChars?: number;
+  /**
+   * MyMemory instance for topic_labels cache.
+   * Cron ingest omits this → shared `default`. Interactive HTTP passes guest id.
+   */
+  instanceName?: string;
 };
 
 export type LabelResolvedBy =
@@ -86,9 +92,11 @@ export type ResolveMarketLabelsResult = {
 const DEFAULT_EXCERPT = 10_000;
 const MAX_LLM_KEYS = 40;
 
-function memoryStub(env: Env): DurableObjectStub<MyMemory> {
-  const id = env.MyMemory.idFromName(DEFAULT_INSTANCE_NAME);
-  return env.MyMemory.get(id);
+function memoryStub(
+  env: Env,
+  instanceName: string = DEFAULT_INSTANCE_NAME,
+): DurableObjectStub<MyMemory> {
+  return myMemoryStub(env, instanceName);
 }
 
 function asStringList(value: unknown): string[] {
@@ -331,7 +339,7 @@ export async function resolveMarketLabels(
       ? options.keys
       : collectLabelKeysFromItem(item);
 
-  const stub = memoryStub(env);
+  const stub = memoryStub(env, options.instanceName ?? DEFAULT_INSTANCE_NAME);
   const cache: Record<string, string> = options.force
     ? {}
     : await stub.getTopicLabelsByKeys(

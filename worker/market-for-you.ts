@@ -21,7 +21,11 @@ import type { ItemContentRow } from "./item-contents";
 import { isMarketDateYmd } from "./lib/market-date";
 import { resolveOneReportForIngest } from "./market-item-resolve";
 import { queryMarketVectors, type MarketVectorHit } from "./market-vector";
-import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
+import {
+  DEFAULT_INSTANCE_NAME,
+  resolveInstanceNameFromRequest,
+} from "../src/lib/agent-identity";
+import { myMemoryStub } from "./lib/my-memory-stub";
 import {
   collectReportPreferenceKeys,
   preferenceKey,
@@ -72,8 +76,8 @@ export type ForYouResult = {
   degraded?: boolean;
 };
 
-function memoryStub(env: Env) {
-  return env.MyMemory.get(env.MyMemory.idFromName(DEFAULT_INSTANCE_NAME));
+function memoryStub(env: Env, instanceName: string = DEFAULT_INSTANCE_NAME) {
+  return myMemoryStub(env, instanceName);
 }
 
 /** Stable across reorderings — the summary only depends on the set. */
@@ -131,9 +135,13 @@ async function resolveDisplayLabels(
   env: Env,
   targets: string[],
   lang: string,
+  instanceName: string,
 ): Promise<Record<string, string>> {
   try {
-    return await memoryStub(env).getTopicLabelsByKeys(targets, lang);
+    return await memoryStub(env, instanceName).getTopicLabelsByKeys(
+      targets,
+      lang,
+    );
   } catch {
     return {};
   }
@@ -193,6 +201,8 @@ export type ForYouOptions = {
   itemId?: string;
   /** Skip the cache read (Regenerate button). */
   refresh?: boolean;
+  /** MyMemory instance (guest id from cookie/header). */
+  instanceName?: string;
 };
 
 export async function buildForYou(
@@ -200,6 +210,7 @@ export async function buildForYou(
   options: ForYouOptions,
 ): Promise<ForYouResult> {
   const lang = (options.lang?.trim() || "ko").toLowerCase();
+  const instanceName = options.instanceName ?? DEFAULT_INSTANCE_NAME;
 
   let resolved: Awaited<ReturnType<typeof resolveOneReportForIngest>>;
   try {
@@ -234,7 +245,7 @@ export async function buildForYou(
 
   let preferences: PreferenceRow[];
   try {
-    const rows = await memoryStub(env).listPreferences();
+    const rows = await memoryStub(env, instanceName).listPreferences();
     preferences = Array.isArray(rows) ? rows : [];
   } catch {
     preferences = [];
@@ -244,6 +255,7 @@ export async function buildForYou(
     env,
     preferences.map((p) => p.target),
     resolved.lang,
+    instanceName,
   );
   // Same lang-aware chip label as Topics My interests (skip Hangul frozen
   // display when content_lang is en).
@@ -279,7 +291,7 @@ export async function buildForYou(
   const interestHash = await hashInterests(matched);
   if (!options.refresh) {
     try {
-      const hit = await memoryStub(env).getForYouSummary(
+      const hit = await memoryStub(env, instanceName).getForYouSummary(
         report.id,
         resolved.lang,
         interestHash,
@@ -422,7 +434,7 @@ export async function buildForYou(
   }
 
   try {
-    await memoryStub(env).putForYouSummary(
+    await memoryStub(env, instanceName).putForYouSummary(
       report.id,
       resolved.lang,
       interestHash,
@@ -498,6 +510,7 @@ export async function handleMarketForYouRequest(
       seriesId: str(body.series_id),
       itemId: str(body.item_id),
       refresh: body.refresh === true,
+      instanceName: resolveInstanceNameFromRequest(request),
     });
     return Response.json(result);
   } catch (error) {

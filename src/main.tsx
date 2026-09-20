@@ -6,6 +6,10 @@ import ReportSurface from "./reports/ReportSurface";
 import { LIVE_ROOM_PATH } from "./lib/live-room";
 import { matchReportPage } from "./lib/report-pages";
 import { ThemeProvider } from "./lib/theme";
+import { getOrCreateClientInstanceName } from "./lib/agent-identity";
+
+// Bind guest instance cookie before any /settings or /memory fetch.
+getOrCreateClientInstanceName();
 
 // Minimal path switch instead of a router dependency: `/live` is its own
 // surface (poll room, no chat), `/<report-series-slug>` is a full-frame

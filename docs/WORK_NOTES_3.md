@@ -492,3 +492,23 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **의도적으로 안 함:** 아코디언; 탭 상태 localStorage
 
 ---
+
+## 46. Phase 1 — 유저별 Agent/MyMemory 인스턴스 (guest) *(완료)*
+
+* **목적:** Auth 전에 브라우저별 안정 guest id로 ChatAgent + MyMemory를 분리. 같은 쿠키로 `/settings`·`/memory`·upload가 `useAgent({ name })`과 같은 DO를 가리키게 한다.
+* **수정 및 추가 파일:**
+  * `src/lib/agent-identity.ts` — `getOrCreateClientInstanceName` / cookie·header / `resolveInstanceNameFromRequest`; `default`는 시스템용
+  * `src/lib/use-agent-instance.ts` *(신규)* — React hook
+  * `src/main.tsx` — 부트 시 guest cookie 바인딩
+  * `src/App.tsx` / `src/reports/ReportSurface.tsx` — `useAgent({ name: instanceName })`
+  * `worker/settings-routes.ts` / `memory-routes.ts` / `index.ts` upload — request에서 instance 해석
+  * `worker/lib/my-memory-stub.ts` *(신규)* — MyMemory stub by name
+  * `worker/chat-agent/user-interests.ts` · `market-prefetch.ts` · `market-vector-search.ts` — `agent.name`
+  * `worker/lib/chat-ui-topic-map.ts` — user + shared `default` label fallback
+  * `worker/market-for-you.ts` · `market-labels(-routes).ts` — request instance (cron ingest는 `default`)
+  * `worker/market-settings.ts` — cron용 settings는 계속 `default`
+  * `docs/CLAUDE.md` · `worker/lib/README.md` · `MERGE_STRATEGY` changelog · 본 절
+* **확인:** 새 브라우저 프로필 → `localStorage.lyra_instance_name` = `guest_…`, cookie `lyra_instance` 동일; 챗/관심사가 다른 프로필과 분리. Cron vector ingest settings는 `default` DO.
+* **의도적으로 안 함:** 로그인 Auth; 관리자 role; `default` 데이터 자동 마이그레이션 (복구: localStorage를 `default`로 수동 설정); Live room 인스턴스 변경
+
+---

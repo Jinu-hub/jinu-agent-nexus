@@ -2,6 +2,7 @@
 
 import { isMarketDateYmd } from "./lib/market-date";
 import { resolveMarketLabels } from "./market-labels";
+import { resolveInstanceNameFromRequest } from "../src/lib/agent-identity";
 import {
   getSupabaseAccessMode,
   isSupabaseConfigured,
@@ -50,6 +51,7 @@ export async function handleMarketLabelsRequest(
       itemId: str(body.item_id),
       skipLlm: body.skip_llm === true,
       force: body.force === true,
+      instanceName: resolveInstanceNameFromRequest(request),
     });
     return Response.json(result);
   } catch (error) {

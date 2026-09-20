@@ -121,6 +121,7 @@ async function withVectorSearch<T extends Record<string, unknown>>(
     /** Brief-only asks: pass report keywords/highlights when not on payload. */
     keywords?: ReportChatKeywords | null;
     highlights?: string[] | null;
+    instanceName?: string;
   },
 ): Promise<T & { vectorSearch?: ChatVectorSearchResult }> {
   const queries = extractQuotedQueries(opts.userText);
@@ -133,6 +134,7 @@ async function withVectorSearch<T extends Record<string, unknown>>(
     seriesId: opts.seriesId,
     itemId: opts.itemId,
     tagLexicon: opts.tagLexicon,
+    instanceName: opts.instanceName,
   });
 
   const fromPayload = fallbackCorpusFromPayload(payload);
@@ -486,7 +488,7 @@ export async function buildMarketPrefetchBlock(
   }
 
   const hints = seoulDateHints();
-  const userInterests = await loadUserInterests(env);
+  const userInterests = await loadUserInterests(env, agent.name);
   const focusSeriesId = marketFocusSeriesId(agent);
 
   const vectorScope = (report: unknown) => {
@@ -629,6 +631,7 @@ export async function buildMarketPrefetchBlock(
             lang,
             ...vectorScope(report),
             tagLexicon: tagLexiconFromReport(report),
+            instanceName: agent.name,
           },
         ),
         null,
@@ -666,6 +669,7 @@ export async function buildMarketPrefetchBlock(
           env,
           flattenReportKeywordKeys(reportKw),
           lang,
+          agent.name,
         );
         uiTopicMap = buildChatUiTopicMap(reportKw, {
           labelMap,
@@ -748,6 +752,7 @@ export async function buildMarketPrefetchBlock(
             lang,
             ...vectorScope(report),
             tagLexicon: tagLexiconEntries,
+            instanceName: agent.name,
           },
         ),
         null,
@@ -804,6 +809,7 @@ export async function buildMarketPrefetchBlock(
           tagLexicon: tagLexiconFromReport(reportForLexicon),
           keywords: lexiconKw,
           highlights: lexiconHighlights,
+          instanceName: agent.name,
         },
       ),
       null,

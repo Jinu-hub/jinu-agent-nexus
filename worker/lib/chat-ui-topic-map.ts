@@ -8,6 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import { DEFAULT_INSTANCE_NAME } from "../../src/lib/agent-identity";
+import { myMemoryStub } from "./my-memory-stub";
 import {
   tagLexiconFromEntries,
   topicDisplayLabel,
@@ -58,18 +59,30 @@ export function flattenReportKeywordKeys(
   return out;
 }
 
-/** MyMemory topic_labels for Settings content_lang. */
+/** MyMemory topic_labels for Settings content_lang (user + shared default). */
 export async function loadTopicLabelMap(
   env: Env,
   keys: string[],
   lang: string | null | undefined,
+  instanceName: string = DEFAULT_INSTANCE_NAME,
 ): Promise<Record<string, string>> {
   const unique = [...new Set(keys.map((k) => k.trim()).filter(Boolean))];
   if (unique.length === 0) return {};
   try {
-    const id = env.MyMemory.idFromName(DEFAULT_INSTANCE_NAME);
-    const stub = env.MyMemory.get(id);
-    return await stub.getTopicLabelsByKeys(unique, lang ?? undefined);
+    const userMap = await myMemoryStub(env, instanceName).getTopicLabelsByKeys(
+      unique,
+      lang ?? undefined,
+    );
+    if (instanceName === DEFAULT_INSTANCE_NAME) return userMap;
+
+    const missing = unique.filter((k) => !userMap[k]);
+    if (missing.length === 0) return userMap;
+
+    const shared = await myMemoryStub(env, DEFAULT_INSTANCE_NAME).getTopicLabelsByKeys(
+      missing,
+      lang ?? undefined,
+    );
+    return { ...shared, ...userMap };
   } catch {
     return {};
   }

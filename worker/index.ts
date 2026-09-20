@@ -49,7 +49,7 @@ import {
   isMarketVectorCron,
   runMarketVectorCron,
 } from "./market-vector-cron";
-import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
+import { resolveInstanceNameFromRequest } from "../src/lib/agent-identity";
 
 export { ChatAgent, MyMemory, LiveMarketRoomAgent };
 
@@ -122,20 +122,11 @@ export default {
         return new Response("missing file", { status: 400 });
       }
       const buffer = await file.arrayBuffer();
-      // "default" matches the agent name used by the frontend's
-      // useAgent({ agent: "ChatAgent" }) hook. A single-user
-      // boilerplate uses one instance; for multi-user, mint a
-      // unique name per signed-in user and pass it via a header /
-      // session here.
-      //
-      // The cast is unavoidable: wrangler emits
-      //   `ChatAgent: DurableObjectNamespace /* ChatAgent */`
-      // with no real class generic, so we have to tell TS what's
-      // actually on the other end of the namespace at call sites
-      // that use the typed stub.
+      // Instance name matches the frontend useAgent({ name }) + cookie.
+      // Cron / bare requests without a cookie stay on DEFAULT_INSTANCE_NAME.
       const agent = await getAgentByName<Env, ChatAgent>(
         env.ChatAgent as unknown as DurableObjectNamespace<ChatAgent>,
-        DEFAULT_INSTANCE_NAME,
+        resolveInstanceNameFromRequest(request),
       );
       const result = await agent.uploadPdf(buffer, file.name);
       return Response.json(result);

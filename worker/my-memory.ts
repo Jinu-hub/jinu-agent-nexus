@@ -11,7 +11,8 @@
 // Challenge pattern borrowed: DO + own SQLite + change history (+ visitor
 // geo when present). Not a counter — preferences & feedback instead.
 //
-// Instance name: "default" (single-user). Multi-user → idFromName(userId).
+// Instance name: per-browser guest id (Phase 1) or future auth userId.
+// Cron / shared topic-label bootstrap still use "default".
 // ─────────────────────────────────────────────────────────────────────────
 
 import { DurableObject } from "cloudflare:workers";

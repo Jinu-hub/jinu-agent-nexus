@@ -42,7 +42,7 @@ import type { ChatAgent } from "../../worker/chat-agent";
 import type { ContentLang } from "../../worker/chat-agent/settings";
 import { isContentLang } from "../../worker/chat-agent/settings";
 import type { ReportSeriesRow } from "../../worker/report-series";
-import { DEFAULT_INSTANCE_NAME } from "@/lib/agent-identity";
+import { useAgentInstanceName } from "@/lib/use-agent-instance";
 import { ReportChat } from "./ReportChat";
 import { ReportForYou } from "./ReportForYou";
 import { ReportFullText } from "./ReportFullText";
@@ -218,9 +218,10 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
 
   const calendarToday = seoulYmd();
 
+  const instanceName = useAgentInstanceName();
   const agent = useAgent<ChatAgent>({
     agent: "ChatAgent",
-    name: DEFAULT_INSTANCE_NAME,
+    name: instanceName,
   });
 
   // Content language follows Settings unless the URL pins one.

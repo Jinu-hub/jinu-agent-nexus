@@ -23,7 +23,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgent } from "agents/react";
 import type { MCPServersState } from "agents";
-import { DEFAULT_INSTANCE_NAME } from "@/lib/agent-identity";
+import { useAgentInstanceName } from "@/lib/use-agent-instance";
 import { cn } from "@/lib/utils";
 import {
   Brain,
@@ -170,9 +170,10 @@ export default function App() {
     setMcpServers(list);
   }, []);
 
+  const instanceName = useAgentInstanceName();
   const agent = useAgent<ChatAgent, State>({
     agent: "ChatAgent",
-    name: DEFAULT_INSTANCE_NAME,
+    name: instanceName,
     onMessage,
     onMcpUpdate,
   });

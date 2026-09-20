@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import { DEFAULT_INSTANCE_NAME } from "../../src/lib/agent-identity";
+import { myMemoryStub } from "../lib/my-memory-stub";
 import type { PreferenceRow } from "../my-memory";
 import type { ReportChatKeywords } from "../lib/report-keywords";
 
@@ -24,11 +25,12 @@ export function compactInterests(rows: PreferenceRow[]): CompactInterest[] {
 }
 
 /** Best-effort read from MyMemory DO (same instance as /memory/preferences). */
-export async function loadUserInterests(env: Env): Promise<CompactInterest[]> {
+export async function loadUserInterests(
+  env: Env,
+  instanceName: string = DEFAULT_INSTANCE_NAME,
+): Promise<CompactInterest[]> {
   try {
-    const id = env.MyMemory.idFromName(DEFAULT_INSTANCE_NAME);
-    const stub = env.MyMemory.get(id);
-    const rows = await stub.listPreferences();
+    const rows = await myMemoryStub(env, instanceName).listPreferences();
     return compactInterests(Array.isArray(rows) ? rows : []);
   } catch {
     return [];

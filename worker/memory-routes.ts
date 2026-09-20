@@ -17,12 +17,12 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import {
-  MyMemory,
   visitorGeoFromRequest,
   type PreferenceAction,
   type PreferenceKind,
 } from "./my-memory";
-import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
+import { resolveInstanceNameFromRequest } from "../src/lib/agent-identity";
+import { myMemoryStub } from "./lib/my-memory-stub";
 
 function json(data: unknown, status = 200): Response {
   return Response.json(data, { status });
@@ -37,11 +37,6 @@ function errorResponse(err: unknown, fallback = 400): Response {
   return json({ error: message }, status);
 }
 
-function memoryStub(env: Env): DurableObjectStub<MyMemory> {
-  const id = env.MyMemory.idFromName(DEFAULT_INSTANCE_NAME);
-  return env.MyMemory.get(id);
-}
-
 export async function handleMemoryRequest(
   request: Request,
   env: Env,
@@ -53,7 +48,7 @@ export async function handleMemoryRequest(
     return null;
   }
 
-  const stub = memoryStub(env);
+  const stub = myMemoryStub(env, resolveInstanceNameFromRequest(request));
   const geo = visitorGeoFromRequest(request);
 
   try {

@@ -1,6 +1,6 @@
 import { getAgentByName } from "agents";
 
-import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
+import { resolveInstanceNameFromRequest } from "../src/lib/agent-identity";
 import { ChatAgent } from "./chat-agent/ChatAgent";
 import type { ChatSettingsPatch } from "./chat-agent/settings";
 
@@ -11,9 +11,8 @@ function json(data: unknown, status = 200): Response {
 /**
  * HTTP inspection/update surface for the ChatAgent settings tables.
  *
- * The MVP uses the shared default ChatAgent instance. Authentication and
- * per-user instance selection can be added when the product becomes
- * multi-user.
+ * Instance name comes from `x-lyra-instance` / `lyra_instance` cookie
+ * (same guest id as useAgent). Cron callers with no cookie stay on `default`.
  */
 export async function handleSettingsRequest(
   request: Request,
@@ -24,9 +23,10 @@ export async function handleSettingsRequest(
     return null;
   }
 
+  const instanceName = resolveInstanceNameFromRequest(request);
   const agent = await getAgentByName<Env, ChatAgent>(
     env.ChatAgent as unknown as DurableObjectNamespace<ChatAgent>,
-    DEFAULT_INSTANCE_NAME,
+    instanceName,
   );
 
   try {

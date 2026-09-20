@@ -19,9 +19,10 @@
 - **Origin:** Forked from Nomad Coders Cloudflare Agent Boilerplate
 - **Remote:** `https://github.com/Jinu-hub/jinu-agent-nexus.git` — never push
   to nomadcoders upstream
-- **Agent instance name:** `"default"` (single-user). For multi-user, mint a
-  per-user name in `worker/index.ts` and pass it from the frontend `useAgent`
-  hook
+- **Agent instance name:** Phase 1 guest id (`guest_<uuid>` in localStorage +
+  `lyra_instance` cookie). `useAgent({ name })` and `/settings`·`/memory` share
+  that name. Cron ingest settings still read ChatAgent `"default"`. Auth userId
+  replaces guest later (`src/lib/agent-identity.ts`).
 
 ## Stack (do not reinvent)
 
@@ -141,7 +142,7 @@ flowchart TD
 ```
 worker/
   index.ts             Worker entry — HTTP routing + DO re-export
-  lib/                 Worker-only helpers — market-date, voice-lang-filter, report-keywords, market-labels-helper, market-vector-defaults (see lib/README.md)
+  lib/                 Worker-only helpers — market-date, voice-lang-filter, report-keywords, market-labels-helper, market-vector-defaults, my-memory-stub, chat-ui-topic-map (see lib/README.md)
   notes.ts             My Market Notes — Workers KV API (`/notes`)
   my-memory.ts         MyMemory DO — preferences / events / weights
   memory-routes.ts     HTTP routes → MyMemory
@@ -225,6 +226,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Market panel (sidebar) | `MarketPanel.tsx` (`SHOW_MARKET_WORKBENCH=false` → slim card: pulse/takeaway + brief body + report blurb + voice + reading CTA; `true` → Brief/Voice/Report folds) + `ReportReader.tsx` + `report-topics.tsx` + `MyInterestsFold.tsx` + `BriefForYou.tsx` + `src/lib/market-date.ts` + `src/lib/market-tag-lexicon.ts` + `src/lib/market-fetch.ts` + `use-market-day-data.ts` + `use-market-preferences.ts` (shared with home helper rail; Ask 「」 uses display, save/target stays slug/name); Topics chips/Keywords in `report-topics.tsx` (re-exported by ReportReader); home Topics + Ask live in `ChatHelperRail`; off-switches unchanged; wired in `App.tsx`; registered series: 「이 리포트 자세히 보기」 → `readingHrefForSeriesSlug` (`report-pages.ts`) |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — cleanup/alarm fields remain in DO (not exposed in Settings UI) + `content_lang` (ko\|en; **screen chrome + Market Memory content**, not chat reply language) + `hidden_panels` (tab strip) + `disabled_report_series` (Market content opt-out) + `market_focus_series_id` (Market panel tab → chat vector scope); UI `SettingsPanel` Language + `ChromePrefs` on shell/report/live; Market tab sync in `App.tsx` |
 | UI language (ko/en) | `src/i18n/messages.ts` + `src/i18n/ui-lang.tsx` (`UiLangProvider` / `useT`); wraps App / ReportSurface / LiveMarketRoom; `document.documentElement.lang` follows `content_lang` |
+| Agent / MyMemory instance | `src/lib/agent-identity.ts` + `use-agent-instance.ts` — Phase 1 `guest_*` (localStorage + `lyra_instance` cookie); `useAgent({ name })` + `/settings`·`/memory`·upload; cron settings stay on `"default"` |
 | report_series catalog | `worker/report-series.ts` → `GET /api/report-series` (+ `groups`: weekly+daily market issues 한 토글; service_role) |
 | Market day (panel) | `worker/market-day.ts` → `GET /api/market/day` + `/api/market/latest-date` (`series_id`); MarketPanel tabs when 2+ slots |
 | Market Memory intent | `market-turn-hooks.ts` + `market-intent.ts` + `market-prefetch.ts` + `market-vector-search.ts` + `soul-market.ts` + `market-memory-load.ts` — prefetch (`toolChoice: none`); 「keyword」 → `vectorSearch` (expand via report tag lexicon; empty → keywords/highlights literal fallback); ★ `interestHits` string match; beforeStep fallback for weather / no prefetch |
