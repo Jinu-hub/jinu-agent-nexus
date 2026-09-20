@@ -61,6 +61,7 @@ import {
 } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
+import { authFetch } from "@/lib/auth-fetch";
 
 import { MemoryPanel } from "@/panels/MemoryPanel";
 import { MarketPanel } from "@/panels/MarketPanel";
@@ -127,6 +128,10 @@ function AppShell() {
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [settingsUpdating, setSettingsUpdating] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+  /** Phase 4 — product-wide panel strip defaults (ChatAgent "default"). */
+  const [globalHiddenPanels, setGlobalHiddenPanels] = useState<
+    ToggleablePanel[]
+  >([...DEFAULT_HIDDEN_PANELS]);
   const [activeTab, setActiveTab] = useState("market");
   /** Below lg the panel column is a drawer; lg+ it stays docked. */
   const [panelOpen, setPanelOpen] = useState(false);
@@ -191,6 +196,27 @@ function AppShell() {
 
   useEffect(() => {
     let active = true;
+    void fetch("/api/panel-defaults")
+      .then(async (res) => {
+        const body = (await res.json()) as {
+          ok?: boolean;
+          hidden_panels?: ToggleablePanel[];
+        };
+        if (!active || !res.ok || !body.ok || !Array.isArray(body.hidden_panels)) {
+          return;
+        }
+        setGlobalHiddenPanels(body.hidden_panels);
+      })
+      .catch(() => {
+        /* keep DEFAULT_HIDDEN_PANELS */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
     void agent.stub
       .getSettings()
       .then((nextSettings) => {
@@ -245,13 +271,8 @@ function AppShell() {
 
   const state = agent.state ?? INITIAL_STATE;
 
-  // Product default: Market on, other panels hidden. Empty [] still means
-  // "all visible" for admins who explicitly cleared the list.
-  const storedHidden = settings?.hidden_panels;
-  const effectiveHidden =
-    !storedHidden || (storedHidden.length === 0 && !isAdmin)
-      ? DEFAULT_HIDDEN_PANELS
-      : storedHidden;
+  // Phase 4: tab strip follows global defaults (not personal DO).
+  const effectiveHidden = globalHiddenPanels;
   const hiddenPanels = new Set(effectiveHidden);
   const visiblePanels = PANELS.filter(
     (p) => p.value === "settings" || !hiddenPanels.has(p.value),
@@ -269,15 +290,41 @@ function AppShell() {
 
   const togglePanelVisibility = useCallback(
     async (panel: ToggleablePanel, visible: boolean) => {
-      const current = settings?.hidden_panels ?? [];
-      const nextHidden = visible
-        ? current.filter((id) => id !== panel)
-        : current.includes(panel)
-          ? current
-          : [...current, panel];
-      await updateSettings({ hidden_panels: nextHidden });
+      if (!isAdmin) return;
+      setSettingsUpdating(true);
+      setSettingsError(null);
+      try {
+        const current = globalHiddenPanels;
+        const nextHidden = visible
+          ? current.filter((id) => id !== panel)
+          : current.includes(panel)
+            ? current
+            : [...current, panel];
+        const res = await authFetch("/api/admin/panel-defaults", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hidden_panels: nextHidden }),
+        });
+        const body = (await res.json()) as {
+          ok?: boolean;
+          hidden_panels?: ToggleablePanel[];
+          error?: string;
+        };
+        if (!res.ok || !body.ok || !Array.isArray(body.hidden_panels)) {
+          throw new Error(body.error ?? "Failed to update panel defaults");
+        }
+        setGlobalHiddenPanels(body.hidden_panels);
+      } catch (error) {
+        setSettingsError(
+          error instanceof Error
+            ? error.message
+            : translate(settings?.content_lang ?? "ko", "settings.updateFailed"),
+        );
+      } finally {
+        setSettingsUpdating(false);
+      }
     },
-    [settings?.hidden_panels, updateSettings],
+    [globalHiddenPanels, isAdmin, settings?.content_lang],
   );
 
   const toggleReportSeries = useCallback(
@@ -530,6 +577,7 @@ function AppShell() {
               loading={settingsLoading}
               updating={settingsUpdating}
               error={settingsError}
+              globalHiddenPanels={globalHiddenPanels}
               onContentLangChange={(lang: ContentLang) =>
                 updateSettings({ content_lang: lang })
               }

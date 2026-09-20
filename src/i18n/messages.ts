@@ -62,7 +62,7 @@ export const en = {
   "settings.seriesCount": "{enabled}/{total} series",
   "settings.panelTabs": "Panel tabs",
   "settings.panelTabsHelp":
-    "Show or hide side-panel tabs. Settings stays available so you can turn tabs back on.",
+    "Global side-panel tabs for every user. Only admins can change these.",
   "settings.tabsAllShown": "{n} tabs shown",
   "settings.tabsSummary": "{shown} shown · {hidden} hidden",
   "settings.showTab": "Show {title} tab",
@@ -443,7 +443,7 @@ export const ko: { [K in MessageKey]: string } = {
   "settings.seriesCount": "{enabled}/{total} 시리즈",
   "settings.panelTabs": "패널 탭",
   "settings.panelTabsHelp":
-    "사이드 패널 탭을 보이거나 숨깁니다. 설정 탭은 다시 켤 수 있도록 항상 남아 있습니다.",
+    "모든 사용자에게 적용되는 사이드 패널 탭입니다. 관리자만 변경할 수 있습니다.",
   "settings.tabsAllShown": "탭 {n}개 표시",
   "settings.tabsSummary": "{shown}개 표시 · {hidden}개 숨김",
   "settings.showTab": "{title} 탭 표시",

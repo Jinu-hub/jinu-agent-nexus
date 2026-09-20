@@ -46,6 +46,7 @@ import {
   handleAuthRequest,
   resolveTrustedInstanceName,
 } from "./auth";
+import { handlePanelDefaultsRequest } from "./panel-defaults";
 import {
   isVoiceAudioCron,
   runVoiceAudioCron,
@@ -83,7 +84,11 @@ export default {
     const auth = await handleAuthRequest(request, env);
     if (auth) return auth;
 
-    // ── Admin stubs (Phase 3 — env allowlist) ──────────────────────────
+    // ── Global panel defaults (Phase 4 — public read) ─────────────────
+    const panelDefaults = await handlePanelDefaultsRequest(request, env);
+    if (panelDefaults) return panelDefaults;
+
+    // ── Admin stubs (Phase 3–4 — env allowlist) ────────────────────────
     const admin = await handleAdminRequest(request, env);
     if (admin) return admin;
 

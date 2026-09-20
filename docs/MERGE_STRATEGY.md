@@ -192,3 +192,4 @@
 | 2026-09-20 | topic_labels → shared `default` only ([`WORK_NOTES_3` §47.1](./WORK_NOTES_3.md)) |
 | 2026-09-20 | Phase 2 Supabase Auth — A auth + Settings account ([`WORK_NOTES_3` §48](./WORK_NOTES_3.md)) |
 | 2026-09-20 | Phase 3 Admin role — A auth allowlist + `/api/admin/*` ([`WORK_NOTES_3` §49](./WORK_NOTES_3.md)) |
+| 2026-09-20 | Phase 4 global panel defaults — A `panel-defaults` + admin PATCH ([`WORK_NOTES_3` §50](./WORK_NOTES_3.md)) |

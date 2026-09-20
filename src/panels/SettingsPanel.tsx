@@ -80,6 +80,7 @@ export function SettingsPanel({
   loading,
   updating,
   error,
+  globalHiddenPanels,
   onContentLangChange,
   onTogglePanelVisibility,
   onToggleReportSeries,
@@ -88,6 +89,8 @@ export function SettingsPanel({
   loading: boolean;
   updating: boolean;
   error: string | null;
+  /** Phase 4 — product-wide defaults (ChatAgent "default"). */
+  globalHiddenPanels: ToggleablePanel[];
   onContentLangChange: (lang: ContentLang) => Promise<void>;
   onTogglePanelVisibility: (
     panel: ToggleablePanel,
@@ -143,9 +146,9 @@ export function SettingsPanel({
     };
   }, [t]);
 
-  const hidden = new Set(settings?.hidden_panels ?? []);
+  const hidden = new Set(globalHiddenPanels);
   const disabledSeries = new Set(settings?.disabled_report_series ?? []);
-  const hiddenCount = settings?.hidden_panels.length ?? 0;
+  const hiddenCount = globalHiddenPanels.length;
   const visibleCount = TOGGLEABLE_PANELS.length - hiddenCount;
   const panelsSummary =
     hiddenCount === 0

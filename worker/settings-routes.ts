@@ -47,10 +47,14 @@ export async function handleSettingsRequest(
 
     if (request.method === "PATCH") {
       const patch = (await request.json()) as ChatSettingsPatch;
-      if (patch.hidden_panels !== undefined && !trusted.isAdmin) {
+      // Phase 4: global panel defaults → PATCH /api/admin/panel-defaults
+      if (patch.hidden_panels !== undefined) {
         return json(
-          { error: "admin required to change hidden_panels" },
-          403,
+          {
+            error:
+              "use PATCH /api/admin/panel-defaults for global panel tabs",
+          },
+          400,
         );
       }
       return json(await agent.updateSettings(patch));

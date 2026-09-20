@@ -16,6 +16,10 @@ import {
   resolveInstanceNameFromRequest,
 } from "../src/lib/agent-identity";
 import { createSupabaseClient, getSupabaseBrowserConfig, isSupabaseConfigured } from "./supabase";
+import {
+  getGlobalHiddenPanels,
+  setGlobalHiddenPanels,
+} from "./panel-defaults";
 
 export type VerifiedUser = { id: string; email: string | null };
 
@@ -241,8 +245,10 @@ export async function handleAuthRequest(
 }
 
 /**
- * Admin HTTP (Phase 3 stub tree):
- *   GET /api/admin/status — requireAdmin → { ok, role: "admin" }
+ * Admin HTTP (Phase 3–4):
+ *   GET  /api/admin/status         — requireAdmin → { ok, role: "admin" }
+ *   GET  /api/admin/panel-defaults — requireAdmin → { ok, hidden_panels }
+ *   PATCH /api/admin/panel-defaults — requireAdmin → update ChatAgent "default"
  */
 export async function handleAdminRequest(
   request: Request,
@@ -258,6 +264,46 @@ export async function handleAdminRequest(
     const gate = await requireAdmin(request, env);
     if (!gate.ok) return gate.response;
     return Response.json({ ok: true, role: "admin" });
+  }
+
+  if (url.pathname === "/api/admin/panel-defaults") {
+    if (request.method === "GET") {
+      const gate = await requireAdmin(request, env);
+      if (!gate.ok) return gate.response;
+      const hidden_panels = await getGlobalHiddenPanels(env);
+      return Response.json({ ok: true, hidden_panels });
+    }
+    if (request.method === "PATCH") {
+      const gate = await requireAdmin(request, env);
+      if (!gate.ok) return gate.response;
+      let body: unknown;
+      try {
+        body = await request.json();
+      } catch {
+        return Response.json({ error: "invalid json" }, { status: 400 });
+      }
+      const raw =
+        body &&
+        typeof body === "object" &&
+        "hidden_panels" in body
+          ? (body as { hidden_panels: unknown }).hidden_panels
+          : undefined;
+      if (raw === undefined) {
+        return Response.json(
+          { error: "hidden_panels required" },
+          { status: 400 },
+        );
+      }
+      try {
+        const hidden_panels = await setGlobalHiddenPanels(env, raw);
+        return Response.json({ ok: true, hidden_panels });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "invalid request";
+        return Response.json({ error: message }, { status: 400 });
+      }
+    }
+    return Response.json({ error: "method not allowed" }, { status: 405 });
   }
 
   return Response.json({ error: "not found" }, { status: 404 });

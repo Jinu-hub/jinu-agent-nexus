@@ -55,7 +55,7 @@
 | UI `content_lang` | ChatAgent settings **개인** | |
 | Settings Content 시리즈 토글 `disabled_report_series` | ChatAgent settings **개인** | 패널/읽기 필터 (ingest와 별개) |
 | `market_focus_series_id` | ChatAgent settings **개인** | |
-| `hidden_panels` | ChatAgent settings **개인** — **기본: Market만 표시**, 나머지 숨김. Settings「패널 탭」UI·PATCH는 **admin만** | Phase 3 |
+| `hidden_panels` | ChatAgent settings — **전역은 `"default"`** (Phase 4). 개인 DO 필드는 legacy; 탭 스트립은 `/api/panel-defaults` | Phase 4 |
 
 ### 3. 명시적으로 개인이 아닌 것
 
@@ -99,7 +99,7 @@
 | `content_lang` | **개인** | 화면·콘텐츠 언어 선호 |
 | `disabled_report_series` | **개인** (UI) / ingest는 `"default"` | 개인 필터 ≠ cron 배치 |
 | `market_focus_series_id` | **개인** | |
-| `hidden_panels` | **개인** (기본 Market만 ON) · Settings UI는 **admin** | Phase 3 |
+| `hidden_panels` | **전역 (`"default"`)** · Settings UI·쓰기 admin · 공개 읽기 `/api/panel-defaults` | Phase 4 |
 | `alarm_*` / `message_cleanup_*` | 백엔드 유지; UI 비노출 | 제품 설정 아님 |
 
 ---
@@ -135,7 +135,16 @@ Phase 1 직후 상태. **목표와 다르면 여기가 수정 백로그.**
 | 인스턴스 | Admin도 개인 DO는 **본인 userId** 유지 (공유 스토어와 role 분리) |
 | API | `GET /api/auth/me` → `{ userId, email, isAdmin }`; `GET /api/admin/status` → allowlist만 200 |
 | UI | Settings「계정」Admin 배지; 「패널 탭」토글은 admin만 |
-| 패널 기본 | `DEFAULT_HIDDEN_PANELS` = Market 제외 전부 숨김; `hidden_panels` PATCH는 admin만 |
+| 패널 기본 | **전역** ChatAgent `"default"`. `GET /api/panel-defaults` / `PATCH /api/admin/panel-defaults`. 코드 fallback `DEFAULT_HIDDEN_PANELS` |
+
+### Panel defaults (Phase 4)
+
+| 항목 | 동작 |
+|------|------|
+| 저장 | ChatAgent 인스턴스 `"default"`의 `hidden_panels` |
+| 읽기 | 누구나 `GET /api/panel-defaults` → 탭 스트립 |
+| 쓰기 | admin만 `PATCH /api/admin/panel-defaults` |
+| 개인 `/settings` | `hidden_panels` PATCH 거부 (전역 API 사용) |
 
 ---
 
@@ -189,3 +198,4 @@ Cron / 시스템
 | 2026-09-20 | Phase 2 Auth — Supabase magic link/Google → userId 인스턴스. |
 | 2026-09-20 | Phase 3 Admin — env allowlist; `default` ≠ admin; `/api/auth/me` · `/api/admin/status`. |
 | 2026-09-20 | Phase 3 — 패널 탭 Settings UI·PATCH admin only; default hidden = all but Market. |
+| 2026-09-20 | Phase 4 — 패널 기본값 전역 (`"default"` DO + `/api/panel-defaults`). |

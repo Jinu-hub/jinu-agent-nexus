@@ -633,3 +633,18 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **확인:** 비로그인 Settings에 패널 탭 없음 · 탭에 Market+Settings만 · admin 로그인 후 패널 탭 조작 가능
 * **의도적으로 안 함:** 기존 DO에 `[]`로 저장된 값을 DB에서 일괄 마이그레이션 (비admin은 FE effective default 적용)
 
+---
+
+## 50. Phase 4 — 전역 패널 기본값 *(완료)*
+
+* **목적:** 패널 탭 숨김을 개인 DO가 아니라 ChatAgent `"default"` 전역 설정으로. admin이 바꾸면 모든 유저 탭 스트립에 반영.
+* **수정 및 추가 파일:**
+  * `worker/panel-defaults.ts` *(신규)* — `GET /api/panel-defaults`; get/set on `"default"`
+  * `worker/auth.ts` — `GET|PATCH /api/admin/panel-defaults`
+  * `worker/settings-routes.ts` — 개인 PATCH `hidden_panels` 거부
+  * `src/App.tsx` — 탭 스트립 = 전역; admin 토글 → admin API
+  * `SettingsPanel` + i18n help; ROUTING · INSTANCE_DATA · CLAUDE · MERGE · 본 절
+* **확인:** 비admin Settings에 패널 탭 없음 · admin이 Memory 켜면 게스트도 탭에 Memory 보임 · `GET /api/panel-defaults` 공개
+* **의도적으로 안 함:** 개인별 패널 오버라이드; ingest 시리즈 전역 UI; Phase 5 WS JWT
+
+
