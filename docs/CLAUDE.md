@@ -10,11 +10,13 @@
 
 ## Project identity
 
-- **Product brand (UI):** LYRA — slogan *Your world, a little closer.* (tab
-  title, chat header). Warm paper palette (cream + orange accent) is
-  **global** in `src/index.css` (`:root` / `.dark`) — shell and report
-  pages share it. Repo/Worker rename later. Report pages use `← Home`
-  for the `/` back-link (brand name alone was ambiguous).
+- **Product brand (UI):** DAMI — slogan *The stories you care about, closer.* / *관심 있는 이야기를 더 가까이.* (tab
+  title, chat header). Mark = custom D with star in the counter
+  (`public/favicon.svg` + `src/components/BrandMark.tsx`, keep in sync).
+  Warm paper palette (cream + orange accent) is **global** in
+  `src/index.css` (`:root` / `.dark`) — shell and report pages share it.
+  Repo/Worker rename later. Report pages use `← Home` for the `/`
+  back-link (brand name alone was ambiguous).
 - **Name:** `jinu-agent-nexus` (Worker, package, GitHub remote — keep until
   baseline port)
 - **Origin:** Forked from Nomad Coders Cloudflare Agent Boilerplate
@@ -220,7 +222,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts`; preferences PK `(category, kind, target)` (`src/lib/preference-category.ts`); `topic_labels` + preferences.`display`; panel interests UI `src/lib/topic-preference.ts` + `MyInterestsFold.tsx`; chat prefetch `user-interests.ts` (P3) |
 | Market topic labels | `worker/market-labels.ts` + `worker/lib/market-labels-helper.ts` + routes — body-grounded resolve (exact→hint→LLM); hint maps in `worker/lib` for ongoing slug→KO tuning; post-ingest hook; UI/vector expand consume cache |
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
-| Report page (`/<slug>`) | `src/reports/ReportSurface.tsx` + `src/lib/report-pages.ts` (`REPORT_PAGES` + `REPORT_NAV_CATEGORIES` + optional `includeSeriesSlugs`); registered: `/daily-market-issues` (+ weekly-market companion tabs, `?series=`) and `/weekly-ai-issues` under shell **Market** category; routed by pathname in `src/main.tsx`; reads `/settings` + `/api/report-series` + `/api/market/{latest-date,day}` (multi `series_id`); LYRA warm palette is **global**; voice on active slot above depth tabs; `?tab=` brief / `for-you` / `full`; side chat pins `market_focus_series_id` to the **active** slot |
+| Report page (`/<slug>`) | `src/reports/ReportSurface.tsx` + `src/lib/report-pages.ts` (`REPORT_PAGES` + `REPORT_NAV_CATEGORIES` + optional `includeSeriesSlugs`); registered: `/daily-market-issues` (+ weekly-market companion tabs, `?series=`) and `/weekly-ai-issues` under shell **Market** category; routed by pathname in `src/main.tsx`; reads `/settings` + `/api/report-series` + `/api/market/{latest-date,day}` (multi `series_id`); DAMI warm palette is **global**; voice on active slot above depth tabs; `?tab=` brief / `for-you` / `full`; side chat pins `market_focus_series_id` to the **active** slot |
 | Supabase (Market Memory) | `worker/supabase.ts` + `SUPABASE_*` secrets in `.dev.vars` |
 | Content briefs (today) | `worker/content-briefs.ts` + `worker/lib/market-date.ts` → `GET /api/briefs/today` + `GET /api/briefs/latest-date`; chat tool `worker/tools/getTodayMarketBrief.ts` (lang = Settings `content_lang`; omit date = data-backed latest) |
 | Full reports (today) | `worker/item-contents.ts` → `GET /api/reports/today`; primary `item_contents` + `item_content_i18n` overlay when `lang` ≠ primary `lang_code`; chat tool `getTodayMarketReport.ts` (excerpt + compact `keywords` via `worker/lib/report-keywords.ts`; lang = Settings `content_lang`) |
@@ -234,7 +236,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Voice audio pipeline | `content-audio.ts` barrel + `content-audio-domain.ts` / `content-audio-routes.ts` + `voice-audio-cron.ts` (UTC `0 0` + catch-up `0 1`) → `/api/audio/*`; today play + tool `getTodayMarketVoice.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
-| UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` + `HomeReportExits.tsx` + `ChatHelperRail.tsx` — empty state = LYRA intro + how-to + report landing cards (`REPORT_NAV_CATEGORIES`); helper rail = **Topics | Ask** tabs (default Topics; Ask = paper-surface + 1행 프롬프트 스크롤); header category menus (`Market` ▾ → pages, always shown); header `ChromePrefs` (theme + `content_lang`); Reset/Clear labels `xl+`; helper rail docks at `xl+`, right panels at `lg+`, drawers below (`App.tsx` `helperOpen` / `panelOpen`) |
+| UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` + `HomeReportExits.tsx` + `ChatHelperRail.tsx` — empty state = DAMI intro + how-to + report landing cards (`REPORT_NAV_CATEGORIES`); helper rail = **Topics | Ask** tabs (default Topics; Ask = paper-surface + 1행 프롬프트 스크롤); header category menus (`Market` ▾ → pages, always shown); header `ChromePrefs` (theme + `content_lang`); Reset/Clear labels `xl+`; helper rail docks at `xl+`, right panels at `lg+`, drawers below (`App.tsx` `helperOpen` / `panelOpen`) |
 | UI i18n toggle | `src/components/ChromePrefs.tsx` (theme + lang) + `src/i18n/ContentLangToggle.tsx` + `content-lang.ts` + `src/lib/theme.tsx` — shell / report / live; lang → ChatAgent `content_lang` |
 | Chat transcript / input (shared) | `src/chat/ChatParts.tsx` (`ChatMessageList` + `ChatComposer`) + `src/chat/use-client-tools.ts`; each surface supplies its own header + `empty` state (shell = `Chat.tsx`, report page = `ReportChat.tsx`) |
 | Voice in-chat player | `src/chat/Message.tsx` — `<audio>` when `getTodayMarketVoice` returns `playPath` |

@@ -113,7 +113,7 @@ export const en = {
   "series.tab.marketKr": "Market (KR)",
 
   // Chat shell
-  "chat.slogan": "Your world, a little closer.",
+  "chat.slogan": "The stories you care about, closer.",
   "chat.resetSession": "Reset session",
   "chat.resetSessionTitle":
     "Wipe sources, files, schedules, extensions, MCP connections",
@@ -123,16 +123,16 @@ export const en = {
   "chat.preparing": "Preparing reply",
   "chat.introHeading": "About",
   "chat.intro.p1":
-    "LYRA is a personalized information service for people who find it hard to pick out what they need from the daily flood of news.",
+    "DAMI is a personalized information service that holds the stories that matter to you from the daily flood of news.",
   "chat.intro.p2":
     "Today it shortens global market and AI issues into plain language, and separately summarizes what matches the keywords and tags you save.",
   "chat.intro.p3":
     "Next it will expand into domestic news, sports, and entertainment, and recommend in-depth reports when they connect to your interests.",
   "chat.intro.p4":
-    "The goal is that you do not have to hunt across sources — LYRA surfaces what matters and lets you go deeper when you want.",
+    "The goal is that you do not have to hunt across sources — DAMI surfaces what matters and lets you go deeper when you want.",
   "chat.howToHeading": "How to use",
   "chat.howTo.s1":
-    "In the left helper, tap the star next to a keyword to save it as an interest. LYRA re-reads that day’s report and summarizes only the parts that match your interests.",
+    "In the left helper, tap the star next to a keyword to save it as an interest. DAMI re-reads that day’s report and summarizes only the parts that match your interests.",
   "chat.howTo.s2":
     "Tap a keyword or an Ask prompt to put a question into chat; send it to ask about that day’s report in plain language.",
   "chat.howTo.s3":
@@ -491,7 +491,7 @@ export const ko: { [K in MessageKey]: string } = {
   "series.tab.daily": "데일리",
   "series.tab.marketKr": "마켓 (KR)",
 
-  "chat.slogan": "Your world, a little closer.",
+  "chat.slogan": "관심 있는 이야기를 더 가까이.",
   "chat.resetSession": "세션 초기화",
   "chat.resetSessionTitle":
     "소스, 파일, 스케줄, 확장, MCP 연결을 모두 지웁니다",
@@ -501,16 +501,16 @@ export const ko: { [K in MessageKey]: string } = {
   "chat.preparing": "답변 준비 중",
   "chat.introHeading": "소개",
   "chat.intro.p1":
-    "LYRA는 매일 쏟아지는 많은 정보 속에서 자신에게 필요한 내용을 일일이 찾아보기 어려운 사람을 위한 개인화 정보 서비스입니다.",
+    "DAMI는 매일 쏟아지는 정보 속에서, 나에게 필요한 이야기를 담아두는 개인화 정보 서비스입니다.",
   "chat.intro.p2":
-    "현재는 글로벌 시장과 AI 관련 주요 이슈를 짧고 쉽게 정리해 보여주고, 사용자가 등록한 관심 키워드와 태그를 기준으로 관련 내용을 따로 요약해 제공합니다.",
+    "현재는 글로벌 시장과 AI 관련 주요 이슈를 짧고 쉽게 정리해 보여주고, 사용자가 등록한 관심 키워드와 태그를 기준으로 관련 내용을 따로 담아 보여 줍니다.",
   "chat.intro.p3":
     "앞으로는 국내 이슈, 스포츠, 엔터테인먼트 등 보다 대중적인 분야로 콘텐츠를 확장하고, 사용자의 관심 키워드와 연결되는 심층 리포트가 발행될 경우 이를 추천하고 이어서 볼 수 있도록 하는 기능도 추가할 계획입니다.",
   "chat.intro.p4":
-    "궁극적으로는 사용자가 여러 뉴스와 콘텐츠를 직접 찾아다니지 않아도, 나에게 중요한 정보를 빠르게 발견하고 필요할 때 더 깊이 탐색할 수 있도록 하는 것이 LYRA의 목적입니다.",
+    "궁극적으로는 사용자가 여러 뉴스와 콘텐츠를 직접 찾아다니지 않아도, 나에게 중요한 이야기를 빠르게 발견하고 필요할 때 더 깊이 탐색할 수 있도록 하는 것이 DAMI의 목적입니다.",
   "chat.howToHeading": "사용방법",
   "chat.howTo.s1":
-    "왼쪽 헬퍼에서 키워드 옆 별을 누르면 관심사로 저장됩니다. 그날 리포트를 다시 읽어 관심사와 맞는 부분만 따로 요약해 줍니다.",
+    "왼쪽 헬퍼에서 키워드 옆 별을 누르면 관심사로 저장됩니다. DAMI가 그날 리포트를 다시 읽어 관심사와 맞는 부분만 따로 요약해 줍니다.",
   "chat.howTo.s2":
     "키워드나 질문 제안을 누르면 챗에 질문이 들어가고, 보내면 그날 리포트 내용을 기준으로 쉽게 물어볼 수 있습니다.",
   "chat.howTo.s3":

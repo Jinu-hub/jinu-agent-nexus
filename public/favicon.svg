@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- DAMI D + 4-point sparkle - sync with src/components/BrandMark.tsx -->
+  <rect x="2" y="2" width="28" height="28" rx="6" stroke="#171717" stroke-width="2"/>
+  <path d="M10.5 7.5 V24.5" stroke="#171717" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10.5 7.5 H14.2 C21.2 7.5 25 11.2 25 16 C25 20.8 21.2 24.5 14.2 24.5 H10.5" stroke="#171717" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M17.2 12.6 L18.15 15.25 L20.9 16.2 L18.15 17.15 L17.2 19.8 L16.25 17.15 L13.5 16.2 L16.25 15.25 Z" fill="#171717" stroke="none"/>
+</svg>

@@ -5,7 +5,7 @@
    pulls in preflight + utilities. The `@theme` block below defines our
    design tokens; everything else cascades from those CSS variables.
 
-   Look: LYRA warm paper — cream background, warm ink, one orange accent
+   Look: DAMI warm paper — cream background, warm ink, one orange accent
    (shared by agent shell + report reading pages).
    ───────────────────────────────────────────────────────────────────── */
 
@@ -178,7 +178,7 @@ body {
 /* ─── Report surface marker ───────────────────────────────────────── */
 
 /* Report pages still use class `report-warm` as a semantic hook. The
-   cream / orange LYRA palette now lives on `:root` / `.dark` so the
+   cream / orange DAMI palette now lives on `:root` / `.dark` so the
    agent shell and reading pages share one brand. */
 
 /* Subtle scrollbar styling */

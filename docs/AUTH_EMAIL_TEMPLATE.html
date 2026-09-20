@@ -1,9 +1,9 @@
 <!--
   Supabase Dashboard → Authentication → Emails → Magic link or OTP
   Paste this body (Source). Requires:
-  - Redirect URLs include LYRA origins (e.g. http://localhost:5173/**)
+  - Redirect URLs include DAMI origins (e.g. http://localhost:5173/**)
   - Market Memory signInWithOtp emailRedirectTo → https://marketmemory.app/dashboard
-  - LYRA signInWithOtp emailRedirectTo → window.location.origin + "/"
+  - DAMI signInWithOtp emailRedirectTo → window.location.origin + "/"
 
   Button uses {{ .ConfirmationURL }} (honors emailRedirectTo).
   OTP block uses {{ .Token }} for in-app verifyOtp.

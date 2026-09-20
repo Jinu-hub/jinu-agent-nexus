@@ -19,6 +19,7 @@ import { useAgentChat } from "@cloudflare/ai-chat/react";
 import { Trash2, RotateCcw, PanelLeft, PanelRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { BrandMark } from "@/components/BrandMark";
 import { ChromePrefs } from "@/components/ChromePrefs";
 import type { ContentLang } from "../../worker/chat-agent/settings";
 import {
@@ -97,33 +98,6 @@ export function Chat({
   );
 }
 
-// ─── Brand mark ─────────────────────────────────────────────────────────
-// Monochrome bordered square, no gradients — header only.
-// Glyph: geometric L (LYRA) — readable at header size; lyre was too vague.
-function BrandMark() {
-  return (
-    <div className="size-7 grid place-items-center rounded-md border border-border bg-card text-foreground">
-      <svg
-        viewBox="0 0 32 32"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2.4}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="size-[62%]"
-        aria-hidden="true"
-      >
-        {/* L */}
-        <path d="M10 8 V23 H21" />
-
-        {/* Vega / star */}
-        <path d="M22 7 V11" />
-        <path d="M20 9 H24" />
-      </svg>
-    </div>
-  );
-}
-
 // ─── Header bar ──────────────────────────────────────────────────────────
 // Hosts theme / content_lang toggles and clear-chat. Reset session
 // (sources/files/schedules/extensions/MCP) stays wired but hidden until
@@ -172,7 +146,7 @@ function Header({
         ) : null}
         <BrandMark />
         <div className="min-w-0">
-          <h1 className="text-sm font-semibold tracking-tight">LYRA</h1>
+          <h1 className="text-sm font-semibold tracking-tight">DAMI</h1>
           <p className="hidden truncate text-[11px] text-muted-foreground sm:block">
             {t("chat.slogan")}
           </p>

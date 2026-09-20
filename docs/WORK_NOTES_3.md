@@ -661,5 +661,22 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **확인:** 게스트 챗 OK · 로그인 후 챗 OK · DevTools에서 token 없이 user UUID 경로 WS → 401/4401 · Live room 토큰 경로 무영향
 * **의도적으로 안 함:** guest_* 소유권 증명(비밀); guest DO GC; HttpOnly cookie 전용 토큰; Live room 변경
 
+---
+
+## 52. 제품 브랜드 LYRA → DAMI (UI 표면) *(완료)*
+
+* **목적:** LYRA가 입에 잘 안 붙어 유저-facing 이름을 DAMI로 교체. 슬로건 *The stories you care about, closer.* / *관심 있는 이야기를 더 가까이.* 레포·Worker·package·인스턴스 쿠키 키(`lyra_*`)는 유지.
+* **수정 및 추가 파일:**
+  * `index.html` — `<title>DAMI</title>` + `/favicon.svg`
+  * `public/favicon.svg` *(신규)* — custom D + 카운터 중앙 별
+  * `src/components/BrandMark.tsx` *(신규)* — 헤더 마크 (favicon과 동일 geometry)
+  * `src/chat/Chat.tsx` — 헤더 `DAMI` + 공유 `BrandMark`
+  * `src/i18n/messages.ts` — ko/en 슬로건·소개·how-to 이름
+  * `src/index.css` — 팔레트 주석 DAMI
+  * `docs/CLAUDE.md` · `ARCHITECTURE.md` — 브랜드 표기
+  * `docs/AUTH_EMAIL_TEMPLATE*.html` — 주석 LYRA → DAMI
+* **확인:** 헤더 DAMI + 슬로건 · 빈 화면 소개문에 DAMI · 탭 파비콘·헤더 마크 동일 (하드 리로드)
+* **의도적으로 안 함:** `lyra_instance` cookie/header/localStorage 키 마이그레이션; 레포·Worker rename; 이메일 HTML 본문 브랜드(공용 MM 템플릿); 컬러/그라데이션 로고
+
 
 
