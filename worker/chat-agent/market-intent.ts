@@ -27,6 +27,8 @@ export type MarketMemoryIntent =
       fullText?: boolean;
       /** User wants tags / places / top entities only. */
       keywordsOnly?: boolean;
+      /** User wants why companies/institutions appear (explain, not tag map). */
+      companiesAsk?: boolean;
     }
   | {
       kind: "fullText";
@@ -72,12 +74,22 @@ export function detectMarketMemoryIntent(
     return { kind: "reportVsBrief", dateHint: dateHintFromText(t) };
   }
 
-  // Day-over-day brief compare (그제 vs 어제, multi-day) — not "어제 A vs B"
+  // Day-over-day brief compare (그제 vs 어제, YYYY-MM-DD vs 전날, tone deltas)
   if (
     /(그제).{0,32}(어제|톤|비교|달라|차이)/i.test(t) ||
     /(어제).{0,32}(그제)/i.test(t) ||
     /(며칠|연속).{0,12}(이슈|테마|리스크)/i.test(t) ||
-    /(톤\s*비교|비교).{0,16}(그제|어제)/i.test(t)
+    /(톤\s*비교|비교).{0,16}(그제|어제)/i.test(t) ||
+    // Date-pinned chips: "2026-09-18와 그 전날 … 톤 … 달라"
+    /(그\s*전날|전날|이전\s*날).{0,40}(톤|비교|달라|차이|브리핑|brief)/i.test(
+      t,
+    ) ||
+    /(\d{4}-\d{2}-\d{2}).{0,48}(그\s*전날|전날|이전\s*날)/i.test(t) ||
+    /(\d{4}-\d{2}-\d{2}).{0,48}(톤).{0,32}(달라|비교|차이)/i.test(t) ||
+    // EN chip: "tone change from the day before DATE to DATE"
+    /(tone\s+change|change.{0,24}tone|day\s+before.{0,40}tone|tone.{0,40}day\s+before)/i.test(
+      t,
+    )
   ) {
     return { kind: "compare" };
   }
@@ -99,15 +111,24 @@ export function detectMarketMemoryIntent(
     const fullText =
       /(전문|원문|보여|보여줘|full\s*text)/i.test(t) &&
       !/(핵심|하이라이트|요약|정리|차이|비교|키워드|태그|토픽|기업)/i.test(t);
+    const companiesAsk =
+      !fullText &&
+      /(주요\s*기업|companies|institutions|(기업|기관).{0,12}(왜|언급|설명)|why.{0,24}(compan|institution))/i.test(
+        t,
+      );
     const keywordsOnly =
       !fullText &&
+      !companiesAsk &&
       (/(키워드|태그|토픽|topics?|엔티티|entities)/i.test(t) ||
-        /(주요\s*기업|companies|institutions)/i.test(t));
+        // bare "companies" list asks without explain-why still map-style
+        (/(companies|institutions)/i.test(t) &&
+          !/(why|explain|언급|설명)/i.test(t)));
     return {
       kind: "report",
       dateHint: dateHintFromText(t),
       fullText,
       keywordsOnly,
+      companiesAsk,
     };
   }
 

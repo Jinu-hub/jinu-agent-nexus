@@ -443,4 +443,52 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **확인:** 기본 펼침; 헤더 클릭 시 Topics 본문 접힘·Ask 영역 확대; 다시 클릭 시 복원.
 * **의도적으로 안 함:** Topics 내부(관심사/태그/키워드) UI 변경; 접힘 상태 localStorage 유지
 
+### 45.2 톤 비교 — date-pinned 칩 intent/prefetch *(완료)*
+
+* **목적:** Ask 「톤 비교」칩(`YYYY-MM-DD와 그 전날 …`)이 compare로 안 잡히고 하루 brief만 prefetch → 모델이 `<tool_call>` 원문 노출하던 문제 수정.
+* **수정 및 추가 파일:**
+  * `worker/chat-agent/market-intent.ts` — compare 감지에 `그 전날` / `YYYY-MM-DD`+톤 델타 / EN tone-change 패턴 추가
+  * `worker/chat-agent/market-prefetch.ts` — compare 시 유저 텍스트의 날짜를 later로, −1일을 earlier로 로드 (`compareDates` 포함); instruction에 양일 명시·tool markup 금지 강화
+  * docs: 본 소절
+* **확인:** 「2026-09-18와 그 전날 브리핑 톤이…」→ compare prefetch에 09-17·09-18 brief; 설명형 답 (tool XML 없음). 「그제랑 어제」는 기존처럼 latest↔−1일.
+* **의도적으로 안 함:** 멀티데이 HTTP API; 3일+ 비교; 칩 문구 변경
+
+### 45.3 주요 기업 Ask — keywordsOnly 오분류 + tool XML *(완료)*
+
+* **목적:** 「주요 기업·기관이 왜 언급」칩이 `keywordsOnly`(태그 맵)로 잡혀 설명 지시가 안 맞고, 모델이 `getTodayMarketReport` XML을 텍스트로 뱉던 문제.
+* **수정 및 추가 파일:**
+  * `worker/chat-agent/market-intent.ts` — `companiesAsk` 플래그; `keywordsOnly`에서 기업/기관 설명 질문 제외
+  * `worker/chat-agent/market-prefetch.ts` — companiesAsk 전용 설명 instruction; report `found:false`면 tool 호출 금지 안내
+  * docs: 본 소절
+* **확인:** Clear chat → 「주요 기업」칩 — keywords/companies·institutions + summary 기반 불릿 설명; `<tool_call>` 없음. 「키워드만」은 태그 맵 경로 유지.
+* **의도적으로 안 함:** toolChoice 재활성화; 기업별 vector 검색 강제
+
+### 45.4 Ask 섹션 — Topics 톤 + 1행 프롬프트 스크롤 *(완료)*
+
+* **목적:** Ask를 Topics `paper-surface` / muted 박스로 맞추되, 질문은 **1행=1프롬프트**로 풀고 카드 안 세로 스크롤.
+* **수정 및 추가 파일:**
+  * `src/chat/ChatHelperRail.tsx` — Ask paper-surface; muted 안 `w-full` 행 버튼(prompt 전문); `overflow-y-auto`
+  * docs: 본 소절
+* **확인:** Topics와 같은 카드 톤; 프롬프트가 줄바꿈 wrap 칩이 아니라 한 줄씩; 넘치면 Ask 카드 안 스크롤.
+* **의도적으로 안 함:** Ask 여닫이; 짧은 label 칩 유지
+
+### 45.5 Ask 여닫이 *(완료)*
+
+* **목적:** 「챗에서 물어보기」도 Topics처럼 접기. 기본 열림.
+* **수정 및 추가 파일:**
+  * `src/chat/ChatHelperRail.tsx` — `askOpen` 기본 `true`; 헤더 ChevronDown 토글; 접으면 shrink-0
+  * docs: 본 소절
+* **확인:** 기본 펼침; 헤더 클릭 시 Ask 본문 접힘; Topics와 동일 패턴.
+* **의도적으로 안 함:** 접힘 상태 localStorage
+
+### 45.6 Topics / Ask — 탭 분리 *(완료)*
+
+* **목적:** 독립 여닫이 대신 **토픽 | 챗에서 물어보기** 탭. 기본 토픽. 본문은 풀 높이 스크롤.
+* **수정 및 추가 파일:**
+  * `src/chat/ChatHelperRail.tsx` — `railTab` (`topics`|`ask`); 시리즈 탭과 같은 pill 탭 UI; Topics/Ask paper-surface 본문만 전환
+  * `docs/CLAUDE.md` — helper rail 행
+  * docs: 본 소절
+* **확인:** 기본 Topics; Ask 탭 전환 시 1행 프롬프트 리스트 + 스크롤; Topics 꺼짐 플래그면 Ask만.
+* **의도적으로 안 함:** 아코디언; 탭 상태 localStorage
+
 ---

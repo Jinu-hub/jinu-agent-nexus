@@ -570,8 +570,8 @@ export const ko: { [K in MessageKey]: string } = {
   "market.meta.report": "report",
 
   "interest.my": "내 관심사",
-  "interest.inReport": "이 리포트 {n}",
-  "interest.chipInReport": "이 리포트",
+  "interest.inReport": "{n} in report",
+  "interest.chipInReport": "in report",
   "interest.filter": "이 리포트에 나온 관심사만 보기",
   "interest.empty": "토픽 칩에 별을 달면 여기에 저장됩니다.",
   "interest.noneInReport": "이 리포트에 나온 관심사가 없습니다.",

@@ -529,13 +529,20 @@ export async function buildMarketPrefetchBlock(
 
     if (intent.kind === "compare") {
       const { content_lang: lang } = getSettings(agent);
-      const latestResolved = await resolveToolMarketDate(env, undefined, {
-        lang,
-      });
-      const dayB =
-        latestResolved.marketDate && isMarketDateYmd(latestResolved.marketDate)
-          ? latestResolved.marketDate
-          : hints.yesterday;
+      const pinnedDate = extractMarketDateFromText(userText);
+      let dayB: string;
+      if (pinnedDate) {
+        dayB = pinnedDate;
+      } else {
+        const latestResolved = await resolveToolMarketDate(env, undefined, {
+          lang,
+        });
+        dayB =
+          latestResolved.marketDate &&
+          isMarketDateYmd(latestResolved.marketDate)
+            ? latestResolved.marketDate
+            : hints.yesterday;
+      }
       const dayA = shiftMarketDateYmd(dayB, -1);
       const [a, b] = await Promise.all([
         loadBrief(agent, env, dayA),
@@ -550,9 +557,10 @@ export async function buildMarketPrefetchBlock(
           {
             intent: "compare",
             seoulHints: hints,
+            compareDates: { earlier: dayA, later: dayB },
             briefs: { earlier: a, later: b },
             instruction:
-              "Compare tone/themes using pulse/takeaway/title (and excerpts if needed). Explain what changed and why a reader should care — not a thin label list. Do NOT paste full content. Do NOT emit <tool_call> or XML tool markup — facts are already here. Optional quiet closer: full text in Market tab by date (same language as the user). later ≈ data-backed latest (not blindly calendar yesterday). " +
+              `Compare tone/themes for ${dayA} (earlier) vs ${dayB} (later) using pulse/takeaway/title (and excerpts if needed). Explain what changed and why a reader should care — not a thin label list. Do NOT paste full content. Do NOT emit <tool_call> or XML tool markup — both days are already here (call getTodayMarketBrief only if a needed date is missing from this block). Optional quiet closer: full text in Market tab by date (same language as the user). ` +
               REPLY_LANG_LOCK,
           },
           userInterests,
@@ -633,6 +641,12 @@ export async function buildMarketPrefetchBlock(
       const askDate = resolveAskDate(intent, hints, userText);
       const report = await loadReport(agent, env, askDate);
       const keywordsOnly = Boolean(intent.keywordsOnly);
+      const companiesAsk = Boolean(intent.companiesAsk);
+      const reportFound =
+        Boolean(report) &&
+        typeof report === "object" &&
+        "found" in report &&
+        (report as { found?: boolean }).found === true;
       const reportKw =
         report && "keywords" in report
           ? (report.keywords as ReportChatKeywords)
@@ -661,38 +675,53 @@ export async function buildMarketPrefetchBlock(
       }
 
       const mapLines = formatChatUiTopicMapLines(uiTopicMap);
-      const baseInstruction = intent.fullText
-        ? "User wants the FULL report. Do NOT paste content/excerpt into chat. Do NOT emit <tool_call> or XML. Reply in 1–2 short lines pointing to Market tab → Report (include marketDate). " +
-          REPLY_LANG_LOCK
-        : keywordsOnly && quoted.length === 0
-          ? "User wants KEYWORDS + optional story. " +
-            "Use prefetch `uiTopicMap` (same Settings-lang display map as home Topics Keywords chips). " +
-            "Copy kind+display as shown — do NOT invent translations, do NOT dump raw English slugs when display is KO. " +
-            "OUTPUT SHAPE (markdown; follow exactly; section titles in the user's language):\n" +
-            "**Tag map** (KO: **태그 맵**)\n" +
-            (mapLines.length > 0
-              ? mapLines.join("\n") + "\n"
-              : "- (no labeled chips — say so gently)\n") +
-            "\n" +
-            "**At a glance** (KO: **한눈 스토리**)\n" +
-            "- (1–2 bullets max — day's through-line from summary/highlights; do NOT explain each chip)\n" +
-            "\n" +
-            "Quiet closer in the user's language (KO: 원문·리포트는 Market 탭 / EN: Full report → Market tab).\n" +
-            "Forbidden: raw `tags:`/`places:` JSON dumps; per-chip lectures; meta headers. " +
-            "If interestHits is non-empty, lead those displays in the map. No <tool_call>/XML. " +
+      const missingReportInstruction =
+        "Report not found for this date/series. Say so briefly. " +
+        "Do NOT emit <tool_call>/XML or pretend to call getTodayMarketReport. " +
+        "Suggest Market tab or another date. " +
+        REPLY_LANG_LOCK;
+      const baseInstruction = !reportFound
+        ? missingReportInstruction
+        : intent.fullText
+          ? "User wants the FULL report. Do NOT paste content/excerpt into chat. Do NOT emit <tool_call> or XML. Reply in 1–2 short lines pointing to Market tab → Report (include marketDate). " +
             REPLY_LANG_LOCK
-          : quoted.length > 0
-            ? "User asked about a specific keyword in the full report. Prefer vectorSearch.hits when present. Explain what the hits mean for the reader (cause/effect), not a search-result dump. " +
-              REPLY_LANG_LOCK
-            : "Report CORE for beginners — same compactness as a good risk answer. " +
-              "OUTPUT: short lead (1–2 sentences) + exactly 3 \"- \" bullets (blank line between) " +
-              "covering the main themes from summary/highlights/excerpt — each bullet 1–2 sentences: what + why it matters. " +
-              "Then optional one-line takeaway. " +
-              "HARD CAP: do NOT write 5–7 section essays; do NOT append parenthetical keyword dumps after each theme; " +
-              "do NOT tour every highlight. Pick the top 3. " +
-              "Do NOT paste the full report. No <tool_call>/XML. If interestHits is non-empty, prefer those themes in the 3. " +
+          : companiesAsk
+            ? "User asks why companies/institutions appear in the full report. " +
+              "Ground ONLY on report.keywords (companies + institutions) plus summary/highlights/excerpt. " +
+              "OUTPUT: short lead + 3–6 \"- \" bullets (blank line between) — each = name + why it was mentioned (1–2 sentences). " +
+              "Do NOT invent names absent from keywords. Do NOT dump the full report. " +
+              "NEVER output <tool_call>, </tool_call>, <arg_key>, or XML — facts are already in this prefetch. " +
               "Optional quiet closer: Market tab → Report (user's language). " +
-              REPLY_LANG_LOCK;
+              REPLY_LANG_LOCK
+            : keywordsOnly && quoted.length === 0
+              ? "User wants KEYWORDS + optional story. " +
+                "Use prefetch `uiTopicMap` (same Settings-lang display map as home Topics Keywords chips). " +
+                "Copy kind+display as shown — do NOT invent translations, do NOT dump raw English slugs when display is KO. " +
+                "OUTPUT SHAPE (markdown; follow exactly; section titles in the user's language):\n" +
+                "**Tag map** (KO: **태그 맵**)\n" +
+                (mapLines.length > 0
+                  ? mapLines.join("\n") + "\n"
+                  : "- (no labeled chips — say so gently)\n") +
+                "\n" +
+                "**At a glance** (KO: **한눈 스토리**)\n" +
+                "- (1–2 bullets max — day's through-line from summary/highlights; do NOT explain each chip)\n" +
+                "\n" +
+                "Quiet closer in the user's language (KO: 원문·리포트는 Market 탭 / EN: Full report → Market tab).\n" +
+                "Forbidden: raw `tags:`/`places:` JSON dumps; per-chip lectures; meta headers. " +
+                "If interestHits is non-empty, lead those displays in the map. No <tool_call>/XML. " +
+                REPLY_LANG_LOCK
+              : quoted.length > 0
+                ? "User asked about a specific keyword in the full report. Prefer vectorSearch.hits when present. Explain what the hits mean for the reader (cause/effect), not a search-result dump. No <tool_call>/XML. " +
+                  REPLY_LANG_LOCK
+                : "Report CORE for beginners — same compactness as a good risk answer. " +
+                  "OUTPUT: short lead (1–2 sentences) + exactly 3 \"- \" bullets (blank line between) " +
+                  "covering the main themes from summary/highlights/excerpt — each bullet 1–2 sentences: what + why it matters. " +
+                  "Then optional one-line takeaway. " +
+                  "HARD CAP: do NOT write 5–7 section essays; do NOT append parenthetical keyword dumps after each theme; " +
+                  "do NOT tour every highlight. Pick the top 3. " +
+                  "Do NOT paste the full report. No <tool_call>/XML. If interestHits is non-empty, prefer those themes in the 3. " +
+                  "Optional quiet closer: Market tab → Report (user's language). " +
+                  REPLY_LANG_LOCK;
       return JSON.stringify(
         await withVectorSearch(
           env,
@@ -701,6 +730,7 @@ export async function buildMarketPrefetchBlock(
               intent: "report",
               fullTextAsk: Boolean(intent.fullText),
               keywordsOnly,
+              companiesAsk,
               seoulHints: hints,
               marketFocusSeriesId: focusSeriesId ?? null,
               report: reportWithoutLexicon(

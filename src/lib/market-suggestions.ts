@@ -55,12 +55,12 @@ const SUGGESTION_COPY: Record<
   reportCore: {
     ko: {
       label: "풀리포트 핵심",
-      prompt: "어제 풀리포트 핵심을 초보자도 이해하게 설명해줘",
+      prompt: "어제 풀리포트 핵심을 아주 쉽게 이해 할수 있게 설명해줘",
     },
     en: {
       label: "Report core",
       prompt:
-        "Explain the core of yesterday's full report so a beginner can follow",
+        "Explain the core of yesterday's full report so it's very easy to understand",
     },
   },
   keywords: {
@@ -100,12 +100,12 @@ const SUGGESTION_COPY: Record<
   briefVsReport: {
     ko: {
       label: "리포트가 더 담은 것",
-      prompt: "어제 브리프에 없는 풀리포트 내용을 짚어주고 왜 중요한지 설명해줘",
+      prompt: "어제 브리프에 없는 풀리포트 내용을 심플하게 요약해줘",
     },
     en: {
       label: "What the report adds",
       prompt:
-        "Point out what yesterday's full report covers that the brief does not, and why it matters",
+        "Simply summarize what yesterday's full report covers that the brief does not",
     },
   },
   voice: {
@@ -200,11 +200,11 @@ const DATED_PROMPT: Record<
   reportCore: (d) => ({
     ko: {
       label: "풀리포트 핵심",
-      prompt: `${d} 풀리포트 핵심을 초보자도 이해하게 설명해줘`,
+      prompt: `${d} 풀리포트 핵심을 아주 쉽게 이해 할수 있게 설명해줘`,
     },
     en: {
       label: "Report core",
-      prompt: `Explain the core of the ${d} full report so a beginner can follow`,
+      prompt: `Explain the core of the ${d} full report so it's very easy to understand`,
     },
   }),
   keywords: (d) => ({
@@ -240,11 +240,11 @@ const DATED_PROMPT: Record<
   briefVsReport: (d) => ({
     ko: {
       label: "리포트가 더 담은 것",
-      prompt: `${d} 브리프에 없는 풀리포트 내용을 짚어주고 왜 중요한지 설명해줘`,
+      prompt: `${d} 브리프에 없는 풀리포트 내용을 심플하게 요약해줘`,
     },
     en: {
       label: "What the report adds",
-      prompt: `Point out what the ${d} full report covers that the brief does not, and why it matters`,
+      prompt: `Simply summarize what the ${d} full report covers that the brief does not`,
     },
   }),
   voice: (d) => ({
