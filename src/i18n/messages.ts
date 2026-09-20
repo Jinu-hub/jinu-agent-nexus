@@ -25,7 +25,7 @@ export const en = {
   "common.toggleTheme": "Toggle theme",
 
   // Panels / tabs
-  "panels.market": "Market",
+  "panels.market": "Content",
   "panels.memory": "Memory",
   "panels.skills": "Skills",
   "panels.files": "Files",
@@ -50,8 +50,8 @@ export const en = {
   "settings.language": "Language",
   "settings.languageHelp":
     "App display and Market Memory content. Independent of chat reply language.",
-  "settings.market": "Market",
-  "settings.marketContent": "Content",
+  "settings.market": "Content",
+  "settings.marketContent": "Market",
   "settings.marketContentHelp":
     "Choose which Market Memory series to use. Weekly and daily market issues share one switch. Inactive catalog entries stay off until they ship.",
   "settings.loadingSeries": "Loading series…",
@@ -66,13 +66,6 @@ export const en = {
   "settings.tabsAllShown": "{n} tabs shown",
   "settings.tabsSummary": "{shown} shown · {hidden} hidden",
   "settings.showTab": "Show {title} tab",
-  "settings.alarm": "Alarm scheduling",
-  "settings.alarmHelp": "Allow the agent to schedule background cleanup work.",
-  "settings.cleanup": "Message cleanup",
-  "settings.cleanupHelp":
-    "Delete messages older than the configured retention period.",
-  "settings.retention": "Retention",
-  "settings.interval": "Interval",
   "settings.updated": "Updated {when}",
 
   // Series display
@@ -102,18 +95,17 @@ export const en = {
     "Next it will expand into domestic news, sports, and entertainment, and recommend in-depth reports when they connect to your interests.",
   "chat.intro.p4":
     "The goal is that you do not have to hunt across sources — LYRA surfaces what matters and lets you go deeper when you want.",
-  "chat.techHeading": "Tech stack",
-  "chat.tech.colName": "Tech",
-  "chat.tech.colUse": "Use",
-  "chat.tech.workersAi":
-    "Embeddings / For you summary LLM / Voice TTS / topic-label fill-in",
-  "chat.tech.vectorize":
-    "Market report chunk search (ingest · keyword · For you grounding)",
-  "chat.tech.r2": "Voice audio store and playback (AUDIO_BUCKET)",
-  "chat.tech.cron":
-    "Daily Voice TTS + Market vector ingest (each with catch-up)",
-  "chat.tech.do": "ChatAgent settings · MyMemory (interests / labels / for-you cache)",
-  "chat.tech.rpc": "settings RPC · /api/market/* · /api/audio/* · /memory/*",
+  "chat.howToHeading": "How to use",
+  "chat.howTo.s1":
+    "In the left helper, tap the star next to a keyword to save it as an interest. LYRA re-reads that day’s report and summarizes only the parts that match your interests.",
+  "chat.howTo.s2":
+    "Tap a keyword or an Ask prompt to put a question into chat; send it to ask about that day’s report in plain language.",
+  "chat.howTo.s3":
+    "The right Market sidebar is a quick preview for the selected day. Listen to Voice and skim the Brief. For more detail, open the reading page with “View this report in detail”.",
+  "chat.howTo.s4":
+    "Theme cards below — or [Market] in the header — let you read Brief, For you, and the full original report in more depth.",
+  "chat.howTo.s5":
+    "You can also type directly in chat. Ask for a short take on today’s market or AI issues.",
   "chat.themesHeading": "Ready themes",
   "chat.navCategories": "Report categories",
   "chat.nav.market": "Market",
@@ -131,7 +123,7 @@ export const en = {
   "helper.reportSeries": "Report series",
   "helper.pickDay": "Pick a day in Market",
   "helper.enableSeries":
-    "Turn on at least one series under Settings → Market → Content.",
+    "Turn on at least one series under Settings → Content.",
   "helper.loadingTopics": "Loading topics…",
   "helper.topics": "Topics",
   "helper.noKeywords": "No keywords for this day.",
@@ -199,7 +191,7 @@ export const en = {
   "market.todayTitle": "Seoul calendar today (often not published yet)",
   "market.latestTitle": "Newest market_date with a final brief · {date}",
   "market.dayReports": "Reports for this day",
-  "market.openWide": "Open this report full page",
+  "market.openWide": "View this report in detail",
   "market.loading": "Loading…",
   "market.memory": "Market Memory",
   "market.voice": "Voice",
@@ -215,7 +207,7 @@ export const en = {
   "market.untitledReport": "Untitled report",
   "market.voiceBriefing": "Voice briefing",
   "market.briefReadyVoicePending": "Brief ready · Voice pending",
-  "market.openWideReader": "Open wide reader",
+  "market.openWideReader": "View in detail",
   "market.loadingReport": "Loading full report…",
   "market.briefReadyReportMissing":
     "Brief ready · Full report missing for this day / language.",
@@ -380,7 +372,7 @@ export const ko: { [K in MessageKey]: string } = {
   "common.toggleLanguage": "화면 언어 전환",
   "common.toggleTheme": "테마 전환",
 
-  "panels.market": "마켓",
+  "panels.market": "콘텐츠",
   "panels.memory": "메모리",
   "panels.skills": "스킬",
   "panels.files": "파일",
@@ -404,8 +396,8 @@ export const ko: { [K in MessageKey]: string } = {
   "settings.language": "언어",
   "settings.languageHelp":
     "화면 표시와 Market Memory 콘텐츠 언어입니다. 챗 회신 언어와는 별개입니다.",
-  "settings.market": "마켓",
-  "settings.marketContent": "콘텐츠",
+  "settings.market": "콘텐츠",
+  "settings.marketContent": "마켓",
   "settings.marketContentHelp":
     "사용할 Market Memory 시리즈를 고르세요. 주간·일간 마켓 이슈는 스위치를 공유합니다. 아직 비활성인 카탈로그는 출시 전까지 꺼진 채로 둡니다.",
   "settings.loadingSeries": "시리즈를 불러오는 중…",
@@ -420,12 +412,6 @@ export const ko: { [K in MessageKey]: string } = {
   "settings.tabsAllShown": "탭 {n}개 표시",
   "settings.tabsSummary": "{shown}개 표시 · {hidden}개 숨김",
   "settings.showTab": "{title} 탭 표시",
-  "settings.alarm": "알람 스케줄",
-  "settings.alarmHelp": "에이전트가 백그라운드 정리 작업을 예약하도록 합니다.",
-  "settings.cleanup": "메시지 정리",
-  "settings.cleanupHelp": "설정한 보관 기간보다 오래된 메시지를 삭제합니다.",
-  "settings.retention": "보관",
-  "settings.interval": "간격",
   "settings.updated": "업데이트 {when}",
 
   "series.group.marketIssues": "마켓 이슈 리포트",
@@ -436,7 +422,7 @@ export const ko: { [K in MessageKey]: string } = {
   "series.tab.daily": "데일리",
   "series.tab.marketKr": "마켓 (KR)",
 
-  "chat.slogan": "당신의 세상을, 조금 더 가깝게.",
+  "chat.slogan": "Your world, a little closer.",
   "chat.resetSession": "세션 초기화",
   "chat.resetSessionTitle":
     "소스, 파일, 스케줄, 확장, MCP 연결을 모두 지웁니다",
@@ -453,18 +439,18 @@ export const ko: { [K in MessageKey]: string } = {
     "앞으로는 국내 이슈, 스포츠, 엔터테인먼트 등 보다 대중적인 분야로 콘텐츠를 확장하고, 사용자의 관심 키워드와 연결되는 심층 리포트가 발행될 경우 이를 추천하고 이어서 볼 수 있도록 하는 기능도 추가할 계획입니다.",
   "chat.intro.p4":
     "궁극적으로는 사용자가 여러 뉴스와 콘텐츠를 직접 찾아다니지 않아도, 나에게 중요한 정보를 빠르게 발견하고 필요할 때 더 깊이 탐색할 수 있도록 하는 것이 LYRA의 목적입니다.",
-  "chat.techHeading": "기술 스택",
-  "chat.tech.colName": "기술",
-  "chat.tech.colUse": "용도",
-  "chat.tech.workersAi":
-    "임베딩 / For you 요약 LLM / Voice TTS / topic label 보강",
-  "chat.tech.vectorize":
-    "마켓 리포트 청크 검색 (ingest · keyword · For you 근거)",
-  "chat.tech.r2": "Voice 오디오 저장·재생 (AUDIO_BUCKET)",
-  "chat.tech.cron": "일일 Voice TTS + Market vector ingest (각 catch-up 포함)",
-  "chat.tech.do": "ChatAgent 설정 · MyMemory(관심사/라벨/for-you 캐시)",
-  "chat.tech.rpc": "settings RPC · /api/market/* · /api/audio/* · /memory/*",
-  "chat.themesHeading": "준비된 테마",
+  "chat.howToHeading": "사용방법",
+  "chat.howTo.s1":
+    "왼쪽 헬퍼에서 키워드 옆 별을 누르면 관심사로 저장됩니다. 그날 리포트를 다시 읽어 관심사와 맞는 부분만 따로 요약해 줍니다.",
+  "chat.howTo.s2":
+    "키워드나 질문 제안을 누르면 챗에 질문이 들어가고, 보내면 그날 리포트 내용을 기준으로 쉽게 물어볼 수 있습니다.",
+  "chat.howTo.s3":
+    "오른쪽 마켓 사이드바는 선택한 날짜의 빠른 미리보기입니다. 보이스를 듣고, 브리프를 훑어보세요. 더 자세히 보려면 「이 리포트 자세히 보기」로 읽기 페이지를 여세요.",
+  "chat.howTo.s4":
+    "아래 테마 카드나 헤더의 [마켓] 메뉴에서는 Brief · 나를 위한 요약 · 원문(Full)을 더욱 자세히 읽을 수 있습니다.",
+  "chat.howTo.s5":
+    "챗에 직접 입력해도 됩니다. 오늘 시장·AI 이슈를 짧게 정리해 달라고 요청해 보세요.",
+  "chat.themesHeading": "준비된 콘텐츠",
   "chat.navCategories": "리포트 카테고리",
   "chat.nav.market": "마켓",
   "chat.page.daily.eyebrow": "마켓 이슈",
@@ -480,7 +466,7 @@ export const ko: { [K in MessageKey]: string } = {
   "helper.reportSeries": "리포트 시리즈",
   "helper.pickDay": "마켓에서 날짜를 고르세요",
   "helper.enableSeries":
-    "설정 → 마켓 → 콘텐츠에서 시리즈를 하나 이상 켜 주세요.",
+    "설정 → 콘텐츠에서 시리즈를 하나 이상 켜 주세요.",
   "helper.loadingTopics": "토픽을 불러오는 중…",
   "helper.topics": "토픽",
   "helper.noKeywords": "이 날의 키워드가 없습니다.",
@@ -546,7 +532,7 @@ export const ko: { [K in MessageKey]: string } = {
   "market.todayTitle": "서울 달력 오늘 (아직 발행되지 않는 경우가 많음)",
   "market.latestTitle": "확정 브리프가 있는 최신 market_date · {date}",
   "market.dayReports": "이 날의 리포트",
-  "market.openWide": "이 리포트 크게 보기",
+  "market.openWide": "이 리포트 자세히 보기",
   "market.loading": "불러오는 중…",
   "market.memory": "Market Memory",
   "market.voice": "보이스",
@@ -562,7 +548,7 @@ export const ko: { [K in MessageKey]: string } = {
   "market.untitledReport": "제목 없는 리포트",
   "market.voiceBriefing": "보이스 브리핑",
   "market.briefReadyVoicePending": "브리프 준비됨 · 보이스 대기",
-  "market.openWideReader": "크게 보기",
+  "market.openWideReader": "자세히 보기",
   "market.loadingReport": "풀리포트를 불러오는 중…",
   "market.briefReadyReportMissing":
     "브리프는 준비됨 · 이 날/언어의 풀리포트가 없습니다.",

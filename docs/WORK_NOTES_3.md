@@ -343,3 +343,81 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **의도적으로 안 함:** JA 드롭다운; Settings Language 섹션 제거
 
 ---
+
+## 43. 홈 EmptyState — 기술 스택 표 제거 *(완료)*
+
+* **목적:** 홈 빈 화면에서 Cloudflare 기술 스택 표(기술/용도)를 빼서 소개 + 리포트 랜딩만 남긴다.
+* **수정 및 추가 파일:**
+  * `src/chat/Chat.tsx` — `TECH_STACK` 상수·표 `<section>` 삭제; EmptyState = intro + `ReportLandingCards`
+  * `src/i18n/messages.ts` — `chat.techHeading` / `chat.tech.*` ko·en 키 제거
+  * `docs/CLAUDE.md` — UI chat shell 행에서 “CF stack” 문구 제거
+  * docs: 본 절
+* **확인:** 홈 `/` EmptyState에 「기술 스택」 표 없음; intro 4문단 + 리포트 카드만.
+* **의도적으로 안 함:** intro 문단·리포트 랜딩 카드 변경; 아카이브 `WORK_NOTES_2` 과거 서술 수정
+
+### 43.1 슬로건 — ko도 영문 브랜드 문구 *(완료)*
+
+* **목적:** 헤더 슬로건을 언어와 무관하게 영문 브랜드 표기(`Your world, a little closer.`)로 통일.
+* **수정 및 추가 파일:**
+  * `src/i18n/messages.ts` — `chat.slogan` ko = en
+  * docs: 본 소절
+* **확인:** Settings KO여도 헤더에 `Your world, a little closer.`
+* **의도적으로 안 함:** 한글 대체 슬로건 유지; 다른 크롬 문구 en 고정
+
+### 43.2 홈 EmptyState — 아이콘 제거 + 사용방법 *(완료)*
+
+* **목적:** 홈 빈 화면의 큰 BrandMark를 빼고, 소개 아래에 **사용방법** 4단계를 넣어 첫 사용 흐름을 안내한다.
+* **수정 및 추가 파일:**
+  * `src/chat/Chat.tsx` — EmptyState에서 `BrandMark` 제거; `HOW_TO_KEYS` 섹션 추가; 헤더용 `BrandMark`는 size 없이 유지
+  * `src/i18n/messages.ts` — `chat.howToHeading` / `chat.howTo.s1`–`s4` ko·en
+  * `docs/CLAUDE.md` — UI chat shell 행에 how-to 반영
+  * docs: 본 소절
+* **확인:** `/` EmptyState = 소개 → 사용방법(번호 목록) → 준비된 콘텐츠; 큰 L+ 아이콘 없음. 헤더 BrandMark는 유지. 사용방법: 관심사 → 챗 질문 → **오른쪽 마켓 사이드바(날짜·보이스·브리프)** → 테마/헤더 읽기 페이지 → 자유 입력.
+* **의도적으로 안 함:** intro 문단 변경; 헬퍼 레일/리포트 카드 구조 변경
+
+---
+
+## 44. Settings — 알람 스케줄 UI 제거 *(완료)*
+
+* **목적:** Settings에서 사용자에게 혼란스러운 「알람 스케줄」 토글을 제거. 메시지 정리 on/off·보관·간격만 남긴다.
+* **수정 및 추가 파일:**
+  * `src/panels/SettingsPanel.tsx` — `SettingRow` 알람 + `onToggleAlarm` prop 제거
+  * `src/App.tsx` — `alarm_enabled` 업데이트 배선 제거
+  * `src/i18n/messages.ts` — `settings.alarm` / `settings.alarmHelp` ko·en 제거
+  * `docs/CLAUDE.md` — settings 행 문구
+  * docs: 본 절
+* **확인:** Settings에 알람 스케줄 행 없음; 메시지 정리 + 보관/간격 유지.
+* **의도적으로 안 함:** `alarm_enabled` / `alarm_interval_seconds` 컬럼·기본값 제거; cleanup 스케줄 로직 변경 (백엔드 default `alarm_enabled: true` 유지)
+
+### 44.1 Settings — 메시지 정리 UI도 제거 *(완료)*
+
+* **목적:** 「메시지 정리」 토글과 보관/간격 표시까지 Settings에서 전부 뺀다 (알람에 이어 정리 관련 UI 정리).
+* **수정 및 추가 파일:**
+  * `src/panels/SettingsPanel.tsx` — cleanup `SettingRow`·보관/간격·`SettingRow`/`formatDuration`/`onToggleCleanup` 제거
+  * `src/App.tsx` — `message_cleanup_enabled` 배선 제거
+  * `src/i18n/messages.ts` — `settings.cleanup*` / `retention` / `interval` ko·en 제거
+  * `docs/CLAUDE.md` — settings 행
+  * docs: 본 소절
+* **확인:** Settings에 메시지 정리·보관·간격 없음; Language / Market / 패널 탭 / updated 시각은 유지.
+* **의도적으로 안 함:** DO `message_cleanup_*` 컬럼·ChatAgent cleanup 스케줄 로직 삭제
+
+### 44.2 Settings 접힘 라벨 — 마켓 → 콘텐츠 *(완료)*
+
+* **목적:** Settings의 시리즈 on/off 접힘 제목을 「마켓」이 아니라 「콘텐츠」로. (패널 탭 「마켓」과는 별개)
+* **수정 및 추가 파일:**
+  * `src/i18n/messages.ts` — `settings.market` = Content/콘텐츠; `settings.marketContent` 제거; `helper.enableSeries` 경로 문구
+  * `src/panels/SettingsPanel.tsx` — 펼침 시 중복 「콘텐츠」 소제목 제거 (help만)
+  * docs: 본 소절
+* **확인:** Settings 접힘 `콘텐츠 2/2 시리즈`; 펼치면 소제목 「마켓」+ help; 패널 탭 「콘텐츠」·안쪽 헤더 「마켓」.
+* **의도적으로 안 함:** 헤더 리포트 카테고리 `chat.nav.market`(마켓) 변경; 내부 id `market` 리네임
+
+### 44.3 패널 탭 — 마켓 → 콘텐츠 *(완료)*
+
+* **목적:** 오른쪽 사이드 패널 **탭** 이름만 「콘텐츠」로. 패널 안쪽 헤더는 「마켓」 유지.
+* **수정 및 추가 파일:**
+  * `src/i18n/messages.ts` — `panels.market` = Content/콘텐츠; `market.title` = Market/마켓
+  * docs: 본 소절 (44.2 확인 문구도 갱신)
+* **확인:** 탭 「콘텐츠」·패널 헤더 「마켓」; Settings 패널 탭 목록의 market 항목은 탭과 동일 키(콘텐츠).
+* **의도적으로 안 함:** `value: "market"` 내부 키 변경; 헤더 Market 메뉴 라벨 변경
+
+---

@@ -98,23 +98,16 @@ export function Chat({
 }
 
 // ─── Brand mark ─────────────────────────────────────────────────────────
-// Monochrome bordered square, no gradients. Same glyph reused at small
-// (header) and large (empty-state) sizes — purely a current-color
-// stroke so it inverts cleanly between light/dark.
+// Monochrome bordered square, no gradients — header only.
 // Glyph: geometric L (LYRA) — readable at header size; lyre was too vague.
-function BrandMark({ size = "sm" }: { size?: "sm" | "lg" }) {
-  const box = size === "lg" ? "size-12" : "size-7";
-  const stroke = size === "lg" ? 2.2 : 2.4;
-
+function BrandMark() {
   return (
-    <div
-      className={`${box} grid place-items-center rounded-md border border-border bg-card text-foreground`}
-    >
+    <div className="size-7 grid place-items-center rounded-md border border-border bg-card text-foreground">
       <svg
         viewBox="0 0 32 32"
         fill="none"
         stroke="currentColor"
-        strokeWidth={stroke}
+        strokeWidth={2.4}
         strokeLinecap="round"
         strokeLinejoin="round"
         className="size-[62%]"
@@ -233,8 +226,8 @@ function Header({
 }
 
 // ─── Empty state — shown before the first message ───────────────────────
-// Product intro + Cloudflare stack notes. Starter prompts live in the
-// left ChatHelperRail so the conversation column stays a reading intro.
+// Product intro + how-to + report landing cards. Starter prompts live in
+// the left ChatHelperRail so the conversation column stays a reading intro.
 const INTRO_KEYS = [
   "chat.intro.p1",
   "chat.intro.p2",
@@ -242,21 +235,18 @@ const INTRO_KEYS = [
   "chat.intro.p4",
 ] as const;
 
-const TECH_STACK = [
-  { name: "Workers AI", detailKey: "chat.tech.workersAi" },
-  { name: "Vectorize", detailKey: "chat.tech.vectorize" },
-  { name: "R2", detailKey: "chat.tech.r2" },
-  { name: "Cron Triggers", detailKey: "chat.tech.cron" },
-  { name: "Durable Objects (SQLite)", detailKey: "chat.tech.do" },
-  { name: "Workers RPC / HTTP routes", detailKey: "chat.tech.rpc" },
+const HOW_TO_KEYS = [
+  "chat.howTo.s1",
+  "chat.howTo.s2",
+  "chat.howTo.s3",
+  "chat.howTo.s4",
+  "chat.howTo.s5",
 ] as const;
 
 function EmptyState() {
   const t = useT();
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col items-start gap-8 py-10 animate-fade-up [animation-delay:280ms]">
-      <BrandMark size="lg" />
-
       <section className="space-y-3 self-stretch">
         <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
           {t("chat.introHeading")}
@@ -268,37 +258,20 @@ function EmptyState() {
         </div>
       </section>
 
-      <ReportLandingCards />
-
       <section className="space-y-3 self-stretch">
         <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
-          {t("chat.techHeading")}
+          {t("chat.howToHeading")}
         </h2>
-        <div className="overflow-x-auto self-stretch">
-          <table className="w-full border-collapse text-left text-[11px] leading-snug">
-            <thead>
-              <tr className="border-b border-border text-muted-foreground">
-                <th className="py-2 pr-4 font-semibold tracking-wide">
-                  {t("chat.tech.colName")}
-                </th>
-                <th className="py-2 font-semibold tracking-wide">
-                  {t("chat.tech.colUse")}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="font-mono text-muted-foreground">
-              {TECH_STACK.map((row) => (
-                <tr key={row.name} className="border-b border-border/70 align-top">
-                  <td className="whitespace-nowrap py-2.5 pr-4 text-foreground/85">
-                    {row.name}
-                  </td>
-                  <td className="py-2.5">{t(row.detailKey)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ol className="list-decimal space-y-2 pl-4 text-sm leading-relaxed text-foreground/80">
+          {HOW_TO_KEYS.map((key) => (
+            <li key={key} className="pl-1">
+              {t(key)}
+            </li>
+          ))}
+        </ol>
       </section>
+
+      <ReportLandingCards />
     </div>
   );
 }

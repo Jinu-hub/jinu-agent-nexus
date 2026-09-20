@@ -511,12 +511,6 @@ export default function App() {
               loading={settingsLoading}
               updating={settingsUpdating}
               error={settingsError}
-              onToggleAlarm={(enabled) =>
-                updateSettings({ alarm_enabled: enabled })
-              }
-              onToggleCleanup={(enabled) =>
-                updateSettings({ message_cleanup_enabled: enabled })
-              }
               onContentLangChange={(lang: ContentLang) =>
                 updateSettings({ content_lang: lang })
               }

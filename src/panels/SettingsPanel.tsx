@@ -65,37 +65,6 @@ function SettingSwitch({
   );
 }
 
-function SettingRow({
-  title,
-  description,
-  checked,
-  disabled,
-  onChange,
-}: {
-  title: string;
-  description: string;
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <div className="paper-inset flex items-center gap-3 px-3 py-2.5">
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium">{title}</p>
-        <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-          {description}
-        </p>
-      </div>
-      <SettingSwitch
-        checked={checked}
-        disabled={disabled}
-        label={title}
-        onChange={onChange}
-      />
-    </div>
-  );
-}
-
 function SoonBadge({ t }: { t: TFn }) {
   return (
     <span className="rounded border border-border/60 bg-muted/60 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -109,8 +78,6 @@ export function SettingsPanel({
   loading,
   updating,
   error,
-  onToggleAlarm,
-  onToggleCleanup,
   onContentLangChange,
   onTogglePanelVisibility,
   onToggleReportSeries,
@@ -119,8 +86,6 @@ export function SettingsPanel({
   loading: boolean;
   updating: boolean;
   error: string | null;
-  onToggleAlarm: (enabled: boolean) => Promise<void>;
-  onToggleCleanup: (enabled: boolean) => Promise<void>;
   onContentLangChange: (lang: ContentLang) => Promise<void>;
   onTogglePanelVisibility: (
     panel: ToggleablePanel,
@@ -406,40 +371,6 @@ export function SettingsPanel({
             )}
           </div>
 
-          <SettingRow
-            title={t("settings.alarm")}
-            description={t("settings.alarmHelp")}
-            checked={settings.alarm_enabled}
-            disabled={updating}
-            onChange={(enabled) => void onToggleAlarm(enabled)}
-          />
-          <SettingRow
-            title={t("settings.cleanup")}
-            description={t("settings.cleanupHelp")}
-            checked={settings.message_cleanup_enabled}
-            disabled={updating}
-            onChange={(enabled) => void onToggleCleanup(enabled)}
-          />
-
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="paper-inset px-3 py-2">
-              <p className="text-[10px] text-muted-foreground">
-                {t("settings.retention")}
-              </p>
-              <p className="mt-1 font-mono text-xs">
-                {formatDuration(settings.message_retention_seconds)}
-              </p>
-            </div>
-            <div className="paper-inset px-3 py-2">
-              <p className="text-[10px] text-muted-foreground">
-                {t("settings.interval")}
-              </p>
-              <p className="mt-1 font-mono text-xs">
-                {formatDuration(settings.alarm_interval_seconds)}
-              </p>
-            </div>
-          </div>
-
           <p className="pt-1 text-[10px] text-muted-foreground">
             {t("settings.updated", {
               when: formatUpdatedAt(settings.updated_at, t),
@@ -459,13 +390,6 @@ export function SettingsPanel({
       )}
     </section>
   );
-}
-
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = seconds / 60;
-  if (Number.isInteger(minutes)) return `${minutes}m`;
-  return `${seconds}s`;
 }
 
 function formatUpdatedAt(updatedAt: string, t: TFn): string {
