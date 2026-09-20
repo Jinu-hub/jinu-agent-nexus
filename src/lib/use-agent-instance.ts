@@ -1,9 +1,6 @@
-import { useState } from "react";
+import { useAuth } from "@/lib/auth";
 
-import { getOrCreateClientInstanceName } from "@/lib/agent-identity";
-
-/** Stable ChatAgent / MyMemory instance name for this browser (Phase 1 guest). */
+/** ChatAgent / MyMemory instance — user.id when signed in, else guest_*. */
 export function useAgentInstanceName(): string {
-  const [name] = useState(() => getOrCreateClientInstanceName());
-  return name;
+  return useAuth().instanceName;
 }

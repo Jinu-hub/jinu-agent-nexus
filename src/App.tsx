@@ -105,6 +105,12 @@ const PANELS = [
 }>;
 
 export default function App() {
+  // Remount agent + panel state when guest ↔ user switches.
+  const instanceName = useAgentInstanceName();
+  return <AppShell key={instanceName} />;
+}
+
+function AppShell() {
   // ─── Live View URL (from broadcast) ────────────────────────────────────
   const [liveViewUrl, setLiveViewUrl] = useState<string | null>(null);
 

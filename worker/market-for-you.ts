@@ -23,8 +23,8 @@ import { resolveOneReportForIngest } from "./market-item-resolve";
 import { queryMarketVectors, type MarketVectorHit } from "./market-vector";
 import {
   DEFAULT_INSTANCE_NAME,
-  resolveInstanceNameFromRequest,
 } from "../src/lib/agent-identity";
+import { resolveTrustedInstanceName } from "./auth";
 import { DEFAULT_PREFERENCE_CATEGORY } from "../src/lib/preference-category";
 import { myMemoryStub } from "./lib/my-memory-stub";
 import {
@@ -505,13 +505,20 @@ export async function handleMarketForYouRequest(
   }
 
   try {
+    const trusted = await resolveTrustedInstanceName(request, env);
+    if (!trusted.ok) {
+      return Response.json(
+        { ok: false, message: trusted.error },
+        { status: trusted.status },
+      );
+    }
     const result = await buildForYou(env, {
       marketDate: date,
       lang: str(body.lang),
       seriesId: str(body.series_id),
       itemId: str(body.item_id),
       refresh: body.refresh === true,
-      instanceName: resolveInstanceNameFromRequest(request),
+      instanceName: trusted.name,
     });
     return Response.json(result);
   } catch (error) {

@@ -22,10 +22,8 @@ import {
   type PreferenceAction,
   type PreferenceKind,
 } from "./my-memory";
-import {
-  DEFAULT_INSTANCE_NAME,
-  resolveInstanceNameFromRequest,
-} from "../src/lib/agent-identity";
+import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
+import { resolveTrustedInstanceName } from "./auth";
 import { myMemoryStub } from "./lib/my-memory-stub";
 
 function json(data: unknown, status = 200): Response {
@@ -52,9 +50,68 @@ export async function handleMemoryRequest(
     return null;
   }
 
-  const stub = myMemoryStub(env, resolveInstanceNameFromRequest(request));
   /** Shared UI label cache — never guest/user (see docs/INSTANCE_DATA.md). */
   const labelsStub = myMemoryStub(env, DEFAULT_INSTANCE_NAME);
+
+  // topic_labels do not need a personal instance / JWT.
+  if (pathname === "/memory/topic-labels") {
+    try {
+      if (request.method === "GET") {
+        const lang = url.searchParams.get("lang");
+        const keysParam = url.searchParams.get("keys");
+        if (keysParam) {
+          const keys = keysParam
+            .split(",")
+            .map((k) => k.trim())
+            .filter(Boolean);
+          return json(await labelsStub.getTopicLabelsByKeys(keys, lang));
+        }
+        return json(await labelsStub.listTopicLabels(lang));
+      }
+      if (request.method === "POST") {
+        const body = (await request.json()) as {
+          key?: string;
+          display?: string;
+          lang?: string;
+          labels?: Array<{ key?: string; display?: string; lang?: string }>;
+        };
+        if (Array.isArray(body.labels)) {
+          const entries = body.labels
+            .filter(
+              (e): e is { key: string; display: string; lang?: string } =>
+                typeof e?.key === "string" &&
+                typeof e?.display === "string" &&
+                Boolean(e.key.trim() && e.display.trim()),
+            )
+            .map((e) => ({
+              key: e.key,
+              display: e.display,
+              lang: e.lang ?? body.lang,
+            }));
+          return json(
+            await labelsStub.upsertTopicLabels(entries, body.lang),
+            201,
+          );
+        }
+        if (!body.key || body.display == null) {
+          return json({ error: "key and display are required" }, 400);
+        }
+        return json(
+          await labelsStub.upsertTopicLabel(body.key, body.display, body.lang),
+          201,
+        );
+      }
+      return json({ error: "method not allowed" }, 405);
+    } catch (err) {
+      return errorResponse(err);
+    }
+  }
+
+  const trusted = await resolveTrustedInstanceName(request, env);
+  if (!trusted.ok) {
+    return json({ error: trusted.error }, trusted.status);
+  }
+  const stub = myMemoryStub(env, trusted.name);
   const geo = visitorGeoFromRequest(request);
 
   try {
@@ -139,55 +196,6 @@ export async function handleMemoryRequest(
     if (pathname === "/memory/weights" && request.method === "GET") {
       const category = url.searchParams.get("category");
       return json(await stub.listWeights(category));
-    }
-
-    if (pathname === "/memory/topic-labels") {
-      if (request.method === "GET") {
-        const lang = url.searchParams.get("lang");
-        const keysParam = url.searchParams.get("keys");
-        if (keysParam) {
-          const keys = keysParam
-            .split(",")
-            .map((k) => k.trim())
-            .filter(Boolean);
-          return json(await labelsStub.getTopicLabelsByKeys(keys, lang));
-        }
-        return json(await labelsStub.listTopicLabels(lang));
-      }
-      if (request.method === "POST") {
-        const body = (await request.json()) as {
-          key?: string;
-          display?: string;
-          lang?: string;
-          labels?: Array<{ key?: string; display?: string; lang?: string }>;
-        };
-        if (Array.isArray(body.labels)) {
-          const entries = body.labels
-            .filter(
-              (e): e is { key: string; display: string; lang?: string } =>
-                typeof e?.key === "string" &&
-                typeof e?.display === "string" &&
-                Boolean(e.key.trim() && e.display.trim()),
-            )
-            .map((e) => ({
-              key: e.key,
-              display: e.display,
-              lang: e.lang ?? body.lang,
-            }));
-          return json(
-            await labelsStub.upsertTopicLabels(entries, body.lang),
-            201,
-          );
-        }
-        if (!body.key || body.display == null) {
-          return json({ error: "key and display are required" }, 400);
-        }
-        return json(
-          await labelsStub.upsertTopicLabel(body.key, body.display, body.lang),
-          201,
-        );
-      }
-      return json({ error: "method not allowed" }, 405);
     }
 
     return json({ error: "not found" }, 404);

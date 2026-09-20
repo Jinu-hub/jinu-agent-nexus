@@ -68,6 +68,40 @@ export const en = {
   "settings.showTab": "Show {title} tab",
   "settings.updated": "Updated {when}",
 
+  // Auth (Phase 2)
+  "auth.title": "Account",
+  "auth.help":
+    "Sign in to keep interests and chat across browsers. Guests still work on this device.",
+  "auth.afterSendHelp":
+    "Click 「Sign in」 in the email, or enter the one-time code below.",
+  "auth.otpHelp":
+    "Open the email and enter the one-time code — do not use the Market Memory button (it goes to marketmemory.app).",
+  "auth.notConfigured":
+    "Sign-in is unavailable (Supabase Auth not configured on this Worker).",
+  "auth.email": "Email",
+  "auth.emailPlaceholder": "you@example.com",
+  "auth.sendEmail": "Email sign-in",
+  "auth.sendCode": "Email sign-in code",
+  "auth.continueEmail": "Email magic link",
+  "auth.continueGoogle": "Continue with Google",
+  "auth.magicLinkSent": "Check your email for the sign-in link.",
+  "auth.emailSentBoth":
+    "Check your email — use the Sign in button or enter the code here.",
+  "auth.otpSent": "Check your email for the one-time code.",
+  "auth.otpSentTo": "We sent an email to {email}.",
+  "auth.senderHint":
+    "Look for mail from MarketMemory (shared sender).",
+  "auth.openInbox": "Open inbox",
+  "auth.otp": "One-time code",
+  "auth.otpPlaceholder": "123456",
+  "auth.verifyCode": "Verify code",
+  "auth.otpInvalid": "Invalid or expired code.",
+  "auth.changeEmail": "Use a different email",
+  "auth.signedInAs": "Signed in as {email}",
+  "auth.signOut": "Sign out",
+  "auth.signInFailed": "Sign-in failed.",
+  "auth.signOutFailed": "Sign-out failed.",
+
   // Series display
   "series.group.marketIssues": "Market Issues Report",
   "series.group.weeklyAi": "Weekly AI Issues Digest Report",
@@ -413,6 +447,39 @@ export const ko: { [K in MessageKey]: string } = {
   "settings.tabsSummary": "{shown}개 표시 · {hidden}개 숨김",
   "settings.showTab": "{title} 탭 표시",
   "settings.updated": "업데이트 {when}",
+
+  "auth.title": "계정",
+  "auth.help":
+    "로그인하면 브라우저가 달라도 관심사와 챗이 이어집니다. 비로그인(게스트)도 이 기기에서는 그대로 쓸 수 있습니다.",
+  "auth.afterSendHelp":
+    "「Sign in」 버튼을 누르거나, 아래에 일회용 코드를 입력하세요.",
+  "auth.otpHelp":
+    "메일의 일회용 코드를 입력하세요. 「Sign in to Market Memory」 버튼은 marketmemory.app으로 가니 누르지 마세요.",
+  "auth.notConfigured":
+    "로그인을 쓸 수 없습니다 (Worker에 Supabase Auth가 설정되지 않음).",
+  "auth.email": "이메일",
+  "auth.emailPlaceholder": "you@example.com",
+  "auth.sendEmail": "이메일로 로그인",
+  "auth.sendCode": "이메일로 코드 받기",
+  "auth.continueEmail": "이메일 매직 링크",
+  "auth.continueGoogle": "Google로 계속",
+  "auth.magicLinkSent": "로그인 링크를 이메일에서 확인해 주세요.",
+  "auth.emailSentBoth":
+    "메일을 확인하세요 — Sign in 버튼 또는 여기 코드 입력.",
+  "auth.otpSent": "일회용 코드를 이메일에서 확인해 주세요.",
+  "auth.otpSentTo": "{email}으로 메일을 보냈습니다.",
+  "auth.senderHint":
+    "보낸사람: MarketMemory (공유 메일)",
+  "auth.openInbox": "받은편지함 열기",
+  "auth.otp": "일회용 코드",
+  "auth.otpPlaceholder": "123456",
+  "auth.verifyCode": "코드 확인",
+  "auth.otpInvalid": "코드가 잘못되었거나 만료되었습니다.",
+  "auth.changeEmail": "다른 이메일 사용",
+  "auth.signedInAs": "{email}으로 로그인됨",
+  "auth.signOut": "로그아웃",
+  "auth.signInFailed": "로그인에 실패했습니다.",
+  "auth.signOutFailed": "로그아웃에 실패했습니다.",
 
   "series.group.marketIssues": "마켓 이슈 리포트",
   "series.group.weeklyAi": "주간 AI 이슈 다이제스트",

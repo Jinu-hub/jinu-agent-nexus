@@ -16,6 +16,7 @@
 // category = product domain (default market); kind = chip type above.
 // ─────────────────────────────────────────────────────────────────────────
 
+import { authFetch } from "./auth-fetch";
 import {
   DEFAULT_PREFERENCE_CATEGORY,
   normalizePreferenceCategory,
@@ -185,7 +186,7 @@ export async function fetchPreferences(
   const qs = new URLSearchParams();
   const cat = normalizePreferenceCategory(category);
   qs.set("category", cat);
-  const res = await fetch(`/memory/preferences?${qs}`);
+  const res = await authFetch(`/memory/preferences?${qs}`);
   if (!res.ok) {
     throw new Error(`preferences HTTP ${res.status}`);
   }
@@ -216,7 +217,7 @@ export async function saveInterest(
     display:
       typeof display === "string" && display.trim() ? display.trim() : undefined,
   };
-  const res = await fetch("/memory/preferences", {
+  const res = await authFetch("/memory/preferences", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -228,7 +229,7 @@ export async function saveInterest(
   const row = (await res.json()) as PreferenceRow;
 
   // Best-effort history — preference already saved if this fails.
-  void fetch("/memory/events", {
+  void authFetch("/memory/events", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -282,7 +283,7 @@ export async function removeInterest(
   target: string,
   category: PreferenceCategory | null | undefined = DEFAULT_PREFERENCE_CATEGORY,
 ): Promise<void> {
-  const res = await fetch("/memory/preferences", {
+  const res = await authFetch("/memory/preferences", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

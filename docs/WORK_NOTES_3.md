@@ -554,3 +554,59 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **수정:** `worker/my-memory.ts` — `PRAGMA table_info` + `.toArray()`로 컬럼 존재 검사; topic_labels/lang 검사도 동일.
 * **확인:** 로컬 wrangler 재시작 후 `GET /memory/topic-labels?lang=ko&keys=energy` → `{"energy":"에너지"}`.
 * **의도적으로 안 함:** prod redeploy 강제 (이미 라벨 데이터 정상)
+
+---
+
+## 48. Phase 2 — Supabase Auth (매직 링크 / Google) *(완료)*
+
+* **목적:** 로그인 시 `auth.users.id`로 ChatAgent + MyMemory를 묶어 기기·브라우저 간 개인화 유지. 비로그인은 기존 `guest_*` 그대로.
+* **수정 및 추가 파일:**
+  * `worker/auth.ts` *(신규)* — `GET /api/auth/config`; JWT `getUser` → `resolveTrustedInstanceName`
+  * `worker/memory-routes.ts` · `settings-routes.ts` · `index.ts` upload · `market-for-you.ts` — trusted instance
+  * `src/lib/supabase-browser.ts` · `auth.tsx` · `auth-fetch.ts` — 브라우저 세션 + Bearer
+  * `src/lib/agent-identity.ts` — guest 키 분리 (`lyra_guest_instance`) + `bindClientInstanceName`
+  * `src/panels/AuthAccountCard.tsx` *(신규)* — Settings 계정 카드
+  * `src/main.tsx` — `AuthProvider` + boot gate; `App` remount on instance switch
+  * i18n `auth.*`; `.dev.vars.example` Redirect URL 안내
+  * docs: `INSTANCE_DATA` · `ROUTING` · `CLAUDE` · `MERGE_STRATEGY` · 본 절
+* **확인:** Settings → 이메일 매직 링크 (Supabase Email provider + Redirect URL에 origin 등록). 로그인 후 `lyra_instance` = user UUID; 다른 브라우저 동일 계정 → 같은 ★/챗. 게스트는 로그인 없이 동작.
+* **의도적으로 안 함:** guest→user 데이터 자동 머지; ChatAgent WebSocket JWT 강제 (Phase 5); 관리자 role (Phase 3); 비밀번호 로그인
+
+### 48.1 이메일 로그인 — 링크 + OTP 둘 다 *(완료)*
+
+* **목적:** 공유 메일 템플릿을 `{{ .ConfirmationURL }}` + `{{ .Token }}`로 쓰면 매직 링크(앱으로 복귀)와 코드 입력이 모두 가능.
+* **수정 및 추가 파일:**
+  * `docs/AUTH_EMAIL_TEMPLATE.html` *(신규)* — Supabase에 붙여넣을 본문
+  * `src/lib/auth.tsx` — `?code=` PKCE `exchangeCodeForSession`; OTP `verifyEmailOtp`
+  * `src/panels/AuthAccountCard.tsx` — 메일 발송 후 링크 안내 + 코드 입력
+  * i18n `auth.afterSendHelp` / `auth.emailSentBoth` / `auth.sendEmail`
+* **확인:** 템플릿을 `AUTH_EMAIL_TEMPLATE.html`로 교체 → Redirect URLs에 localhost → 메일 **Sign in** 클릭 시 LYRA로 복귀, 또는 코드 입력으로 로그인. MM은 `emailRedirectTo: https://marketmemory.app/dashboard` 유지.
+* **의도적으로 안 함:** Market Memory 앱 코드 수정 (리다이렉트는 MM 쪽에서 확인)
+
+### 48.2 Confirm signup 메일 템플릿 *(문서)*
+
+* **목적:** 회원가입 인증 메일도 `SiteURL/.../next=/dashboard` 고정이라 공유 Auth에서 앱별 redirect가 깨짐 → `ConfirmationURL` (+ Token)로 통일.
+* **수정:** `docs/AUTH_EMAIL_TEMPLATE_CONFIRM.html` *(신규)* — Supabase **Confirm signup** 본문에 붙여넣기
+* **확인:** Dashboard → Authentication → Emails → Confirm signup → Source에 붙여넣기 후 저장. MM/LYRA 각각 `emailRedirectTo` / signup redirect 설정.
+* **의도적으로 안 함:** LYRA에 별도 signup UI (현행은 매직링크/OTP/Google)
+
+### 48.3 메일 발송 후 안내 워딩 *(완료)*
+
+* **목적:** OTP 대기 화면 문구를 「주소로 메일 보냄 → Sign in / 코드 입력」 순으로 정리.
+* **수정:** `auth.otpSentTo` / `auth.afterSendHelp` (ko·en); `AuthAccountCard` 표시 순서 · 중복 `emailSentBoth` toast 제거
+* **확인:** Settings → 이메일 로그인 후 카드에 `{email}으로 메일을 보냈습니다.` 다음 줄에 Sign in/코드 안내
+* **의도적으로 안 함:** i18n `auth.emailSentBoth` 키 삭제 (미사용 유지)
+
+### 48.4 메일 발송 후 받은편지함 링크 *(완료)*
+
+* **목적:** OTP 대기 중 도메인별 웹메일 inbox로 바로 열기 (Gmail/Naver 등).
+* **수정:** `src/lib/inbox-url.ts` *(신규)*; `AuthAccountCard` + `auth.openInbox`
+* **확인:** gmail.com → mail.google.com **검색** 링크 (from:mail.marketmemory.app, 1일); 미지원 도메인은 링크 숨김
+* **의도적으로 안 함:** Gmail Primary 탭 강제 배치 (발신자/콘텐츠 분류는 Google 측, 앱에서 불가); 앱별 deep link / 로그인 세션 보장
+
+### 48.5 공유 SMTP 발신자 안내 *(완료)*
+
+* **목적:** 메일이 MarketMemory 발신으로 나가므로 받은편지함에서 찾을 수 있게 안내.
+* **수정:** i18n `auth.senderHint`; `AuthAccountCard` OTP 대기 UI
+* **확인:** 메일 발송 후 「보낸사람: MarketMemory · 제목은 …」 표시
+* **의도적으로 안 함:** SMTP From 분리 (공유 프로젝트)

@@ -1,0 +1,135 @@
+<!--
+  Supabase Dashboard → Authentication → Emails → Magic link or OTP
+  Paste this body (Source). Requires:
+  - Redirect URLs include LYRA origins (e.g. http://localhost:5173/**)
+  - Market Memory signInWithOtp emailRedirectTo → https://marketmemory.app/dashboard
+  - LYRA signInWithOtp emailRedirectTo → window.location.origin + "/"
+
+  Button uses {{ .ConfirmationURL }} (honors emailRedirectTo).
+  OTP block uses {{ .Token }} for in-app verifyOtp.
+-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html dir="ltr" lang="en">
+  <head>
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <title>Sign-in</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#f5f5f4;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+    <div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0;">
+      로그인 링크 / Your sign-in link / ログインリンク
+    </div>
+
+    <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:#f5f5f4;padding:32px 16px;">
+      <tbody>
+        <tr>
+          <td align="center">
+            <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border:1px solid #e7e5e4;border-radius:16px;overflow:hidden;">
+              <tbody>
+                <tr>
+                  <td style="padding:28px 32px 20px;border-bottom:1px solid #f0f0ef;">
+                    <p style="margin:0 0 8px;font-size:12px;line-height:1.4;letter-spacing:0.08em;text-transform:uppercase;color:#78716c;font-weight:600;">
+                      Sign-in
+                    </p>
+                    <h1 style="margin:0;font-size:28px;line-height:1.2;font-weight:600;letter-spacing:-0.02em;color:#111827;">
+                      Sign in to your account
+                    </h1>
+                    <p style="margin:10px 0 0;font-size:14px;line-height:1.6;color:#6b7280;">
+                      Use the button below or the one-time code to continue.<br />
+                      아래 버튼 또는 일회용 코드로 계속하세요.<br />
+                      下のボタン、またはワンタイムコードで続行してください。
+                    </p>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:24px 32px 8px;">
+                    <p style="margin:0;font-size:15px;line-height:1.7;color:#1f2937;">
+                      Click the button to finish sign-in in the app you started from.<br />
+                      로그인을 시작한 앱으로 돌아가는 링크입니다.<br />
+                      ログインを開始したアプリに戻るリンクです。
+                    </p>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:20px 32px 8px;" align="center">
+                    <a
+                      href="{{ .ConfirmationURL }}"
+                      target="_blank"
+                      style="display:inline-block;min-width:220px;padding:14px 28px;background-color:#111827;border-radius:12px;color:#ffffff;font-size:15px;font-weight:600;line-height:1.2;text-align:center;text-decoration:none;"
+                    >
+                      Sign in
+                    </a>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:24px 32px 8px;">
+                    <p style="margin:0 0 10px;font-size:13px;line-height:1.6;color:#6b7280;text-align:center;">
+                      Button not working? Copy this link instead.<br />
+                      버튼이 안 되면 아래 링크를 복사하세요.<br />
+                      ボタンが機能しない場合は、下のリンクをコピーしてください。
+                    </p>
+                    <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0">
+                      <tbody>
+                        <tr>
+                          <td style="padding:14px 16px;background-color:#f8fafc;border:1px dashed #cbd5e1;border-radius:12px;">
+                            <p style="margin:0;font-size:13px;line-height:1.7;color:#2563eb;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;">
+                              {{ .ConfirmationURL }}
+                            </p>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:20px 32px 8px;">
+                    <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0">
+                      <tbody>
+                        <tr>
+                          <td style="padding:20px 18px;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">
+                            <p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#475569;text-align:center;">
+                              Or enter this one-time code in the app.<br />
+                              또는 앱에 아래 일회용 코드를 입력하세요.<br />
+                              または、アプリに以下のコードを入力してください。
+                            </p>
+                            <p style="margin:0;text-align:center;">
+                              <span style="display:inline-block;padding:12px 20px;background-color:#111827;border-radius:10px;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:0.18em;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;">
+                                {{ .Token }}
+                              </span>
+                            </p>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:20px 32px 28px;">
+                    <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0">
+                      <tbody>
+                        <tr>
+                          <td style="padding:16px 18px;background-color:#fffbeb;border:1px solid #fde68a;border-radius:12px;">
+                            <p style="margin:0;font-size:14px;line-height:1.7;color:#78350f;">
+                              If you did not request this, you can ignore this email.<br />
+                              요청하지 않았다면 이 메일은 무시하세요.<br />
+                              リクエストしていない場合は無視して問題ありません。
+                            </p>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>

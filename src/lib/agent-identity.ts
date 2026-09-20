@@ -2,12 +2,9 @@
 // Shared Durable Object instance identity
 // ─────────────────────────────────────────────────────────────────────────
 //
-// Phase 1 (pre-auth): each browser gets a stable guest id in localStorage
-// and a same-origin cookie so Worker HTTP (/settings, /memory, upload) hits
-// the same ChatAgent + MyMemory instance as useAgent({ name }).
-//
-// When authentication lands, pass the verified user id into
-// getInstanceName() / replace getOrCreateClientInstanceName().
+// Phase 1: each browser gets a stable guest id (localStorage + cookie).
+// Phase 2: when Supabase Auth session exists, bind to user.id instead;
+//          guest id is kept so logout returns to the same anonymous DO.
 //
 // `default` remains the system instance for cron ingest settings and shared
 // topic-label bootstrap writes — not the normal interactive user path.
@@ -21,11 +18,18 @@ export const DEFAULT_INSTANCE_NAME = "default";
 export const INSTANCE_COOKIE = "lyra_instance";
 export const INSTANCE_HEADER = "x-lyra-instance";
 
+/** Active instance (guest or user id) — kept for boot before Auth resolves. */
 const CLIENT_STORAGE_KEY = "lyra_instance_name";
+/** Stable anonymous id for this browser (survives login/logout). */
+const GUEST_STORAGE_KEY = "lyra_guest_instance";
 
 /** Durable Object name: letters, digits, _ and - only (max 64). */
 export function isValidInstanceName(name: string): boolean {
   return /^[a-zA-Z0-9_-]{1,64}$/.test(name);
+}
+
+export function isGuestInstanceName(name: string): boolean {
+  return name.startsWith("guest_");
 }
 
 export function getInstanceName(userId?: string): string {
@@ -37,6 +41,7 @@ export function getInstanceName(userId?: string): string {
 /**
  * Interactive instance for this request (header → cookie → default).
  * Cron / system callers that omit both stay on DEFAULT_INSTANCE_NAME.
+ * Prefer `resolveTrustedInstanceName` (worker/auth.ts) for personal routes.
  */
 export function resolveInstanceNameFromRequest(request: Request): string {
   const header = request.headers.get(INSTANCE_HEADER)?.trim();
@@ -65,8 +70,39 @@ function syncInstanceCookie(name: string): void {
 }
 
 /**
- * Stable per-browser guest id for useAgent + cookie-backed HTTP.
- * Call once at app boot (main.tsx) before any /settings or /memory fetch.
+ * Stable per-browser guest id. Does not switch on login — AuthProvider
+ * calls `bindClientInstanceName(user.id)` for the active cookie.
+ */
+export function getOrCreateGuestInstanceName(): string {
+  if (typeof window === "undefined") return DEFAULT_INSTANCE_NAME;
+
+  let name = localStorage.getItem(GUEST_STORAGE_KEY)?.trim() ?? "";
+  if (!isValidInstanceName(name) || !isGuestInstanceName(name)) {
+    const legacy = localStorage.getItem(CLIENT_STORAGE_KEY)?.trim() ?? "";
+    if (isValidInstanceName(legacy) && isGuestInstanceName(legacy)) {
+      name = legacy;
+    } else {
+      name = `guest_${crypto.randomUUID().replace(/-/g, "")}`;
+    }
+    localStorage.setItem(GUEST_STORAGE_KEY, name);
+  }
+  return name;
+}
+
+/** Write active instance to localStorage + cookie (guest or user id). */
+export function bindClientInstanceName(name: string): string {
+  if (typeof window === "undefined") return name;
+  if (!isValidInstanceName(name)) {
+    throw new Error(`invalid instance name: ${name}`);
+  }
+  localStorage.setItem(CLIENT_STORAGE_KEY, name);
+  syncInstanceCookie(name);
+  return name;
+}
+
+/**
+ * Boot helper: ensure guest exists and cookie matches last active name
+ * (or guest). AuthProvider may replace with user.id shortly after.
  *
  * Recovery of legacy solo data: set localStorage
  * `lyra_instance_name` = `default` and reload.
@@ -74,11 +110,11 @@ function syncInstanceCookie(name: string): void {
 export function getOrCreateClientInstanceName(): string {
   if (typeof window === "undefined") return DEFAULT_INSTANCE_NAME;
 
-  let name = localStorage.getItem(CLIENT_STORAGE_KEY)?.trim() ?? "";
-  if (!isValidInstanceName(name)) {
-    name = `guest_${crypto.randomUUID().replace(/-/g, "")}`;
-    localStorage.setItem(CLIENT_STORAGE_KEY, name);
+  const guest = getOrCreateGuestInstanceName();
+  const active = localStorage.getItem(CLIENT_STORAGE_KEY)?.trim() ?? "";
+  if (isValidInstanceName(active)) {
+    syncInstanceCookie(active);
+    return active;
   }
-  syncInstanceCookie(name);
-  return name;
+  return bindClientInstanceName(guest);
 }

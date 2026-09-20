@@ -20,6 +20,7 @@ import {
   buildTagLexicon,
   topicDisplayLabel,
 } from "@/lib/market-tag-lexicon";
+import { authFetch } from "@/lib/auth-fetch";
 import {
   DEFAULT_PREFERENCE_CATEGORY,
   fetchPreferences,
@@ -85,7 +86,7 @@ export function ReportForYou({
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/market/for-you", {
+        const res = await authFetch("/api/market/for-you", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({

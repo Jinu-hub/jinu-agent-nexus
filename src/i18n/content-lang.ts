@@ -11,12 +11,13 @@ import {
   isContentLang,
   nextContentLang,
 } from "../../worker/chat-agent/settings";
+import { authFetch } from "@/lib/auth-fetch";
 
 export { nextContentLang };
 
 /** Persist screen language via HTTP (report / live pages without App state). */
 export async function patchContentLang(lang: ContentLang): Promise<ContentLang> {
-  const res = await fetch("/settings", {
+  const res = await authFetch("/settings", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content_lang: lang }),

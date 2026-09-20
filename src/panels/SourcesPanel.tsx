@@ -17,6 +17,7 @@ import { FileUp, X } from "lucide-react";
 import type { Source } from "../../worker/chat-agent";
 import { PanelHeader } from "./PanelHeader";
 import { Button } from "@/components/ui/button";
+import { authFetch } from "@/lib/auth-fetch";
 import { useT } from "@/i18n/ui-lang";
 
 export function SourcesPanel({
@@ -39,7 +40,7 @@ export function SourcesPanel({
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const res = await authFetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) throw new Error(await res.text());
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

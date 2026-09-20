@@ -35,14 +35,25 @@ API_TOKEN=
 # built-in dev token `market-pulse` (see worker/live-market-room.ts).
 LIVE_ROOM_TOKEN=
 
-# Supabase — Market Memory (shared market data). OPTIONAL until features
-# that read/write Supabase are wired up. Never put the service role key
-# in the browser; Worker-only via createSupabaseClient() in worker/supabase.ts.
+# Supabase — Market Memory (shared market data) + Phase 2 Auth.
+# Never put the service role key in the browser; Worker-only via
+# createSupabaseClient() in worker/supabase.ts. The anon key is also
+# exposed to the browser via GET /api/auth/config (public-by-design).
 #
 # Find these in: Supabase Dashboard → Project Settings → API
 #   SUPABASE_URL              → Project URL
-#   SUPABASE_ANON_KEY         → anon / public (RLS-aware)
+#   SUPABASE_ANON_KEY         → anon / public (RLS-aware + Auth)
 #   SUPABASE_SERVICE_ROLE_KEY → service_role (bypasses RLS; server only)
+#
+# Auth setup (same project as Market Memory):
+#   1. Authentication → Providers → Email (magic link) on
+#   2. (Optional) Google provider
+#   3. Authentication → URL Configuration → Redirect URLs — ADD (Site URL은
+#      Market Memory 대시보드여도 됨; 매직 링크는 여기 없으면 Site URL로 떨어짐):
+#        http://localhost:5173
+#        http://localhost:5173/**
+#        https://<your-worker>.workers.dev
+#        https://<your-worker>.workers.dev/**
 #
 # Do NOT wrap values in quotes in `.dev.vars` — paste the raw URL/JWT.
 #

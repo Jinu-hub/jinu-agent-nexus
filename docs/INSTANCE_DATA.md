@@ -24,7 +24,7 @@
 |------|------|
 | `"default"` | **시스템 / 공유** — cron ingest용 ChatAgent settings, (목표) 공용 `topic_labels` 등 |
 | `guest_<uuid>` | Phase 1 **개인** — 브라우저 localStorage + `lyra_instance` cookie |
-| `<userId>` | Phase 2 이후 **개인** — Auth 검증 id가 guest를 대체 |
+| `<userId>` (Supabase UUID) | Phase 2 **개인** — 로그인 시 JWT 검증 후 guest를 대체. 로그아웃 시 같은 브라우저의 `guest_*`로 복귀 |
 
 식별 코드: [`src/lib/agent-identity.ts`](../src/lib/agent-identity.ts).
 
@@ -115,7 +115,17 @@ Phase 1 직후 상태. **목표와 다르면 여기가 수정 백로그.**
 | **`topic_labels` 읽기/쓰기** | **항상 `default`(공유)** | HTTP `/memory/topic-labels` + resolve persist → **`default`** ✅ | — |
 | chat `loadTopicLabelMap` | 공유만 | 공유 `default`만 ✅ | — |
 | Cron ingest settings | `default` | `default` ✅ | — |
-| 개인 settings | guest/user | guest ✅ | Auth 시 userId |
+| 개인 settings | guest/user | guest ✅ / 로그인 시 userId ✅ | — |
+
+### Auth (Phase 2)
+
+| 항목 | 동작 |
+|------|------|
+| 제공자 | 같은 Supabase 프로젝트 (Market Memory) — Email magic link + (옵션) Google |
+| 브라우저 | `GET /api/auth/config` → anon 클라이언트; Settings「계정」 |
+| 인스턴스 | 로그인 → `user.id`; 로그아웃 → `lyra_guest_instance` |
+| Worker | `/memory/*`(labels 제외) · `/settings` · upload · for-you: Bearer JWT 검증. user UUID 쿠키만 있고 토큰 없으면 401 |
+| 이메일 템플릿 | [`AUTH_EMAIL_TEMPLATE.html`](./AUTH_EMAIL_TEMPLATE.html) (magic/OTP) · [`AUTH_EMAIL_TEMPLATE_CONFIRM.html`](./AUTH_EMAIL_TEMPLATE_CONFIRM.html) (signup confirm) — `ConfirmationURL` + `Token` |
 
 ---
 
@@ -165,3 +175,4 @@ Cron / 시스템
 | 2026-09-20 | 초안 — Phase 1 이후 공유/개인 경계 문서화. `topic_labels`는 공유가 목표임을 명시. |
 | 2026-09-20 | preferences PK에 `category` 축 추가 (`market` 기본). kind와 제품 카테고리 분리. |
 | 2026-09-20 | `topic_labels` HTTP·resolve·chat map → 항상 MyMemory `"default"`. |
+| 2026-09-20 | Phase 2 Auth — Supabase magic link/Google → userId 인스턴스. |

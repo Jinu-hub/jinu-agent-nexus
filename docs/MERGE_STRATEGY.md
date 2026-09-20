@@ -49,7 +49,7 @@
 | Notes | `worker/notes.ts` |
 | MyMemory | `worker/my-memory.ts`, `worker/memory-routes.ts`; prefs PK `(category, kind, target)` via `src/lib/preference-category.ts` |
 | Live room | `worker/live-market-room.ts`, `src/lib/live-room.ts`, `src/live/LiveMarketRoom.tsx` |
-| Identity | `src/lib/agent-identity.ts` |
+| Identity | `src/lib/agent-identity.ts`, `src/lib/auth.tsx`, `worker/auth.ts` |
 | Settings domain | `worker/chat-agent/settings.ts`, `worker/settings-routes.ts`, `src/panels/SettingsPanel.tsx` |
 | Supabase | `worker/supabase.ts` |
 | Report series catalog | `worker/report-series.ts` — Settings Content toggles |
@@ -190,3 +190,4 @@
 | 2026-09-20 | 공유 vs 개인 데이터 경계 문서 [`INSTANCE_DATA.md`](./INSTANCE_DATA.md) ([`WORK_NOTES_3` §46.1](./WORK_NOTES_3.md)) |
 | 2026-09-20 | MyMemory preferences `category` 축 — A schema + FE market scope ([`WORK_NOTES_3` §47](./WORK_NOTES_3.md)) |
 | 2026-09-20 | topic_labels → shared `default` only ([`WORK_NOTES_3` §47.1](./WORK_NOTES_3.md)) |
+| 2026-09-20 | Phase 2 Supabase Auth — A auth + Settings account ([`WORK_NOTES_3` §48](./WORK_NOTES_3.md)) |

@@ -1,6 +1,6 @@
 import { getAgentByName } from "agents";
 
-import { resolveInstanceNameFromRequest } from "../src/lib/agent-identity";
+import { resolveTrustedInstanceName } from "./auth";
 import { ChatAgent } from "./chat-agent/ChatAgent";
 import type { ChatSettingsPatch } from "./chat-agent/settings";
 
@@ -11,8 +11,8 @@ function json(data: unknown, status = 200): Response {
 /**
  * HTTP inspection/update surface for the ChatAgent settings tables.
  *
- * Instance name comes from `x-lyra-instance` / `lyra_instance` cookie
- * (same guest id as useAgent). Cron callers with no cookie stay on `default`.
+ * Instance: verified Supabase user id, or guest_* cookie (Phase 2).
+ * Cron callers with no cookie stay on `default`.
  */
 export async function handleSettingsRequest(
   request: Request,
@@ -23,10 +23,14 @@ export async function handleSettingsRequest(
     return null;
   }
 
-  const instanceName = resolveInstanceNameFromRequest(request);
+  const trusted = await resolveTrustedInstanceName(request, env);
+  if (!trusted.ok) {
+    return json({ error: trusted.error }, trusted.status);
+  }
+
   const agent = await getAgentByName<Env, ChatAgent>(
     env.ChatAgent as unknown as DurableObjectNamespace<ChatAgent>,
-    instanceName,
+    trusted.name,
   );
 
   try {

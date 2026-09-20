@@ -23,6 +23,7 @@ import {
   type ReportPage,
 } from "@/lib/report-pages";
 import { cn } from "@/lib/utils";
+import { authFetch } from "@/lib/auth-fetch";
 import { useT, type TFn } from "@/i18n/ui-lang";
 import type { MessageKey } from "@/i18n/messages";
 
@@ -231,7 +232,7 @@ function useLatestReportDates(): Record<string, string> {
     void (async () => {
       try {
         const [settingsRes, seriesRes] = await Promise.all([
-          fetch("/settings"),
+          authFetch("/settings"),
           fetch("/api/report-series"),
         ]);
         const settings = (await settingsRes.json()) as { content_lang?: unknown };

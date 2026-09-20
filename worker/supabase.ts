@@ -98,6 +98,18 @@ export function getSupabaseAccessMode(
 }
 
 /**
+ * Public Auth config for the browser. Anon only — never service_role.
+ */
+export function getSupabaseBrowserConfig(
+  env: SupabaseSecrets,
+): { url: string; anonKey: string } | null {
+  const url = resolveSecret(env.SUPABASE_URL);
+  const anonKey = resolveSecret(env.SUPABASE_ANON_KEY);
+  if (!url || !anonKey) return null;
+  return { url, anonKey };
+}
+
+/**
  * HTTP routes for Supabase prep:
  *   GET /api/supabase/health — secrets + REST reachability check
  */

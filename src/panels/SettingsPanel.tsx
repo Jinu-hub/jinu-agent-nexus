@@ -15,6 +15,7 @@ import { seriesGroupTitle, useT, type TFn } from "@/i18n/ui-lang";
 import type { MessageKey } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 import { PanelHeader } from "./PanelHeader";
+import { AuthAccountCard } from "./AuthAccountCard";
 
 const PANEL_LABEL_KEYS: Record<ToggleablePanel, MessageKey> = {
   market: "panels.market",
@@ -182,8 +183,11 @@ export function SettingsPanel({
           <LoaderCircle className="size-3.5 animate-spin" />
           {t("settings.loading")}
         </div>
-      ) : settings ? (
+      ) : (
         <div className="space-y-2">
+          <AuthAccountCard />
+          {settings ? (
+            <>
           <div className="paper-inset px-3 py-2.5">
             <p className="text-xs font-medium">{t("settings.language")}</p>
             <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
@@ -376,11 +380,13 @@ export function SettingsPanel({
               when: formatUpdatedAt(settings.updated_at, t),
             })}
           </p>
+            </>
+          ) : (
+            <p className="panel-empty px-3 py-6 text-center text-xs italic">
+              {t("settings.unavailable")}
+            </p>
+          )}
         </div>
-      ) : (
-        <p className="panel-empty px-3 py-6 text-center text-xs italic">
-          {t("settings.unavailable")}
-        </p>
       )}
 
       {error && (

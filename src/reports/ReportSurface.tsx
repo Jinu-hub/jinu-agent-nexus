@@ -43,6 +43,7 @@ import type { ContentLang } from "../../worker/chat-agent/settings";
 import { isContentLang } from "../../worker/chat-agent/settings";
 import type { ReportSeriesRow } from "../../worker/report-series";
 import { useAgentInstanceName } from "@/lib/use-agent-instance";
+import { authFetch } from "@/lib/auth-fetch";
 import { ReportChat } from "./ReportChat";
 import { ReportForYou } from "./ReportForYou";
 import { ReportFullText } from "./ReportFullText";
@@ -228,7 +229,7 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
   useEffect(() => {
     if (lang) return;
     let active = true;
-    void fetch("/settings")
+    void authFetch("/settings")
       .then(async (res) => {
         const body = (await res.json()) as { content_lang?: unknown };
         if (!active) return;

@@ -27,6 +27,7 @@ import {
 } from "@/lib/live-room";
 import { Button } from "@/components/ui/button";
 import { ChromePrefs } from "@/components/ChromePrefs";
+import { authFetch } from "@/lib/auth-fetch";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { patchContentLang } from "@/i18n/content-lang";
@@ -60,7 +61,7 @@ export default function LiveMarketRoom() {
 
   useEffect(() => {
     let active = true;
-    void fetch("/settings")
+    void authFetch("/settings")
       .then((res) => res.json() as Promise<{ content_lang?: unknown }>)
       .then((body) => {
         if (!active) return;

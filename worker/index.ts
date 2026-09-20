@@ -41,6 +41,7 @@ import { handleMarketLabelsRequest } from "./market-labels-routes";
 import { handleReportSeriesRequest } from "./report-series";
 import { handleMarketDayRequest } from "./market-day";
 import { handleMarketForYouRequest } from "./market-for-you";
+import { handleAuthRequest, resolveTrustedInstanceName } from "./auth";
 import {
   isVoiceAudioCron,
   runVoiceAudioCron,
@@ -49,7 +50,6 @@ import {
   isMarketVectorCron,
   runMarketVectorCron,
 } from "./market-vector-cron";
-import { resolveInstanceNameFromRequest } from "../src/lib/agent-identity";
 
 export { ChatAgent, MyMemory, LiveMarketRoomAgent };
 
@@ -74,6 +74,10 @@ export default {
     // the ChatAgent DO's SQLite database.
     const settings = await handleSettingsRequest(request, env);
     if (settings) return settings;
+
+    // ── Auth config (public anon key for browser Supabase Auth) ────────
+    const auth = await handleAuthRequest(request, env);
+    if (auth) return auth;
 
     // ── Supabase (Market Memory) ───────────────────────────────────────
     // Health probe (`/api/supabase/health`), content_briefs / item_contents
@@ -122,11 +126,16 @@ export default {
         return new Response("missing file", { status: 400 });
       }
       const buffer = await file.arrayBuffer();
-      // Instance name matches the frontend useAgent({ name }) + cookie.
-      // Cron / bare requests without a cookie stay on DEFAULT_INSTANCE_NAME.
+      const trusted = await resolveTrustedInstanceName(request, env);
+      if (!trusted.ok) {
+        return Response.json(
+          { error: trusted.error },
+          { status: trusted.status },
+        );
+      }
       const agent = await getAgentByName<Env, ChatAgent>(
         env.ChatAgent as unknown as DurableObjectNamespace<ChatAgent>,
-        resolveInstanceNameFromRequest(request),
+        trusted.name,
       );
       const result = await agent.uploadPdf(buffer, file.name);
       return Response.json(result);
