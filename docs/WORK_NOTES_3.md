@@ -610,3 +610,19 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **수정:** i18n `auth.senderHint`; `AuthAccountCard` OTP 대기 UI
 * **확인:** 메일 발송 후 「보낸사람: MarketMemory · 제목은 …」 표시
 * **의도적으로 안 함:** SMTP From 분리 (공유 프로젝트)
+
+---
+
+## 49. Phase 3 — Admin role (최소) *(완료)*
+
+* **목적:** 관리자를 `"default"` 인스턴스와 분리. env allowlist로 admin 판별 → Settings 배지 + admin API 가드.
+* **수정 및 추가 파일:**
+  * `worker/auth.ts` — `ADMIN_USER_IDS` / `ADMIN_EMAILS`; `isAdminUser` · `requireAdmin`; `GET /api/auth/me`; `GET /api/admin/status`
+  * `worker/index.ts` — admin 라우트 연결
+  * `worker-env.d.ts` · `.dev.vars.example` — allowlist secrets
+  * `src/lib/auth.tsx` — `isAdmin` (auth/me)
+  * `src/panels/AuthAccountCard.tsx` — Admin 배지; i18n `auth.adminBadge`
+  * docs: ROUTING · INSTANCE_DATA · CLAUDE · MERGE_STRATEGY · 본 절
+* **확인:** `.dev.vars`에 UUID/이메일 → 재시작 → 로그인 시 Admin 배지; `GET /api/auth/me` `isAdmin:true`; Bearer로 `GET /api/admin/status` 200; 비admin/게스트 403·false; 인스턴스는 계속 userId
+* **의도적으로 안 함:** `hidden_panels` 전역; `default` 관리 UI; Supabase `app_metadata`; guest→user 머지; WS JWT (Phase 5)
+

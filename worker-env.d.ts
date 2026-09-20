@@ -32,6 +32,9 @@ declare global {
     SUPABASE_SERVICE_ROLE_KEY?: string;
     // Optional. Direct OpenAI TTS. If unset, Voice uses API_TOKEN + AI Gateway.
     OPENAI_API_KEY?: string;
+    // Phase 3 admin allowlist (comma-separated). Not the `"default"` DO.
+    ADMIN_USER_IDS?: string;
+    ADMIN_EMAILS?: string;
   }
 }
 

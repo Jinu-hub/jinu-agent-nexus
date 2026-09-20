@@ -127,6 +127,15 @@ Phase 1 직후 상태. **목표와 다르면 여기가 수정 백로그.**
 | Worker | `/memory/*`(labels 제외) · `/settings` · upload · for-you: Bearer JWT 검증. user UUID 쿠키만 있고 토큰 없으면 401 |
 | 이메일 템플릿 | [`AUTH_EMAIL_TEMPLATE.html`](./AUTH_EMAIL_TEMPLATE.html) (magic/OTP) · [`AUTH_EMAIL_TEMPLATE_CONFIRM.html`](./AUTH_EMAIL_TEMPLATE_CONFIRM.html) (signup confirm) — `ConfirmationURL` + `Token` |
 
+### Admin (Phase 3)
+
+| 항목 | 동작 |
+|------|------|
+| 판별 | Worker env `ADMIN_USER_IDS` / `ADMIN_EMAILS` (comma, case-insensitive). **`"default"` ≠ admin** |
+| 인스턴스 | Admin도 개인 DO는 **본인 userId** 유지 (공유 스토어와 role 분리) |
+| API | `GET /api/auth/me` → `{ userId, email, isAdmin }`; `GET /api/admin/status` → allowlist만 200 |
+| UI | Settings「계정」Admin 배지 (`auth.adminBadge`) |
+
 ---
 
 ## 요청 경로 규칙 (목표)
@@ -160,7 +169,8 @@ Cron / 시스템
 
 | 영역 | 파일 |
 |------|------|
-| 인스턴스 id | `src/lib/agent-identity.ts`, `src/lib/use-agent-instance.ts` |
+| 인스턴스 id | `src/lib/agent-identity.ts`, `src/lib/use-agent-instance.ts`, `src/lib/auth.tsx` |
+| Auth / Admin | `worker/auth.ts` — JWT instance + Phase 3 allowlist (`ADMIN_*`) |
 | MyMemory DO | `worker/my-memory.ts`, `worker/memory-routes.ts`, `worker/lib/my-memory-stub.ts` |
 | Labels | `worker/market-labels.ts`, `worker/lib/chat-ui-topic-map.ts` |
 | Settings | `worker/chat-agent/settings.ts`, `worker/market-settings.ts` |
@@ -176,3 +186,4 @@ Cron / 시스템
 | 2026-09-20 | preferences PK에 `category` 축 추가 (`market` 기본). kind와 제품 카테고리 분리. |
 | 2026-09-20 | `topic_labels` HTTP·resolve·chat map → 항상 MyMemory `"default"`. |
 | 2026-09-20 | Phase 2 Auth — Supabase magic link/Google → userId 인스턴스. |
+| 2026-09-20 | Phase 3 Admin — env allowlist; `default` ≠ admin; `/api/auth/me` · `/api/admin/status`. |

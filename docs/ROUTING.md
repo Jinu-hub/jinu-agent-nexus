@@ -14,6 +14,8 @@ worker/index.ts (HTTP Gateway)
  ├── /memory/*                                     → MyMemory DO (개인화; topic-labels만 공유 `"default"`; prefs는 JWT/guest)
  ├── /settings, /settings/events                   → ChatAgent DO (설정; JWT/guest)
  ├── GET  /api/auth/config                          → Supabase Auth용 URL+anon (브라우저)
+ ├── GET  /api/auth/me                              → Bearer → userId/email/isAdmin (Phase 3)
+ ├── GET  /api/admin/status                         → admin allowlist 가드 스텁 (Phase 3)
  ├── GET  /api/supabase/health                     → Supabase 도달성 점검
  ├── GET  /api/briefs/today                        → content_briefs 당일 브리핑 조회 (§9)
  ├── GET  /api/briefs/latest-date                  → 데이터 있는 최신 market_date (§10.5)

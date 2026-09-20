@@ -15,6 +15,7 @@ export function AuthAccountCard() {
   const {
     configured,
     user,
+    isAdmin,
     signInWithEmail,
     verifyEmailOtp,
     signInWithGoogle,
@@ -46,7 +47,19 @@ export function AuthAccountCard() {
       user.id.slice(0, 8);
     return (
       <div className="paper-inset px-3 py-2.5">
-        <p className="text-xs font-medium">{t("auth.title")}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-medium">{t("auth.title")}</p>
+          {isAdmin ? (
+            <span
+              className={cn(
+                "rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                "bg-foreground text-background",
+              )}
+            >
+              {t("auth.adminBadge")}
+            </span>
+          ) : null}
+        </div>
         <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
           {t("auth.signedInAs", { email: String(label) })}
         </p>

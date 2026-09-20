@@ -41,7 +41,11 @@ import { handleMarketLabelsRequest } from "./market-labels-routes";
 import { handleReportSeriesRequest } from "./report-series";
 import { handleMarketDayRequest } from "./market-day";
 import { handleMarketForYouRequest } from "./market-for-you";
-import { handleAuthRequest, resolveTrustedInstanceName } from "./auth";
+import {
+  handleAdminRequest,
+  handleAuthRequest,
+  resolveTrustedInstanceName,
+} from "./auth";
 import {
   isVoiceAudioCron,
   runVoiceAudioCron,
@@ -75,9 +79,13 @@ export default {
     const settings = await handleSettingsRequest(request, env);
     if (settings) return settings;
 
-    // ── Auth config (public anon key for browser Supabase Auth) ────────
+    // ── Auth config / me (Phase 2–3) ───────────────────────────────────
     const auth = await handleAuthRequest(request, env);
     if (auth) return auth;
+
+    // ── Admin stubs (Phase 3 — env allowlist) ──────────────────────────
+    const admin = await handleAdminRequest(request, env);
+    if (admin) return admin;
 
     // ── Supabase (Market Memory) ───────────────────────────────────────
     // Health probe (`/api/supabase/health`), content_briefs / item_contents

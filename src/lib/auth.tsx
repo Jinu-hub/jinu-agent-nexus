@@ -21,6 +21,7 @@ import {
   bindClientInstanceName,
   getOrCreateGuestInstanceName,
 } from "@/lib/agent-identity";
+import { authFetch } from "@/lib/auth-fetch";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 export type AuthStatus = "loading" | "ready";
@@ -33,6 +34,8 @@ type AuthContextValue = {
   /** Durable Object name for useAgent + cookie HTTP. */
   instanceName: string;
   accessToken: string | null;
+  /** Phase 3 — Worker env allowlist (ADMIN_USER_IDS / ADMIN_EMAILS). */
+  isAdmin: boolean;
   /** Send email with magic link + OTP (template: docs/AUTH_EMAIL_TEMPLATE.html). */
   signInWithEmail: (email: string) => Promise<void>;
   /** Complete email sign-in with the one-time code from the mail body. */
@@ -54,9 +57,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [configured, setConfigured] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [instanceName, setInstanceName] = useState(() =>
     getOrCreateGuestInstanceName(),
   );
+
+  const refreshAdmin = useCallback(async (accessToken: string | null) => {
+    if (!accessToken) {
+      setIsAdmin(false);
+      return;
+    }
+    try {
+      const res = await authFetch("/api/auth/me");
+      if (!res.ok) {
+        setIsAdmin(false);
+        return;
+      }
+      const body = (await res.json()) as { isAdmin?: boolean };
+      setIsAdmin(Boolean(body.isAdmin));
+    } catch {
+      setIsAdmin(false);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!supabase) {
         setConfigured(false);
         setInstanceName(applyInstanceForUser(null));
+        setIsAdmin(false);
         setStatus("ready");
         return;
       }
@@ -99,11 +122,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       setSession(data.session);
       setInstanceName(applyInstanceForUser(data.session?.user ?? null));
+      await refreshAdmin(data.session?.access_token ?? null);
+      if (cancelled) return;
       setStatus("ready");
 
       const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
         setSession(next);
         setInstanceName(applyInstanceForUser(next?.user ?? null));
+        void refreshAdmin(next?.access_token ?? null);
       });
       unsubscribe = () => sub.subscription.unsubscribe();
     })();
@@ -112,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       unsubscribe?.();
     };
-  }, []);
+  }, [refreshAdmin]);
 
   const signInWithEmail = useCallback(async (email: string) => {
     const supabase = await getSupabaseBrowserClient();
@@ -147,8 +173,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.session) {
       setSession(data.session);
       setInstanceName(applyInstanceForUser(data.session.user));
+      void refreshAdmin(data.session.access_token);
     }
-  }, []);
+  }, [refreshAdmin]);
 
   const signInWithGoogle = useCallback(async () => {
     const supabase = await getSupabaseBrowserClient();
@@ -170,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
     }
     setSession(null);
+    setIsAdmin(false);
     setInstanceName(applyInstanceForUser(null));
   }, []);
 
@@ -181,6 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       instanceName,
       accessToken: session?.access_token ?? null,
+      isAdmin,
       signInWithEmail,
       verifyEmailOtp,
       signInWithGoogle,
@@ -191,6 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured,
       session,
       instanceName,
+      isAdmin,
       signInWithEmail,
       verifyEmailOtp,
       signInWithGoogle,

@@ -65,6 +65,17 @@ SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
+# Phase 3 — Admin allowlist (optional). Comma-separated.
+# Admins keep their personal userId DO; this does NOT switch to "default".
+# Match by Supabase auth.users.id and/or email (case-insensitive).
+#   ADMIN_USER_IDS=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+#   ADMIN_EMAILS=you@example.com,other@example.com
+# Production:
+#   npx wrangler secret put ADMIN_USER_IDS
+#   npx wrangler secret put ADMIN_EMAILS
+ADMIN_USER_IDS=
+ADMIN_EMAILS=
+
 # Optional. Direct OpenAI TTS for Voice generation (Phase 4).
 # If unset, the Worker calls AI Gateway with API_TOKEN instead
 # (Unified Billing or a stored OpenAI key on the gateway).
