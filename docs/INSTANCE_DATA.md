@@ -127,6 +127,16 @@ Phase 1 직후 상태. **목표와 다르면 여기가 수정 백로그.**
 | Worker | `/memory/*`(labels 제외) · `/settings` · upload · for-you: Bearer JWT 검증. user UUID 쿠키만 있고 토큰 없으면 401 |
 | 이메일 템플릿 | [`AUTH_EMAIL_TEMPLATE.html`](./AUTH_EMAIL_TEMPLATE.html) (magic/OTP) · [`AUTH_EMAIL_TEMPLATE_CONFIRM.html`](./AUTH_EMAIL_TEMPLATE_CONFIRM.html) (signup confirm) — `ConfirmationURL` + `Token` |
 
+### ChatAgent WebSocket (Phase 5)
+
+| 항목 | 동작 |
+|------|------|
+| `guest_*` | 토큰 없이 WS 허용 |
+| `<userId>` | `?token=` Supabase access JWT 필수 · `getUser` id === instance name |
+| `"default"` | 브라우저 WS 거부 (Worker `getAgentByName`만) |
+| FE | `useChatAgentAuthQuery` → `useAgent({ query })` |
+| 가드 | `onBeforeConnect` 401 + DO `onConnect` close `4401` |
+
 ### Admin (Phase 3)
 
 | 항목 | 동작 |
@@ -199,3 +209,4 @@ Cron / 시스템
 | 2026-09-20 | Phase 3 Admin — env allowlist; `default` ≠ admin; `/api/auth/me` · `/api/admin/status`. |
 | 2026-09-20 | Phase 3 — 패널 탭 Settings UI·PATCH admin only; default hidden = all but Market. |
 | 2026-09-20 | Phase 4 — 패널 기본값 전역 (`"default"` DO + `/api/panel-defaults`). |
+| 2026-09-20 | Phase 5 — ChatAgent WS JWT (`?token=` · guest 예외 · default 거부). |

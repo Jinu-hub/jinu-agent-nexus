@@ -24,6 +24,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgent } from "agents/react";
 import type { MCPServersState } from "agents";
 import { useAgentInstanceName } from "@/lib/use-agent-instance";
+import { useChatAgentAuthQuery } from "@/lib/chat-agent-query";
 import { cn } from "@/lib/utils";
 import {
   Brain,
@@ -187,9 +188,13 @@ function AppShell() {
   }, []);
 
   const instanceName = useAgentInstanceName();
+  const { query: agentQuery, queryDeps: agentQueryDeps } =
+    useChatAgentAuthQuery();
   const agent = useAgent<ChatAgent, State>({
     agent: "ChatAgent",
     name: instanceName,
+    query: agentQuery,
+    queryDeps: agentQueryDeps,
     onMessage,
     onMcpUpdate,
   });

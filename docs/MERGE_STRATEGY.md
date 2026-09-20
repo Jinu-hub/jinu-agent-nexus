@@ -193,3 +193,4 @@
 | 2026-09-20 | Phase 2 Supabase Auth — A auth + Settings account ([`WORK_NOTES_3` §48](./WORK_NOTES_3.md)) |
 | 2026-09-20 | Phase 3 Admin role — A auth allowlist + `/api/admin/*` ([`WORK_NOTES_3` §49](./WORK_NOTES_3.md)) |
 | 2026-09-20 | Phase 4 global panel defaults — A `panel-defaults` + admin PATCH ([`WORK_NOTES_3` §50](./WORK_NOTES_3.md)) |
+| 2026-09-20 | Phase 5 ChatAgent WS JWT — B `routeAgentRequest` + A query token ([`WORK_NOTES_3` §51](./WORK_NOTES_3.md)) |

@@ -41,7 +41,7 @@ worker/index.ts (HTTP Gateway)
  ├── POST /api/market/for-you                     → 관심사 ∩ 리포트 → 개인화 요약 (§26.5)
  ├── POST /api/upload                              → ChatAgent DO (PDF RAG 업로드)
  ├── GET  /screenshots/*                           → R2 Bucket (브라우저 스크린샷)
- ├── /agents/ChatAgent/default                     → ChatAgent (WebSocket + Think Chat)
+ ├── /agents/ChatAgent/:name                       → ChatAgent WS/HTTP (Phase 5: user UUID는 `?token=` JWT)
  └── /agents/live-market-room-agent/market-pulse   → LiveMarketRoomAgent (실시간 투표/알람)
 ```
 

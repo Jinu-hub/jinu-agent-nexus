@@ -48,6 +48,10 @@ import {
 } from "./auth";
 import { handlePanelDefaultsRequest } from "./panel-defaults";
 import {
+  authorizeChatAgentWebSocket,
+  chatAgentInstanceFromUrl,
+} from "./chat-agent-ws-auth";
+import {
   isVoiceAudioCron,
   runVoiceAudioCron,
 } from "./voice-audio-cron";
@@ -173,9 +177,18 @@ export default {
     // Handles /agents/<class>/<name> URLs for both HTTP and WebSocket
     // upgrades. Returns `null` if the request didn't match — fall back
     // to a 404 in that case.
+    // Phase 5: ChatAgent WS requires JWT when the instance is a user id.
     return (
-      (await routeAgentRequest(request, env)) ??
-      new Response("Not found", { status: 404 })
+      (await routeAgentRequest(request, env, {
+        onBeforeConnect: async (req) => {
+          const instance = chatAgentInstanceFromUrl(new URL(req.url));
+          if (instance === null) return; // other agents (e.g. live room)
+          const ok = await authorizeChatAgentWebSocket(req, env, instance);
+          if (!ok) {
+            return new Response("Unauthorized", { status: 401 });
+          }
+        },
+      })) ?? new Response("Not found", { status: 404 })
     );
   },
 

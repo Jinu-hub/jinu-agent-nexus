@@ -647,4 +647,19 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **확인:** 비admin Settings에 패널 탭 없음 · admin이 Memory 켜면 게스트도 탭에 Memory 보임 · `GET /api/panel-defaults` 공개
 * **의도적으로 안 함:** 개인별 패널 오버라이드; ingest 시리즈 전역 UI; Phase 5 WS JWT
 
+---
+
+## 51. Phase 5 — ChatAgent WebSocket JWT *(완료)*
+
+* **목적:** 로그인 유저 DO에 쿠키/이름만으로 WS 붙는 spoof 차단. user UUID 인스턴스는 Supabase access token 필수.
+* **수정 및 추가 파일:**
+  * `worker/chat-agent-ws-auth.ts` *(신규)* — `authorizeChatAgentWebSocket` · URL 파서
+  * `worker/index.ts` — `routeAgentRequest({ onBeforeConnect })` ChatAgent만
+  * `worker/chat-agent/ChatAgent.ts` — `shouldSendProtocolMessages` + `onConnect` close 4401
+  * `src/lib/chat-agent-query.ts` *(신규)*; `App.tsx` · `ReportSurface.tsx` — `query.token`
+  * docs: INSTANCE_DATA · CLAUDE · ROUTING · 본 절
+* **확인:** 게스트 챗 OK · 로그인 후 챗 OK · DevTools에서 token 없이 user UUID 경로 WS → 401/4401 · Live room 토큰 경로 무영향
+* **의도적으로 안 함:** guest_* 소유권 증명(비밀); guest DO GC; HttpOnly cookie 전용 토큰; Live room 변경
+
+
 

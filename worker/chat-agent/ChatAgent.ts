@@ -23,9 +23,14 @@ import {
 } from "@cloudflare/think";
 import type { ToolSet, LanguageModel } from "ai";
 import { callable } from "agents";
+import type { Connection, ConnectionContext } from "agents";
 import type { Browser, Page } from "@cloudflare/puppeteer";
 
 import { createModel } from "../ai";
+import {
+  authorizeChatAgentWebSocket,
+  CHAT_AGENT_UNAUTHORIZED_CLOSE,
+} from "../chat-agent-ws-auth";
 import { INITIAL_STATE } from "./constants";
 import { configureChatSession } from "./configure-session";
 import { getChatTools } from "./tools-registry";
@@ -82,6 +87,35 @@ export class ChatAgent extends Think<Env, State> {
 
   /** Set in marketBeforeTurn when Market Memory was prefetched for this turn. */
   marketPrefetchReady = false;
+
+  /**
+   * Phase 5: withhold identity/state frames until the socket is authorized
+   * (mirrors LiveMarketRoomAgent).
+   */
+  override shouldSendProtocolMessages(
+    _connection: Connection,
+    ctx: ConnectionContext,
+  ): boolean {
+    // Sync gate only — full JWT check runs in onConnect / onBeforeConnect.
+    // Guests and token-bearing user sockets pass the cheap URL check here;
+    // invalid JWTs are closed in onConnect.
+    const url = new URL(ctx.request.url);
+    const name = this.name;
+    if (name.startsWith("guest_")) return true;
+    if (name === "default") return false;
+    return Boolean(url.searchParams.get("token")?.trim());
+  }
+
+  override async onConnect(connection: Connection, ctx: ConnectionContext) {
+    const ok = await authorizeChatAgentWebSocket(
+      ctx.request,
+      this.env,
+      this.name,
+    );
+    if (!ok) {
+      connection.close(CHAT_AGENT_UNAUTHORIZED_CLOSE, "unauthorized");
+    }
+  }
 
   getModel(): LanguageModel {
     return createModel(this.env);
