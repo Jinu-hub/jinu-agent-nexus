@@ -21,7 +21,7 @@ import {
   type AgentForChat,
 } from "@/chat/ChatParts";
 import { useClientToolCall } from "@/chat/use-client-tools";
-import { reportPageSuggestions } from "@/lib/market-suggestions";
+import { reportChatSuggestions } from "@/lib/market-suggestions";
 import { cn } from "@/lib/utils";
 import { useT, useUiLang } from "@/i18n/ui-lang";
 
@@ -112,7 +112,7 @@ function Suggestions({
       <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
         {t("report.tryAsking")}
       </p>
-      {reportPageSuggestions(marketDate, lang).map((s) => (
+      {reportChatSuggestions(marketDate, lang).map((s) => (
         <button
           key={s.id}
           type="button"

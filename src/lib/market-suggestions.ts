@@ -160,61 +160,167 @@ export function homeChatSuggestions(lang: ContentLang): MarketSuggestion[] {
 }
 
 /**
- * Report page chat — prompts pinned to the day being read.
- *
- * The standalone page always shows one `market_date`, so the prompts name
- * it instead of relying on "Latest" / "어제" resolution.
+ * Date-pinned copy for helper-rail / report-page chips.
+ * Names the browse `market_date` so prompts do not rely on "Latest" / "어제".
+ */
+const DATED_PROMPT: Record<
+  string,
+  (date: string) => { ko: SuggestionCopy; en: SuggestionCopy }
+> = {
+  risk: (d) => ({
+    ko: {
+      label: "리스크",
+      prompt: `${d} 브리핑에서 주요한 리스크를 선별하고 중요성에 대해 쉽게 설명해줘`,
+    },
+    en: {
+      label: "Risks",
+      prompt: `From the ${d} briefing, pick the main risks and explain why they matter in plain language`,
+    },
+  }),
+  pulse: (d) => ({
+    ko: {
+      label: "pulse / takeaway",
+      prompt: `${d} pulse/takeaway를 쉽게 풀어서 설명해줘`,
+    },
+    en: {
+      label: "pulse / takeaway",
+      prompt: `Explain the ${d} pulse/takeaway in plain language`,
+    },
+  }),
+  compare: (d) => ({
+    ko: {
+      label: "톤 비교",
+      prompt: `${d}와 그 전날 브리핑 톤이 어떻게 달라졌고 왜 그런지 설명해줘`,
+    },
+    en: {
+      label: "Tone compare",
+      prompt: `How did the briefing tone change from the day before ${d} to ${d}, and why?`,
+    },
+  }),
+  reportCore: (d) => ({
+    ko: {
+      label: "풀리포트 핵심",
+      prompt: `${d} 풀리포트 핵심을 초보자도 이해하게 설명해줘`,
+    },
+    en: {
+      label: "Report core",
+      prompt: `Explain the core of the ${d} full report so a beginner can follow`,
+    },
+  }),
+  keywords: (d) => ({
+    ko: {
+      label: "키워드만",
+      prompt: `${d} 풀리포트 키워드를 알려주고, 오늘 스토리가 뭔지 한눈에 설명해줘`,
+    },
+    en: {
+      label: "Keywords",
+      prompt: `List the ${d} full-report keywords and explain today's story at a glance`,
+    },
+  }),
+  companies: (d) => ({
+    ko: {
+      label: "주요 기업",
+      prompt: `${d} 풀리포트에 나온 주요 기업·기관이 왜 언급됐는지 설명해줘`,
+    },
+    en: {
+      label: "Key names",
+      prompt: `Explain why the main companies and institutions in the ${d} full report were mentioned`,
+    },
+  }),
+  highlights: (d) => ({
+    ko: {
+      label: "하이라이트만",
+      prompt: `${d} 풀리포트 하이라이트를 짚어주고 왜 중요한지 설명해줘`,
+    },
+    en: {
+      label: "Highlights",
+      prompt: `Walk through the ${d} full-report highlights and why they matter`,
+    },
+  }),
+  briefVsReport: (d) => ({
+    ko: {
+      label: "리포트가 더 담은 것",
+      prompt: `${d} 브리프에 없는 풀리포트 내용을 짚어주고 왜 중요한지 설명해줘`,
+    },
+    en: {
+      label: "What the report adds",
+      prompt: `Point out what the ${d} full report covers that the brief does not, and why it matters`,
+    },
+  }),
+  voice: (d) => ({
+    ko: {
+      label: "보이스 → 탭",
+      prompt: `${d} 보이스 틀어줘`,
+    },
+    en: {
+      label: "Voice → tab",
+      prompt: `Play the ${d} voice briefing`,
+    },
+  }),
+  fullReport: (d) => ({
+    ko: {
+      label: "리포트 → 탭",
+      prompt: `${d} 풀리포트 전문 보여줘`,
+    },
+    en: {
+      label: "Report → tab",
+      prompt: `Show me the ${d} full report`,
+    },
+  }),
+};
+
+/** Helper-rail Ask chips — fuller set; vertical scroll is OK. */
+const HELPER_ASK_ORDER = [
+  "risk",
+  "reportCore",
+  "briefVsReport",
+  "keywords",
+  "highlights",
+  "pulse",
+  "companies",
+  "compare",
+  "voice",
+  "fullReport",
+] as const;
+
+/** Report-page chat empty state — keep short (full prompt text per row). */
+const REPORT_CHAT_ORDER = [
+  "risk",
+  "reportCore",
+  "briefVsReport",
+  "keywords",
+] as const;
+
+function datedSuggestions(
+  marketDate: string,
+  lang: ContentLang,
+  order: readonly string[],
+): MarketSuggestion[] {
+  return order.map((id) => {
+    const row = DATED_PROMPT[id]?.(marketDate);
+    const copy = row?.[lang] ?? row?.ko ?? copyFor(id, lang);
+    return { id, ...copy };
+  });
+}
+
+/**
+ * Home helper rail — date-pinned Ask rows (one per suggestion; Ask scrolls).
  */
 export function reportPageSuggestions(
   marketDate: string,
   lang: ContentLang,
 ): MarketSuggestion[] {
-  if (lang === "en") {
-    return [
-      {
-        id: "risk",
-        label: "Risks",
-        prompt: `From the ${marketDate} briefing, pick the main risks and explain why they matter in plain language`,
-      },
-      {
-        id: "reportCore",
-        label: "Report core",
-        prompt: `Explain the core of the ${marketDate} full report so a beginner can follow`,
-      },
-      {
-        id: "briefVsReport",
-        label: "What the report adds",
-        prompt: `Point out what the ${marketDate} full report covers that the brief does not, and why it matters`,
-      },
-      {
-        id: "keywords",
-        label: "Keywords",
-        prompt: `List the ${marketDate} full-report keywords and explain today's story at a glance`,
-      },
-    ];
-  }
-  return [
-    {
-      id: "risk",
-      label: "리스크",
-      prompt: `${marketDate} 브리핑에서 주요한 리스크를 선별하고 중요성에 대해 쉽게 설명해줘`,
-    },
-    {
-      id: "reportCore",
-      label: "풀리포트 핵심",
-      prompt: `${marketDate} 풀리포트 핵심을 초보자도 이해하게 설명해줘`,
-    },
-    {
-      id: "briefVsReport",
-      label: "리포트가 더 담은 것",
-      prompt: `${marketDate} 브리프에 없는 풀리포트 내용을 짚어주고 왜 중요한지 설명해줘`,
-    },
-    {
-      id: "keywords",
-      label: "키워드만",
-      prompt: `${marketDate} 풀리포트 키워드를 알려주고, 오늘 스토리가 뭔지 한눈에 설명해줘`,
-    },
-  ];
+  return datedSuggestions(marketDate, lang, HELPER_ASK_ORDER);
+}
+
+/**
+ * Standalone report-page chat empty state — short list of full prompts.
+ */
+export function reportChatSuggestions(
+  marketDate: string,
+  lang: ContentLang,
+): MarketSuggestion[] {
+  return datedSuggestions(marketDate, lang, REPORT_CHAT_ORDER);
 }
 
 /** T4 — Topics / entity chip → chat ask (panel date when known). */

@@ -421,3 +421,26 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **의도적으로 안 함:** `value: "market"` 내부 키 변경; 헤더 Market 메뉴 라벨 변경
 
 ---
+
+## 45. 헬퍼 레일 — 챗에서 물어보기 리스트 *(완료)*
+
+* **목적:** Ask를 **1행=1질문** 리스트로. Topics 카드 UI는 그대로. Topics가 남긴 빈 높이는 Ask가 채우고, 질문은 Ask 안에서만 세로 스크롤.
+* **수정 및 추가 파일:**
+  * `src/chat/ChatHelperRail.tsx` — Topics 래퍼 `shrink`+content height; Ask `flex-1 min-h-40` + 행 버튼 리스트 `overflow-y-auto`
+  * `src/lib/market-suggestions.ts` — `DATED_PROMPT` + `reportPageSuggestions` 10항목; `reportChatSuggestions` 4항목
+  * `src/reports/ReportChat.tsx` — `reportChatSuggestions`
+  * `docs/CLAUDE.md` — helper rail Ask 행
+  * docs: 본 절
+* **확인:** Topics 카드/칩 UI 동일; Ask가 Topics 아래 빈 공간을 채움; 질문 10개가 각각 한 행; 넘치면 Ask 리스트만 스크롤.
+* **의도적으로 안 함:** Topics 카드 내부 변경; 새 intent/worker 로직; Market empty-state `marketSuggestions` 순서 변경
+
+### 45.1 Topics 여닫이 *(완료)*
+
+* **목적:** 헬퍼 레일 Topics 카드 전체를 접을 수 있게. 기본은 열림. 접으면 Ask 리스트에 공간 양보.
+* **수정 및 추가 파일:**
+  * `src/chat/ChatHelperRail.tsx` — `topicsOpen` 기본 `true`; 헤더 버튼(ChevronDown + Tags + 토픽)으로 본문 토글 (내 관심사 fold와 동일 패턴)
+  * docs: 본 소절
+* **확인:** 기본 펼침; 헤더 클릭 시 Topics 본문 접힘·Ask 영역 확대; 다시 클릭 시 복원.
+* **의도적으로 안 함:** Topics 내부(관심사/태그/키워드) UI 변경; 접힘 상태 localStorage 유지
+
+---
