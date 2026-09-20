@@ -62,8 +62,7 @@ export type ResolveMarketLabelsOptions = {
   force?: boolean;
   bodyExcerptChars?: number;
   /**
-   * MyMemory instance for topic_labels cache.
-   * Cron ingest omits this → shared `default`. Interactive HTTP passes guest id.
+   * @deprecated Ignored — topic_labels always use shared MyMemory `"default"`.
    */
   instanceName?: string;
 };
@@ -339,7 +338,8 @@ export async function resolveMarketLabels(
       ? options.keys
       : collectLabelKeysFromItem(item);
 
-  const stub = memoryStub(env, options.instanceName ?? DEFAULT_INSTANCE_NAME);
+  // Shared label cache only (INSTANCE_DATA) — ignore options.instanceName.
+  const stub = memoryStub(env, DEFAULT_INSTANCE_NAME);
   const cache: Record<string, string> = options.force
     ? {}
     : await stub.getTopicLabelsByKeys(

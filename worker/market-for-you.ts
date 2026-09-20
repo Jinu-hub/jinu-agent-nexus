@@ -25,6 +25,7 @@ import {
   DEFAULT_INSTANCE_NAME,
   resolveInstanceNameFromRequest,
 } from "../src/lib/agent-identity";
+import { DEFAULT_PREFERENCE_CATEGORY } from "../src/lib/preference-category";
 import { myMemoryStub } from "./lib/my-memory-stub";
 import {
   collectReportPreferenceKeys,
@@ -135,10 +136,9 @@ async function resolveDisplayLabels(
   env: Env,
   targets: string[],
   lang: string,
-  instanceName: string,
 ): Promise<Record<string, string>> {
   try {
-    return await memoryStub(env, instanceName).getTopicLabelsByKeys(
+    return await memoryStub(env, DEFAULT_INSTANCE_NAME).getTopicLabelsByKeys(
       targets,
       lang,
     );
@@ -245,7 +245,9 @@ export async function buildForYou(
 
   let preferences: PreferenceRow[];
   try {
-    const rows = await memoryStub(env, instanceName).listPreferences();
+    const rows = await memoryStub(env, instanceName).listPreferences(
+      DEFAULT_PREFERENCE_CATEGORY,
+    );
     preferences = Array.isArray(rows) ? rows : [];
   } catch {
     preferences = [];
@@ -255,7 +257,6 @@ export async function buildForYou(
     env,
     preferences.map((p) => p.target),
     resolved.lang,
-    instanceName,
   );
   // Same lang-aware chip label as Topics My interests (skip Hangul frozen
   // display when content_lang is en).

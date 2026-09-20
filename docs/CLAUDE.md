@@ -2,7 +2,8 @@
 
 > Human docs (all under `docs/`): `README.md` (KO), `README.eng.md` (EN),
 > `ARCHITECTURE.md` (flows), `MERGE_STRATEGY.md` (baseline overlay A/B/C),
-> `ROUTING.md` (HTTP/FE tree), `WORK_NOTES_3.md` (active work log; `_2` / `_1` archives).
+> `ROUTING.md` (HTTP/FE tree), `INSTANCE_DATA.md` (shared vs personal DO data),
+> `WORK_NOTES_3.md` (active work log; `_2` / `_1` archives).
 > Root `CLAUDE.md` / `README.md` are short pointers here.
 > This file is for **LLM-assisted development** — architecture, extension
 > patterns, and constraints. Not a copy of the README.
@@ -216,7 +217,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | PDF ingest / chunking | `worker/ingest.ts`, RAG in `worker/tools/recall.ts` + `chat-agent/rag.ts` (`PDF_VECTOR_DB`) |
 | Market report vectors | `worker/market-vector.ts` + `market-vector-routes.ts` + `market-vector-cron.ts` + `worker/lib/market-vector-defaults.ts` (chat topK/minScore + HTTP defaults) — ingest / query / clear / cron; id `mr_{itemId}_{lang}_{i}` (ko/en coexist); chat 「keyword」 via `market-vector-search.ts` → prefetch `vectorSearch` |
 | My Market Notes (KV) | `worker/notes.ts` + `wrangler.jsonc` `kv_namespaces` |
-| My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts`; `topic_labels` + preferences.`display`; panel interests UI `src/lib/topic-preference.ts` + `MyInterestsFold.tsx`; chat prefetch `user-interests.ts` (P3) |
+| My Market Memory (DO SQLite) | `worker/my-memory.ts` + `memory-routes.ts`; preferences PK `(category, kind, target)` (`src/lib/preference-category.ts`); `topic_labels` + preferences.`display`; panel interests UI `src/lib/topic-preference.ts` + `MyInterestsFold.tsx`; chat prefetch `user-interests.ts` (P3) |
 | Market topic labels | `worker/market-labels.ts` + `worker/lib/market-labels-helper.ts` + routes — body-grounded resolve (exact→hint→LLM); hint maps in `worker/lib` for ongoing slug→KO tuning; post-ingest hook; UI/vector expand consume cache |
 | Market Pulse poll room | `worker/live-market-room.ts` + `src/live/LiveMarketRoom.tsx` + `src/lib/live-room.ts` |
 | Report page (`/<slug>`) | `src/reports/ReportSurface.tsx` + `src/lib/report-pages.ts` (`REPORT_PAGES` + `REPORT_NAV_CATEGORIES` + optional `includeSeriesSlugs`); registered: `/daily-market-issues` (+ weekly-market companion tabs, `?series=`) and `/weekly-ai-issues` under shell **Market** category; routed by pathname in `src/main.tsx`; reads `/settings` + `/api/report-series` + `/api/market/{latest-date,day}` (multi `series_id`); LYRA warm palette is **global**; voice on active slot above depth tabs; `?tab=` brief / `for-you` / `full`; side chat pins `market_focus_series_id` to the **active** slot |
@@ -226,7 +227,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | Market panel (sidebar) | `MarketPanel.tsx` (`SHOW_MARKET_WORKBENCH=false` → slim card: pulse/takeaway + brief body + report blurb + voice + reading CTA; `true` → Brief/Voice/Report folds) + `ReportReader.tsx` + `report-topics.tsx` + `MyInterestsFold.tsx` + `BriefForYou.tsx` + `src/lib/market-date.ts` + `src/lib/market-tag-lexicon.ts` + `src/lib/market-fetch.ts` + `use-market-day-data.ts` + `use-market-preferences.ts` (shared with home helper rail; Ask 「」 uses display, save/target stays slug/name); Topics chips/Keywords in `report-topics.tsx` (re-exported by ReportReader); home Topics + Ask live in `ChatHelperRail`; off-switches unchanged; wired in `App.tsx`; registered series: 「이 리포트 자세히 보기」 → `readingHrefForSeriesSlug` (`report-pages.ts`) |
 | ChatAgent settings | `worker/chat-agent/settings.ts` — cleanup/alarm fields remain in DO (not exposed in Settings UI) + `content_lang` (ko\|en; **screen chrome + Market Memory content**, not chat reply language) + `hidden_panels` (tab strip) + `disabled_report_series` (Market content opt-out) + `market_focus_series_id` (Market panel tab → chat vector scope); UI `SettingsPanel` Language + `ChromePrefs` on shell/report/live; Market tab sync in `App.tsx` |
 | UI language (ko/en) | `src/i18n/messages.ts` + `src/i18n/ui-lang.tsx` (`UiLangProvider` / `useT`); wraps App / ReportSurface / LiveMarketRoom; `document.documentElement.lang` follows `content_lang` |
-| Agent / MyMemory instance | `src/lib/agent-identity.ts` + `use-agent-instance.ts` — Phase 1 `guest_*` (localStorage + `lyra_instance` cookie); `useAgent({ name })` + `/settings`·`/memory`·upload; cron settings stay on `"default"` |
+| Agent / MyMemory instance | `src/lib/agent-identity.ts` + `use-agent-instance.ts` — Phase 1 `guest_*` (localStorage + `lyra_instance` cookie); `useAgent({ name })` + `/settings`·`/memory`·upload; cron settings stay on `"default"`. **`topic_labels` always `"default"`.** Shared vs personal: [`INSTANCE_DATA.md`](./INSTANCE_DATA.md) |
 | report_series catalog | `worker/report-series.ts` → `GET /api/report-series` (+ `groups`: weekly+daily market issues 한 토글; service_role) |
 | Market day (panel) | `worker/market-day.ts` → `GET /api/market/day` + `/api/market/latest-date` (`series_id`); MarketPanel tabs when 2+ slots |
 | Market Memory intent | `market-turn-hooks.ts` + `market-intent.ts` + `market-prefetch.ts` + `market-vector-search.ts` + `soul-market.ts` + `market-memory-load.ts` — prefetch (`toolChoice: none`); 「keyword」 → `vectorSearch` (expand via report tag lexicon; empty → keywords/highlights literal fallback); ★ `interestHits` string match; beforeStep fallback for weather / no prefetch |

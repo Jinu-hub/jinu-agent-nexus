@@ -11,7 +11,7 @@
 ```text
 worker/index.ts (HTTP Gateway)
  ├── /notes, /notes/:key                           → Workers KV (My Market Notes)
- ├── /memory/*                                     → MyMemory DO (개인화 SQLite; topic_labels `(key,lang)`)
+ ├── /memory/*                                     → MyMemory DO (개인화; topic-labels만 공유 `"default"`)
  ├── /settings, /settings/events                   → ChatAgent DO (설정 SQLite)
  ├── GET  /api/supabase/health                     → Supabase 도달성 점검
  ├── GET  /api/briefs/today                        → content_briefs 당일 브리핑 조회 (§9)

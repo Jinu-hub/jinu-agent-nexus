@@ -4,23 +4,23 @@
 > exists* and *how data flows* without reading every source file.
 >
 > **For implementation details:** see `CLAUDE.md` (LLM dev guide),
-> `README.md` / `README.eng.md` (setup & deploy), and `ROUTING.md` (HTTP/FE tree).
+> `README.md` / `README.eng.md` (setup & deploy), `ROUTING.md` (HTTP/FE tree),
+> and `INSTANCE_DATA.md` (**shared vs personal** Durable Object / Vectorize data).
 
 ---
 
 ## What this system is
 
-A **single-user AI chat agent** that runs on Cloudflare:
+A **multi-instance-ready AI chat agent** on Cloudflare (Phase 1: per-browser guest):
 
-- **Frontend** — React app in the browser (chat + side panels)
-- **Backend** — one **Durable Object** (`ChatAgent`) per agent name (`"default"`)
+- **Frontend** — React app (chat + side panels)
+- **Backend** — one **ChatAgent** DO + one **MyMemory** DO per instance name (`guest_*` or future `userId`; system `"default"` for shared/cron)
 - **AI** — Workers AI by default; optional AI Gateway for production
-- **Storage** — DO SQLite (chat, workspace, RAG chunks), R2 (skills, PDFs,
-  screenshots), Vectorize (embeddings)
+- **Storage** — DO SQLite (chat, personal prefs), R2 (skills, PDFs, voice),
+  Vectorize (**shared** market/PDF embeddings), Supabase (shared Market Memory catalog)
 
-The agent can chat, remember context, load skills, search uploaded PDFs,
-control a remote browser, schedule reminders, write its own tools at runtime,
-and connect to external MCP servers.
+**Data boundary:** personal = interests / chat / UI settings; shared = embeddings /
+report chips / `topic_labels`. See [`INSTANCE_DATA.md`](./INSTANCE_DATA.md).
 
 ---
 
@@ -257,7 +257,7 @@ Called after: cold start, every chat turn, and most `@callable` mutations.
 | Binding | Resource name | Used for |
 |---------|---------------|----------|
 | `ChatAgent` | DO class | Stateful agent instance |
-| `MyMemory` | DO class | Personalization SQLite (preferences / events / weights) |
+| `MyMemory` | DO class | Personalization SQLite (preferences / events / weights; prefs PK includes `category`) |
 | `LiveMarketRoomAgent` | DO class | Market Pulse poll room — synced state + vote log |
 | `NOTES` | Workers KV | My Market Notes (`/notes`) — personalization seed |
 | `BUCKET` | `boilerplate-bucket` | Skills, PDFs, screenshots |

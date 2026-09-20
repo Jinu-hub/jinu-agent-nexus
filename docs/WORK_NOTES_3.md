@@ -511,4 +511,46 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **확인:** 새 브라우저 프로필 → `localStorage.lyra_instance_name` = `guest_…`, cookie `lyra_instance` 동일; 챗/관심사가 다른 프로필과 분리. Cron vector ingest settings는 `default` DO.
 * **의도적으로 안 함:** 로그인 Auth; 관리자 role; `default` 데이터 자동 마이그레이션 (복구: localStorage를 `default`로 수동 설정); Live room 인스턴스 변경
 
+### 46.1 공유 vs 개인 데이터 경계 문서 *(완료)*
+
+* **목적:** 인스턴스별/공유 저장 책임을 한 문서로 고정. `topic_labels`는 공유, ★ 관심사만 개인이라는 제품 규칙을 명시 (Phase 1 이후 매핑 초기화 혼선 방지).
+* **수정 및 추가 파일:**
+  * `docs/INSTANCE_DATA.md` *(신규)* — 공유/개인 표, MyMemory·settings·요청 경로 규칙, 현재 갭
+  * `docs/CLAUDE.md` · `docs/ARCHITECTURE.md` — 포인터
+  * docs: 본 소절
+* **확인:** 문서만. 코드 갭(HTTP topic-labels → guest)은 후속 Phase에서 공유 `default`로 고정.
+* **의도적으로 안 함:** 이 소절에서 topic_labels 라우트 수정 (문서 선행)
+
 ---
+
+## 47. MyMemory preferences — `category` 축 *(완료)*
+
+* **목적:** ★ 관심사를 제품 카테고리(`market` / `entertainment` / `sports`)로 분리. 기존 `kind`(theme/company/…)는 칩 타입으로 유지. Enter·Sports 추가 시 같은 키워드가 도메인끼리 섞이지 않게 함.
+* **수정 및 추가 파일:**
+  * `src/lib/preference-category.ts` *(신규)* — `DEFAULT_PREFERENCE_CATEGORY` / `normalizePreferenceCategory`
+  * `worker/my-memory.ts` — preferences·weights PK `(category, kind, target)`; 기존 행 → `market` 마이그레이션; events에 `category`
+  * `worker/memory-routes.ts` — `?category=` / body `category` (생략 시 `market`)
+  * `src/lib/topic-preference.ts` · `use-market-preferences.ts` · `src/reports/ReportForYou.tsx` — market 스코프 fetch/save/remove
+  * `worker/chat-agent/user-interests.ts` · `worker/market-for-you.ts` — `listPreferences(market)`
+  * docs: `INSTANCE_DATA.md` · `ROUTING.md` · `CLAUDE.md` · `ARCHITECTURE.md` · 본 절
+* **확인:** ROUTING 반영. `npx tsc --noEmit` (baseUrl deprecation만). 로컬: DO 재시작 후 `GET /memory/preferences?category=market`에 `category` 필드; 기존 ★ 유지.
+* **의도적으로 안 함:** entertainment/sports UI·시리즈; topic_labels 공유 라우트 고정; Auth (Phase 2)
+
+### 47.1 topic_labels → 공유 `default` 고정 *(완료)*
+
+* **목적:** Phase 1 guest 이후 Tags/Keywords가 영문 slug로 보이던 원인 — FE `/memory/topic-labels`와 resolve persist가 개인 DO를 침. 공용 라벨은 항상 `"default"`.
+* **수정 및 추가 파일:**
+  * `worker/memory-routes.ts` — topic-labels GET/POST → `DEFAULT_INSTANCE_NAME`
+  * `worker/market-labels.ts` — resolve 캐시/persist 항상 `default` (`instanceName` 무시)
+  * `worker/market-labels-routes.ts` — guest instanceName 전달 제거
+  * `worker/market-for-you.ts` · `worker/lib/chat-ui-topic-map.ts` — 라벨 읽기 `default`만
+  * docs: `INSTANCE_DATA.md` 갭 표 · 본 소절
+* **확인:** 하드 리프레시 후 Tags에 cron이 `default`에 써 둔 KO 표시가 보여야 함. guest MyMemory의 빈 topic_labels는 무시.
+* **의도적으로 안 함:** guest에 남은 옛 topic_labels 행 삭제; Auth
+
+### 47.2 topic_labels SQLITE_LOCKED — 마이그레이션 커서 *(완료)*
+
+* **목적:** category 마이그레이션이 `SELECT … LIMIT 1` 커서를 안 비워 로컬 DO가 `SQLITE_LOCKED`. FE는 라벨 map null → slug 그대로. **데이터 삭제가 아님** (prod `default`에 제재/반도체 등 유지).
+* **수정:** `worker/my-memory.ts` — `PRAGMA table_info` + `.toArray()`로 컬럼 존재 검사; topic_labels/lang 검사도 동일.
+* **확인:** 로컬 wrangler 재시작 후 `GET /memory/topic-labels?lang=ko&keys=energy` → `{"energy":"에너지"}`.
+* **의도적으로 안 함:** prod redeploy 강제 (이미 라벨 데이터 정상)

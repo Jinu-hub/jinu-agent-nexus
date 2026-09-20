@@ -13,11 +13,22 @@
 //     persons|countries|…    → theme
 //
 // Places stay theme for now (no geo kind yet).
+// category = product domain (default market); kind = chip type above.
 // ─────────────────────────────────────────────────────────────────────────
+
+import {
+  DEFAULT_PREFERENCE_CATEGORY,
+  normalizePreferenceCategory,
+  type PreferenceCategory,
+} from "./preference-category";
 
 export type PreferenceKind = "industry" | "company" | "asset" | "theme";
 
+export type { PreferenceCategory };
+export { DEFAULT_PREFERENCE_CATEGORY, normalizePreferenceCategory };
+
 export type PreferenceRow = {
+  category: PreferenceCategory;
   kind: PreferenceKind;
   target: string;
   level: number;
@@ -37,8 +48,18 @@ export const INTEREST_STAR_LEVEL = 5;
 const COMPANY_GROUPS = new Set(["companies", "institutions"]);
 const INDUSTRY_GROUPS = new Set(["industries"]);
 
+/** Match key within a category (report tags ↔ preference kind/target). */
 export function preferenceKey(kind: PreferenceKind, target: string): string {
   return `${kind}:${target.trim().toLowerCase()}`;
+}
+
+/** Unique id across categories for saved-state sets. */
+export function preferenceId(
+  category: PreferenceCategory | null | undefined,
+  kind: PreferenceKind,
+  target: string,
+): string {
+  return `${normalizePreferenceCategory(category)}:${preferenceKey(kind, target)}`;
 }
 
 export function mapTopicToPreference(
@@ -66,9 +87,12 @@ export function isPreferenceSaved(
   prefs: PreferenceRow[],
   kind: PreferenceKind,
   target: string,
+  category: PreferenceCategory | null | undefined = DEFAULT_PREFERENCE_CATEGORY,
 ): boolean {
-  const key = preferenceKey(kind, target);
-  return prefs.some((p) => preferenceKey(p.kind, p.target) === key);
+  const id = preferenceId(category, kind, target);
+  return prefs.some(
+    (p) => preferenceId(p.category, p.kind, p.target) === id,
+  );
 }
 
 function asStringList(value: unknown): string[] {
@@ -155,8 +179,13 @@ export function sortPreferencesForReport(
   });
 }
 
-export async function fetchPreferences(): Promise<PreferenceRow[]> {
-  const res = await fetch("/memory/preferences");
+export async function fetchPreferences(
+  category: PreferenceCategory | null | undefined = DEFAULT_PREFERENCE_CATEGORY,
+): Promise<PreferenceRow[]> {
+  const qs = new URLSearchParams();
+  const cat = normalizePreferenceCategory(category);
+  qs.set("category", cat);
+  const res = await fetch(`/memory/preferences?${qs}`);
   if (!res.ok) {
     throw new Error(`preferences HTTP ${res.status}`);
   }
@@ -176,8 +205,11 @@ export async function saveInterest(
   kind: PreferenceKind,
   target: string,
   display?: string | null,
+  category: PreferenceCategory | null | undefined = DEFAULT_PREFERENCE_CATEGORY,
 ): Promise<PreferenceRow> {
+  const cat = normalizePreferenceCategory(category);
   const body = {
+    category: cat,
     kind,
     target: target.trim(),
     level: INTEREST_STAR_LEVEL,
@@ -201,6 +233,7 @@ export async function saveInterest(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       action: "star",
+      category: cat,
       kind,
       target: body.target,
       meta: { source: "topics_chip", display: body.display ?? null },
@@ -247,11 +280,16 @@ export async function fetchTopicLabels(
 export async function removeInterest(
   kind: PreferenceKind,
   target: string,
+  category: PreferenceCategory | null | undefined = DEFAULT_PREFERENCE_CATEGORY,
 ): Promise<void> {
   const res = await fetch("/memory/preferences", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kind, target: target.trim() }),
+    body: JSON.stringify({
+      category: normalizePreferenceCategory(category),
+      kind,
+      target: target.trim(),
+    }),
   });
   if (!res.ok) {
     const err = (await res.json().catch(() => null)) as { error?: string } | null;

@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import { DEFAULT_INSTANCE_NAME } from "../../src/lib/agent-identity";
+import { DEFAULT_PREFERENCE_CATEGORY } from "../../src/lib/preference-category";
 import { myMemoryStub } from "../lib/my-memory-stub";
 import type { PreferenceRow } from "../my-memory";
 import type { ReportChatKeywords } from "../lib/report-keywords";
@@ -11,6 +12,7 @@ const INTEREST_LIMIT = 12;
 const HIT_LIMIT = 5;
 
 export type CompactInterest = {
+  category: string;
   kind: string;
   target: string;
   level: number;
@@ -18,6 +20,7 @@ export type CompactInterest = {
 
 export function compactInterests(rows: PreferenceRow[]): CompactInterest[] {
   return rows.slice(0, INTEREST_LIMIT).map((r) => ({
+    category: r.category,
     kind: r.kind,
     target: r.target,
     level: r.level,
@@ -28,9 +31,12 @@ export function compactInterests(rows: PreferenceRow[]): CompactInterest[] {
 export async function loadUserInterests(
   env: Env,
   instanceName: string = DEFAULT_INSTANCE_NAME,
+  category: string = DEFAULT_PREFERENCE_CATEGORY,
 ): Promise<CompactInterest[]> {
   try {
-    const rows = await myMemoryStub(env, instanceName).listPreferences();
+    const rows = await myMemoryStub(env, instanceName).listPreferences(
+      category,
+    );
     return compactInterests(Array.isArray(rows) ? rows : []);
   } catch {
     return [];

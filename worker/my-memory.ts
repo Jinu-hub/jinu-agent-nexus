@@ -4,9 +4,12 @@
 //
 // Product role: structured "My Market Memory" beside KV NOTES.
 //
-//   preferences     — current interests (industry/company/asset/theme + level)
+//   preferences     — current interests (category + industry/company/asset/theme + level)
 //   preference_events — append-only hide/show/star/less/report_click history
 //   weights         — derived scores for Brief personalization (recomputed)
+//
+// PK for preferences/weights: (category, kind, target).
+// category = product domain (market / entertainment / sports); kind = chip type.
 //
 // Challenge pattern borrowed: DO + own SQLite + change history (+ visitor
 // geo when present). Not a counter — preferences & feedback instead.
@@ -16,6 +19,11 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import { DurableObject } from "cloudflare:workers";
+import {
+  DEFAULT_PREFERENCE_CATEGORY,
+  normalizePreferenceCategory,
+  type PreferenceCategory,
+} from "../src/lib/preference-category";
 
 export type PreferenceKind = "industry" | "company" | "asset" | "theme";
 export type PreferenceAction =
@@ -25,7 +33,12 @@ export type PreferenceAction =
   | "show"
   | "report_click";
 
+export type { PreferenceCategory };
+export { DEFAULT_PREFERENCE_CATEGORY, normalizePreferenceCategory };
+
 export type PreferenceRow = {
+  /** Product domain: market / entertainment / sports / … */
+  category: PreferenceCategory;
   kind: PreferenceKind;
   target: string;
   level: number;
@@ -44,6 +57,7 @@ export type TopicLabelRow = {
 export type PreferenceEventRow = {
   id: number;
   action: PreferenceAction;
+  category: PreferenceCategory | null;
   kind: string | null;
   target: string;
   meta: string | null;
@@ -54,6 +68,7 @@ export type PreferenceEventRow = {
 };
 
 export type WeightRow = {
+  category: PreferenceCategory;
   kind: string;
   target: string;
   score: number;
@@ -145,20 +160,123 @@ export class MyMemory extends DurableObject<Env> {
       } catch {
         /* column already present */
       }
+      this.migratePreferencesCategory();
     });
+  }
+
+  /**
+   * Add product `category` axis: PK (category, kind, target).
+   * Existing rows → `market`. Same for weights; events get a category column.
+   *
+   * Important: always consume SQL cursors (`.toArray()` / `.one()`). Leaving a
+   * SELECT open locks the DO SQLite and breaks later topic_labels reads
+   * (`SQLITE_LOCKED`) — FE then falls back to raw slugs.
+   */
+  private migratePreferencesCategory(): void {
+    const prefsHaveCategory = this.tableHasColumn("preferences", "category");
+    const weightsHaveCategory = this.tableHasColumn("weights", "category");
+
+    if (!prefsHaveCategory) {
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE preferences_cat (
+          category TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          target TEXT NOT NULL,
+          level INTEGER NOT NULL CHECK(level >= 1 AND level <= 5),
+          display TEXT,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (category, kind, target)
+        )
+      `);
+      try {
+        this.ctx.storage.sql.exec(
+          `INSERT INTO preferences_cat
+            (category, kind, target, level, display, updated_at)
+           SELECT ?, kind, target, level, display, updated_at FROM preferences`,
+          DEFAULT_PREFERENCE_CATEGORY,
+        );
+      } catch {
+        /* preferences missing columns or empty — ok */
+        try {
+          this.ctx.storage.sql.exec(
+            `INSERT INTO preferences_cat
+              (category, kind, target, level, display, updated_at)
+             SELECT ?, kind, target, level, NULL, updated_at FROM preferences`,
+            DEFAULT_PREFERENCE_CATEGORY,
+          );
+        } catch {
+          /* fresh install with empty table */
+        }
+      }
+      this.ctx.storage.sql.exec(`DROP TABLE IF EXISTS preferences`);
+      this.ctx.storage.sql.exec(
+        `ALTER TABLE preferences_cat RENAME TO preferences`,
+      );
+    }
+
+    if (!weightsHaveCategory) {
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE weights_cat (
+          category TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          target TEXT NOT NULL,
+          score REAL NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (category, kind, target)
+        )
+      `);
+      try {
+        this.ctx.storage.sql.exec(
+          `INSERT INTO weights_cat (category, kind, target, score, updated_at)
+           SELECT ?, kind, target, score, updated_at FROM weights`,
+          DEFAULT_PREFERENCE_CATEGORY,
+        );
+      } catch {
+        /* empty / missing */
+      }
+      this.ctx.storage.sql.exec(`DROP TABLE IF EXISTS weights`);
+      this.ctx.storage.sql.exec(`ALTER TABLE weights_cat RENAME TO weights`);
+    }
+
+    if (!this.tableHasColumn("preference_events", "category")) {
+      try {
+        this.ctx.storage.sql.exec(
+          `ALTER TABLE preference_events ADD COLUMN category TEXT`,
+        );
+      } catch {
+        /* race / already present */
+      }
+    }
+    this.ctx.storage.sql.exec(
+      `UPDATE preference_events
+       SET category = ?
+       WHERE category IS NULL OR TRIM(category) = ''`,
+      DEFAULT_PREFERENCE_CATEGORY,
+    );
+  }
+
+  /** PRAGMA table_info — cursor always drained. */
+  private tableHasColumn(table: string, column: string): boolean {
+    const allowed = new Set([
+      "preferences",
+      "weights",
+      "preference_events",
+      "topic_labels",
+    ]);
+    if (!allowed.has(table)) return false;
+    try {
+      const rows = this.ctx.storage.sql
+        .exec<{ name: string }>(`PRAGMA table_info(${table})`)
+        .toArray();
+      return rows.some((r) => r.name === column);
+    } catch {
+      return false;
+    }
   }
 
   /** topic_labels: (key, lang) — KO/EN body spans must not overwrite each other. */
   private migrateTopicLabelsTable(): void {
-    const hasLang = (() => {
-      try {
-        this.ctx.storage.sql.exec(`SELECT lang FROM topic_labels LIMIT 1`);
-        return true;
-      } catch {
-        return false;
-      }
-    })();
-    if (hasLang) return;
+    if (this.tableHasColumn("topic_labels", "lang")) return;
 
     this.ctx.storage.sql.exec(`
       CREATE TABLE IF NOT EXISTS topic_labels_lang (
@@ -170,10 +288,10 @@ export class MyMemory extends DurableObject<Env> {
       )
     `);
     try {
-      this.ctx.storage.sql.exec(`
-        INSERT OR IGNORE INTO topic_labels_lang (key, lang, display, updated_at)
-        SELECT key, 'ko', display, updated_at FROM topic_labels
-      `);
+      this.ctx.storage.sql.exec(
+        `INSERT OR IGNORE INTO topic_labels_lang (key, lang, display, updated_at)
+         SELECT key, 'ko', display, updated_at FROM topic_labels`,
+      );
     } catch {
       /* old table missing — fresh install */
     }
@@ -186,6 +304,7 @@ export class MyMemory extends DurableObject<Env> {
   // ── Preferences (current state) ───────────────────────────────────────
 
   upsertPreference(input: {
+    category?: PreferenceCategory | null;
     kind: PreferenceKind;
     target: string;
     level: number;
@@ -193,6 +312,7 @@ export class MyMemory extends DurableObject<Env> {
     display?: string | null;
     geo?: VisitorGeo;
   }): PreferenceRow {
+    const category = normalizePreferenceCategory(input.category);
     const kind = input.kind;
     const target = input.target.trim();
     const level = Math.round(input.level);
@@ -207,12 +327,13 @@ export class MyMemory extends DurableObject<Env> {
 
     const updated_at = nowIso();
     this.ctx.storage.sql.exec(
-      `INSERT INTO preferences (kind, target, level, display, updated_at)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(kind, target) DO UPDATE SET
+      `INSERT INTO preferences (category, kind, target, level, display, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(category, kind, target) DO UPDATE SET
          level = excluded.level,
          display = COALESCE(preferences.display, excluded.display),
          updated_at = excluded.updated_at`,
+      category,
       kind,
       target,
       level,
@@ -222,19 +343,22 @@ export class MyMemory extends DurableObject<Env> {
 
     this.recomputeWeights();
 
-    return this.getPreference(kind, target)!;
+    return this.getPreference(category, kind, target)!;
   }
 
   getPreference(
+    category: PreferenceCategory | null | undefined,
     kind: PreferenceKind,
     target: string,
   ): PreferenceRow | null {
+    const cat = normalizePreferenceCategory(category);
     return (
       this.ctx.storage.sql
         .exec<PreferenceRow>(
-          `SELECT kind, target, level, display, updated_at
+          `SELECT category, kind, target, level, display, updated_at
            FROM preferences
-           WHERE kind = ? AND target = ?`,
+           WHERE category = ? AND kind = ? AND target = ?`,
+          cat,
           kind,
           target.trim(),
         )
@@ -242,12 +366,27 @@ export class MyMemory extends DurableObject<Env> {
     );
   }
 
-  listPreferences(): PreferenceRow[] {
+  /**
+   * List preferences. Pass `category` to scope; omit / null = all categories.
+   */
+  listPreferences(category?: PreferenceCategory | null): PreferenceRow[] {
+    if (category != null && String(category).trim()) {
+      const cat = normalizePreferenceCategory(category);
+      return this.ctx.storage.sql
+        .exec<PreferenceRow>(
+          `SELECT category, kind, target, level, display, updated_at
+           FROM preferences
+           WHERE category = ?
+           ORDER BY level DESC, updated_at DESC`,
+          cat,
+        )
+        .toArray();
+    }
     return this.ctx.storage.sql
       .exec<PreferenceRow>(
-        `SELECT kind, target, level, display, updated_at
+        `SELECT category, kind, target, level, display, updated_at
          FROM preferences
-         ORDER BY level DESC, updated_at DESC`,
+         ORDER BY category ASC, level DESC, updated_at DESC`,
       )
       .toArray();
   }
@@ -389,16 +528,23 @@ export class MyMemory extends DurableObject<Env> {
     );
   }
 
-  deletePreference(kind: PreferenceKind, target: string): { deleted: boolean } {
+  deletePreference(
+    kind: PreferenceKind,
+    target: string,
+    category?: PreferenceCategory | null,
+  ): { deleted: boolean } {
     if (!KINDS.has(kind)) throw new Error(`invalid kind: ${kind}`);
+    const cat = normalizePreferenceCategory(category);
     const t = target.trim();
     this.ctx.storage.sql.exec(
-      `DELETE FROM preferences WHERE kind = ? AND target = ?`,
+      `DELETE FROM preferences WHERE category = ? AND kind = ? AND target = ?`,
+      cat,
       kind,
       t,
     );
     this.ctx.storage.sql.exec(
-      `DELETE FROM weights WHERE kind = ? AND target = ?`,
+      `DELETE FROM weights WHERE category = ? AND kind = ? AND target = ?`,
+      cat,
       kind,
       t,
     );
@@ -410,6 +556,7 @@ export class MyMemory extends DurableObject<Env> {
 
   recordEvent(input: {
     action: PreferenceAction;
+    category?: PreferenceCategory | null;
     kind?: PreferenceKind | null;
     target: string;
     meta?: unknown;
@@ -418,6 +565,7 @@ export class MyMemory extends DurableObject<Env> {
     if (!ACTIONS.has(input.action)) {
       throw new Error(`invalid action: ${input.action}`);
     }
+    const category = normalizePreferenceCategory(input.category);
     const target = input.target.trim();
     if (!target) throw new Error("target required");
     if (input.kind != null && !KINDS.has(input.kind)) {
@@ -429,7 +577,8 @@ export class MyMemory extends DurableObject<Env> {
       if (input.action === "hide") {
         // Keep preference row but mark via events; optional soft-delete of weight
         this.ctx.storage.sql.exec(
-          `DELETE FROM weights WHERE kind = ? AND target = ?`,
+          `DELETE FROM weights WHERE category = ? AND kind = ? AND target = ?`,
+          category,
           input.kind,
           target,
         );
@@ -439,7 +588,9 @@ export class MyMemory extends DurableObject<Env> {
       // Bump or create preference at least level 4 if missing/lower
       const existing = this.ctx.storage.sql
         .exec<{ level: number }>(
-          `SELECT level FROM preferences WHERE kind = ? AND target = ?`,
+          `SELECT level FROM preferences
+           WHERE category = ? AND kind = ? AND target = ?`,
+          category,
           input.kind,
           target,
         )
@@ -447,11 +598,12 @@ export class MyMemory extends DurableObject<Env> {
       const level = Math.max(existing?.level ?? 0, 4);
       const updated_at = nowIso();
       this.ctx.storage.sql.exec(
-        `INSERT INTO preferences (kind, target, level, updated_at)
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT(kind, target) DO UPDATE SET
+        `INSERT INTO preferences (category, kind, target, level, updated_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(category, kind, target) DO UPDATE SET
            level = excluded.level,
            updated_at = excluded.updated_at`,
+        category,
         input.kind,
         target,
         level,
@@ -461,7 +613,9 @@ export class MyMemory extends DurableObject<Env> {
     if (input.kind && input.action === "less") {
       const existing = this.ctx.storage.sql
         .exec<{ level: number }>(
-          `SELECT level FROM preferences WHERE kind = ? AND target = ?`,
+          `SELECT level FROM preferences
+           WHERE category = ? AND kind = ? AND target = ?`,
+          category,
           input.kind,
           target,
         )
@@ -469,9 +623,11 @@ export class MyMemory extends DurableObject<Env> {
       if (existing) {
         const level = Math.max(1, existing.level - 1);
         this.ctx.storage.sql.exec(
-          `UPDATE preferences SET level = ?, updated_at = ? WHERE kind = ? AND target = ?`,
+          `UPDATE preferences SET level = ?, updated_at = ?
+           WHERE category = ? AND kind = ? AND target = ?`,
           level,
           nowIso(),
+          category,
           input.kind,
           target,
         );
@@ -480,6 +636,7 @@ export class MyMemory extends DurableObject<Env> {
 
     const row = this.insertEvent({
       action: input.action,
+      category,
       kind: input.kind ?? null,
       target,
       meta:
@@ -494,7 +651,7 @@ export class MyMemory extends DurableObject<Env> {
     const n = Math.min(Math.max(1, limit), 500);
     return this.ctx.storage.sql
       .exec<PreferenceEventRow>(
-        `SELECT id, action, kind, target, meta, ip, city, country, created_at
+        `SELECT id, action, category, kind, target, meta, ip, city, country, created_at
          FROM preference_events
          ORDER BY id DESC
          LIMIT ?`,
@@ -505,12 +662,24 @@ export class MyMemory extends DurableObject<Env> {
 
   // ── Weights (derived for Brief ranking) ───────────────────────────────
 
-  listWeights(): WeightRow[] {
+  listWeights(category?: PreferenceCategory | null): WeightRow[] {
+    if (category != null && String(category).trim()) {
+      const cat = normalizePreferenceCategory(category);
+      return this.ctx.storage.sql
+        .exec<WeightRow>(
+          `SELECT category, kind, target, score, updated_at
+           FROM weights
+           WHERE category = ?
+           ORDER BY score DESC, updated_at DESC`,
+          cat,
+        )
+        .toArray();
+    }
     return this.ctx.storage.sql
       .exec<WeightRow>(
-        `SELECT kind, target, score, updated_at
+        `SELECT category, kind, target, score, updated_at
          FROM weights
-         ORDER BY score DESC, updated_at DESC`,
+         ORDER BY category ASC, score DESC, updated_at DESC`,
       )
       .toArray();
   }
@@ -531,6 +700,7 @@ export class MyMemory extends DurableObject<Env> {
 
   private insertEvent(input: {
     action: PreferenceAction;
+    category: PreferenceCategory;
     kind: string | null;
     target: string;
     meta: string | null;
@@ -543,9 +713,10 @@ export class MyMemory extends DurableObject<Env> {
 
     this.ctx.storage.sql.exec(
       `INSERT INTO preference_events
-        (action, kind, target, meta, ip, city, country, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        (action, category, kind, target, meta, ip, city, country, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       input.action,
+      input.category,
       input.kind,
       input.target,
       input.meta,
@@ -557,7 +728,7 @@ export class MyMemory extends DurableObject<Env> {
 
     const row = this.ctx.storage.sql
       .exec<PreferenceEventRow>(
-        `SELECT id, action, kind, target, meta, ip, city, country, created_at
+        `SELECT id, action, category, kind, target, meta, ip, city, country, created_at
          FROM preference_events
          ORDER BY id DESC
          LIMIT 1`,
@@ -578,27 +749,31 @@ export class MyMemory extends DurableObject<Env> {
     const events = this.ctx.storage.sql
       .exec<{
         action: PreferenceAction;
+        category: string | null;
         kind: string | null;
         target: string;
       }>(
-        `SELECT action, kind, target FROM preference_events ORDER BY id ASC`,
+        `SELECT action, category, kind, target FROM preference_events ORDER BY id ASC`,
       )
       .toArray();
 
     type Agg = { score: number; hidden: boolean };
     const map = new Map<string, Agg>();
-    const keyOf = (kind: string, target: string) => `${kind}::${target}`;
+    const SEP = "\x1f";
+    const keyOf = (category: string, kind: string, target: string) =>
+      `${category}${SEP}${kind}${SEP}${target}`;
 
     for (const p of prefs) {
-      map.set(keyOf(p.kind, p.target), {
+      map.set(keyOf(p.category, p.kind, p.target), {
         score: p.level * 20,
         hidden: false,
       });
     }
 
     for (const e of events) {
+      const category = normalizePreferenceCategory(e.category);
       const kind = e.kind ?? "theme";
-      const k = keyOf(kind, e.target);
+      const k = keyOf(category, kind, e.target);
       const cur = map.get(k) ?? { score: 0, hidden: false };
       switch (e.action) {
         case "star":
@@ -627,13 +802,13 @@ export class MyMemory extends DurableObject<Env> {
     const updated_at = nowIso();
     for (const [k, agg] of map) {
       if (agg.hidden) continue;
-      const sep = k.indexOf("::");
-      const kind = k.slice(0, sep);
-      const target = k.slice(sep + 2);
+      const [category, kind, target] = k.split(SEP);
       const score = Math.max(0, agg.score);
       if (score <= 0) continue;
       this.ctx.storage.sql.exec(
-        `INSERT INTO weights (kind, target, score, updated_at) VALUES (?, ?, ?, ?)`,
+        `INSERT INTO weights (category, kind, target, score, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        category,
         kind,
         target,
         score,

@@ -21,6 +21,7 @@ import {
   topicDisplayLabel,
 } from "@/lib/market-tag-lexicon";
 import {
+  DEFAULT_PREFERENCE_CATEGORY,
   fetchPreferences,
   fetchTopicLabels,
   isPreferenceSaved,
@@ -115,7 +116,7 @@ export function ReportForYou({
 
   useEffect(() => {
     let active = true;
-    void fetchPreferences()
+    void fetchPreferences(DEFAULT_PREFERENCE_CATEGORY)
       .then((rows) => {
         if (active) setPreferences(rows);
       })
@@ -145,18 +146,28 @@ export function ReportForYou({
     async (source: TopicPreferenceSource) => {
       const mapped = mapTopicToPreference(source);
       if (!mapped) return;
-      const saved = isPreferenceSaved(preferences, mapped.kind, mapped.target);
+      const saved = isPreferenceSaved(
+        preferences,
+        mapped.kind,
+        mapped.target,
+        DEFAULT_PREFERENCE_CATEGORY,
+      );
       try {
         if (saved) {
-          await removeInterest(mapped.kind, mapped.target);
+          await removeInterest(
+            mapped.kind,
+            mapped.target,
+            DEFAULT_PREFERENCE_CATEGORY,
+          );
         } else {
           await saveInterest(
             mapped.kind,
             mapped.target,
             source.display ?? null,
+            DEFAULT_PREFERENCE_CATEGORY,
           );
         }
-        setPreferences(await fetchPreferences());
+        setPreferences(await fetchPreferences(DEFAULT_PREFERENCE_CATEGORY));
         // The interest set is the server's cache key — a new set is a new
         // summary, so this refetch is a cache miss by construction.
         await load();
@@ -410,7 +421,13 @@ function Chip({
 }) {
   const mapped = mapTopicToPreference(source);
   const saved =
-    mapped != null && isPreferenceSaved(preferences, mapped.kind, mapped.target);
+    mapped != null &&
+    isPreferenceSaved(
+      preferences,
+      mapped.kind,
+      mapped.target,
+      DEFAULT_PREFERENCE_CATEGORY,
+    );
   const shown = label.trim() || rawLabel;
   const { lang } = useUiLang();
   const t = useT();

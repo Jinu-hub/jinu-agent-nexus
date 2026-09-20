@@ -3,15 +3,16 @@
 // ─────────────────────────────────────────────────────────────────────────
 //
 //   GET    /memory                 — preferences + weights + recent events
-//   GET    /memory/preferences     — current interests
-//   POST   /memory/preferences     — upsert { kind, target, level }
-//   DELETE /memory/preferences     — body { kind, target }
+//   GET    /memory/preferences     — current interests (?category=market)
+//   POST   /memory/preferences     — upsert { category?, kind, target, level, display? }
+//   DELETE /memory/preferences     — body { category?, kind, target }
 //   GET    /memory/events          — recent history (?limit=100)
-//   POST   /memory/events          — { action, kind?, target, meta? }
-//   GET    /memory/weights         — Brief personalization scores
+//   POST   /memory/events          — { action, category?, kind?, target, meta? }
+//   GET    /memory/weights         — Brief personalization scores (?category=)
 //
 //   GET    /memory/topic-labels    — key → display (?lang=ko|en; ?keys=a,b)
-//   POST   /memory/topic-labels    — upsert { key, display, lang? } | { labels, lang? }
+//                                    **always shared MyMemory "default"** (not guest)
+//   POST   /memory/topic-labels    — upsert into shared "default"
 //
 // Visitor IP / city / country stored on each mutating event (challenge-style).
 // ─────────────────────────────────────────────────────────────────────────
@@ -21,7 +22,10 @@ import {
   type PreferenceAction,
   type PreferenceKind,
 } from "./my-memory";
-import { resolveInstanceNameFromRequest } from "../src/lib/agent-identity";
+import {
+  DEFAULT_INSTANCE_NAME,
+  resolveInstanceNameFromRequest,
+} from "../src/lib/agent-identity";
 import { myMemoryStub } from "./lib/my-memory-stub";
 
 function json(data: unknown, status = 200): Response {
@@ -49,6 +53,8 @@ export async function handleMemoryRequest(
   }
 
   const stub = myMemoryStub(env, resolveInstanceNameFromRequest(request));
+  /** Shared UI label cache — never guest/user (see docs/INSTANCE_DATA.md). */
+  const labelsStub = myMemoryStub(env, DEFAULT_INSTANCE_NAME);
   const geo = visitorGeoFromRequest(request);
 
   try {
@@ -58,10 +64,12 @@ export async function handleMemoryRequest(
 
     if (pathname === "/memory/preferences") {
       if (request.method === "GET") {
-        return json(await stub.listPreferences());
+        const category = url.searchParams.get("category");
+        return json(await stub.listPreferences(category));
       }
       if (request.method === "POST") {
         const body = (await request.json()) as {
+          category?: string | null;
           kind?: PreferenceKind;
           target?: string;
           level?: number;
@@ -74,6 +82,7 @@ export async function handleMemoryRequest(
           );
         }
         const row = await stub.upsertPreference({
+          category: body.category,
           kind: body.kind,
           target: body.target,
           level: body.level,
@@ -84,13 +93,16 @@ export async function handleMemoryRequest(
       }
       if (request.method === "DELETE") {
         const body = (await request.json()) as {
+          category?: string | null;
           kind?: PreferenceKind;
           target?: string;
         };
         if (!body.kind || body.target == null) {
           return json({ error: "kind and target are required" }, 400);
         }
-        return json(await stub.deletePreference(body.kind, body.target));
+        return json(
+          await stub.deletePreference(body.kind, body.target, body.category),
+        );
       }
       return json({ error: "method not allowed" }, 405);
     }
@@ -103,6 +115,7 @@ export async function handleMemoryRequest(
       if (request.method === "POST") {
         const body = (await request.json()) as {
           action?: PreferenceAction;
+          category?: string | null;
           kind?: PreferenceKind | null;
           target?: string;
           meta?: unknown;
@@ -112,6 +125,7 @@ export async function handleMemoryRequest(
         }
         const row = await stub.recordEvent({
           action: body.action,
+          category: body.category,
           kind: body.kind ?? null,
           target: body.target,
           meta: body.meta,
@@ -123,7 +137,8 @@ export async function handleMemoryRequest(
     }
 
     if (pathname === "/memory/weights" && request.method === "GET") {
-      return json(await stub.listWeights());
+      const category = url.searchParams.get("category");
+      return json(await stub.listWeights(category));
     }
 
     if (pathname === "/memory/topic-labels") {
@@ -135,9 +150,9 @@ export async function handleMemoryRequest(
             .split(",")
             .map((k) => k.trim())
             .filter(Boolean);
-          return json(await stub.getTopicLabelsByKeys(keys, lang));
+          return json(await labelsStub.getTopicLabelsByKeys(keys, lang));
         }
-        return json(await stub.listTopicLabels(lang));
+        return json(await labelsStub.listTopicLabels(lang));
       }
       if (request.method === "POST") {
         const body = (await request.json()) as {
@@ -160,7 +175,7 @@ export async function handleMemoryRequest(
               lang: e.lang ?? body.lang,
             }));
           return json(
-            await stub.upsertTopicLabels(entries, body.lang),
+            await labelsStub.upsertTopicLabels(entries, body.lang),
             201,
           );
         }
@@ -168,7 +183,7 @@ export async function handleMemoryRequest(
           return json({ error: "key and display are required" }, 400);
         }
         return json(
-          await stub.upsertTopicLabel(body.key, body.display, body.lang),
+          await labelsStub.upsertTopicLabel(body.key, body.display, body.lang),
           201,
         );
       }

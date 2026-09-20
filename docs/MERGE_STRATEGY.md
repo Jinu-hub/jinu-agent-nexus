@@ -47,7 +47,7 @@
 | 영역 | 경로 |
 |------|------|
 | Notes | `worker/notes.ts` |
-| MyMemory | `worker/my-memory.ts`, `worker/memory-routes.ts` |
+| MyMemory | `worker/my-memory.ts`, `worker/memory-routes.ts`; prefs PK `(category, kind, target)` via `src/lib/preference-category.ts` |
 | Live room | `worker/live-market-room.ts`, `src/lib/live-room.ts`, `src/live/LiveMarketRoom.tsx` |
 | Identity | `src/lib/agent-identity.ts` |
 | Settings domain | `worker/chat-agent/settings.ts`, `worker/settings-routes.ts`, `src/panels/SettingsPanel.tsx` |
@@ -72,7 +72,7 @@
 | 영역 | 경로 |
 |------|------|
 | Panel | `src/panels/MarketPanel.tsx` (`SHOW_MARKET_WORKBENCH` slim vs folds), `ReportReader.tsx`, `report-topics.tsx`, `MyInterestsFold.tsx`, `BriefForYou.tsx`; Topics/Ask는 홈 `ChatHelperRail`; registered series → reading page |
-| Libs | `src/lib/market-date.ts`, `market-suggestions.ts`, `topic-preference.ts`, `brief-for-you.ts`, `market-fetch.ts`, `use-market-day-data.ts`, `use-market-preferences.ts` |
+| Libs | `src/lib/market-date.ts`, `market-suggestions.ts`, `preference-category.ts`, `topic-preference.ts`, `brief-for-you.ts`, `market-fetch.ts`, `use-market-day-data.ts`, `use-market-preferences.ts` |
 
 ### Docs (포팅 후 선택)
 
@@ -187,3 +187,6 @@
 | 2026-09-19 | 홈 Ask ↔ Market 날짜 동기화 — A `use-market-day-data` sharedBrowseDate ([`WORK_NOTES_3` §41.3](./WORK_NOTES_3.md)) |
 | 2026-09-19 | 홈 Ask 챗 이해 도우미 톤 — A soul/prefetch/vector + Ask 칩 ([`WORK_NOTES_3` §41.4](./WORK_NOTES_3.md)) |
 | 2026-09-20 | Phase 1 guest 인스턴스 — A `agent-identity` / B App·settings·memory ([`WORK_NOTES_3` §46](./WORK_NOTES_3.md)) |
+| 2026-09-20 | 공유 vs 개인 데이터 경계 문서 [`INSTANCE_DATA.md`](./INSTANCE_DATA.md) ([`WORK_NOTES_3` §46.1](./WORK_NOTES_3.md)) |
+| 2026-09-20 | MyMemory preferences `category` 축 — A schema + FE market scope ([`WORK_NOTES_3` §47](./WORK_NOTES_3.md)) |
+| 2026-09-20 | topic_labels → shared `default` only ([`WORK_NOTES_3` §47.1](./WORK_NOTES_3.md)) |

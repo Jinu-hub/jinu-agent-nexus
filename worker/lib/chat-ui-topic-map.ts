@@ -59,30 +59,20 @@ export function flattenReportKeywordKeys(
   return out;
 }
 
-/** MyMemory topic_labels for Settings content_lang (user + shared default). */
+/** MyMemory topic_labels — always shared `"default"` (not guest/user). */
 export async function loadTopicLabelMap(
   env: Env,
   keys: string[],
   lang: string | null | undefined,
-  instanceName: string = DEFAULT_INSTANCE_NAME,
+  _instanceName?: string,
 ): Promise<Record<string, string>> {
   const unique = [...new Set(keys.map((k) => k.trim()).filter(Boolean))];
   if (unique.length === 0) return {};
   try {
-    const userMap = await myMemoryStub(env, instanceName).getTopicLabelsByKeys(
+    return await myMemoryStub(env, DEFAULT_INSTANCE_NAME).getTopicLabelsByKeys(
       unique,
       lang ?? undefined,
     );
-    if (instanceName === DEFAULT_INSTANCE_NAME) return userMap;
-
-    const missing = unique.filter((k) => !userMap[k]);
-    if (missing.length === 0) return userMap;
-
-    const shared = await myMemoryStub(env, DEFAULT_INSTANCE_NAME).getTopicLabelsByKeys(
-      missing,
-      lang ?? undefined,
-    );
-    return { ...shared, ...userMap };
   } catch {
     return {};
   }
