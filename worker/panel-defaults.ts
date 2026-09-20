@@ -11,7 +11,6 @@
 import { getAgentByName } from "agents";
 
 import { DEFAULT_INSTANCE_NAME } from "../src/lib/agent-identity";
-import { requireAdmin } from "./auth";
 import { ChatAgent } from "./chat-agent/ChatAgent";
 import {
   DEFAULT_HIDDEN_PANELS,
@@ -19,7 +18,7 @@ import {
   type ToggleablePanel,
 } from "./chat-agent/settings";
 
-async function defaultChatAgent(env: Env): Promise<ChatAgent> {
+async function defaultChatAgent(env: Env) {
   return getAgentByName<Env, ChatAgent>(
     env.ChatAgent as unknown as DurableObjectNamespace<ChatAgent>,
     DEFAULT_INSTANCE_NAME,

@@ -14,7 +14,7 @@ export function useChatAgentAuthQuery(): {
 } {
   const { accessToken, instanceName } = useAuth();
 
-  const query = useCallback(async () => {
+  const query = useCallback(async (): Promise<Record<string, string>> => {
     if (instanceName.startsWith("guest_")) return {};
     if (accessToken) return { token: accessToken };
     return {};

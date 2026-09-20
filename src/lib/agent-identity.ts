@@ -65,8 +65,19 @@ export function resolveInstanceNameFromRequest(request: Request): string {
 }
 
 function syncInstanceCookie(name: string): void {
-  if (typeof document === "undefined") return;
-  document.cookie = `${INSTANCE_COOKIE}=${encodeURIComponent(name)}; path=/; SameSite=Lax; Max-Age=31536000`;
+  const doc = (globalThis as { document?: { cookie: string } }).document;
+  if (!doc) return;
+  doc.cookie = `${INSTANCE_COOKIE}=${encodeURIComponent(name)}; path=/; SameSite=Lax; Max-Age=31536000`;
+}
+
+type BrowserStorage = {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+};
+
+function browserLocalStorage(): BrowserStorage | null {
+  const w = globalThis as { window?: { localStorage?: BrowserStorage } };
+  return w.window?.localStorage ?? null;
 }
 
 /**
@@ -74,28 +85,30 @@ function syncInstanceCookie(name: string): void {
  * calls `bindClientInstanceName(user.id)` for the active cookie.
  */
 export function getOrCreateGuestInstanceName(): string {
-  if (typeof window === "undefined") return DEFAULT_INSTANCE_NAME;
+  const storage = browserLocalStorage();
+  if (!storage) return DEFAULT_INSTANCE_NAME;
 
-  let name = localStorage.getItem(GUEST_STORAGE_KEY)?.trim() ?? "";
+  let name = storage.getItem(GUEST_STORAGE_KEY)?.trim() ?? "";
   if (!isValidInstanceName(name) || !isGuestInstanceName(name)) {
-    const legacy = localStorage.getItem(CLIENT_STORAGE_KEY)?.trim() ?? "";
+    const legacy = storage.getItem(CLIENT_STORAGE_KEY)?.trim() ?? "";
     if (isValidInstanceName(legacy) && isGuestInstanceName(legacy)) {
       name = legacy;
     } else {
       name = `guest_${crypto.randomUUID().replace(/-/g, "")}`;
     }
-    localStorage.setItem(GUEST_STORAGE_KEY, name);
+    storage.setItem(GUEST_STORAGE_KEY, name);
   }
   return name;
 }
 
 /** Write active instance to localStorage + cookie (guest or user id). */
 export function bindClientInstanceName(name: string): string {
-  if (typeof window === "undefined") return name;
+  const storage = browserLocalStorage();
+  if (!storage) return name;
   if (!isValidInstanceName(name)) {
     throw new Error(`invalid instance name: ${name}`);
   }
-  localStorage.setItem(CLIENT_STORAGE_KEY, name);
+  storage.setItem(CLIENT_STORAGE_KEY, name);
   syncInstanceCookie(name);
   return name;
 }
@@ -108,10 +121,11 @@ export function bindClientInstanceName(name: string): string {
  * `lyra_instance_name` = `default` and reload.
  */
 export function getOrCreateClientInstanceName(): string {
-  if (typeof window === "undefined") return DEFAULT_INSTANCE_NAME;
+  const storage = browserLocalStorage();
+  if (!storage) return DEFAULT_INSTANCE_NAME;
 
   const guest = getOrCreateGuestInstanceName();
-  const active = localStorage.getItem(CLIENT_STORAGE_KEY)?.trim() ?? "";
+  const active = storage.getItem(CLIENT_STORAGE_KEY)?.trim() ?? "";
   if (isValidInstanceName(active)) {
     syncInstanceCookie(active);
     return active;

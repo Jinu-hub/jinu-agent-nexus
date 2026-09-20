@@ -1,6 +1,6 @@
 // Fetch helper that attaches the Supabase access token when present.
 
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { getSupabaseBrowserClient } from "./supabase-browser";
 
 export async function authFetch(
   input: RequestInfo | URL,
