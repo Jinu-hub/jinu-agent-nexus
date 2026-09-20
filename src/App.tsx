@@ -47,7 +47,10 @@ import type {
   ContentLang,
   ToggleablePanel,
 } from "../worker/chat-agent/settings";
-import { isToggleablePanel } from "../worker/chat-agent/settings";
+import {
+  DEFAULT_HIDDEN_PANELS,
+  isToggleablePanel,
+} from "../worker/chat-agent/settings";
 import { Chat } from "@/chat/Chat";
 import { ChatHelperRail } from "@/chat/ChatHelperRail";
 import {
@@ -57,6 +60,7 @@ import {
   TabsContent,
 } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth";
 
 import { MemoryPanel } from "@/panels/MemoryPanel";
 import { MarketPanel } from "@/panels/MarketPanel";
@@ -111,6 +115,7 @@ export default function App() {
 }
 
 function AppShell() {
+  const { isAdmin } = useAuth();
   // ─── Live View URL (from broadcast) ────────────────────────────────────
   const [liveViewUrl, setLiveViewUrl] = useState<string | null>(null);
 
@@ -240,20 +245,27 @@ function AppShell() {
 
   const state = agent.state ?? INITIAL_STATE;
 
-  const hiddenPanels = new Set(settings?.hidden_panels ?? []);
+  // Product default: Market on, other panels hidden. Empty [] still means
+  // "all visible" for admins who explicitly cleared the list.
+  const storedHidden = settings?.hidden_panels;
+  const effectiveHidden =
+    !storedHidden || (storedHidden.length === 0 && !isAdmin)
+      ? DEFAULT_HIDDEN_PANELS
+      : storedHidden;
+  const hiddenPanels = new Set(effectiveHidden);
   const visiblePanels = PANELS.filter(
     (p) => p.value === "settings" || !hiddenPanels.has(p.value),
   );
 
   useEffect(() => {
-    const hidden = new Set(settings?.hidden_panels ?? []);
+    const hidden = new Set(effectiveHidden);
     const stillVisible =
       activeTab === "settings" ||
       !isToggleablePanel(activeTab) ||
       !hidden.has(activeTab);
     if (stillVisible) return;
     setActiveTab(hidden.has("market") ? "settings" : "market");
-  }, [activeTab, settings?.hidden_panels]);
+  }, [activeTab, effectiveHidden]);
 
   const togglePanelVisibility = useCallback(
     async (panel: ToggleablePanel, visible: boolean) => {

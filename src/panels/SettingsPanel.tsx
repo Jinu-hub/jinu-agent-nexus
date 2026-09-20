@@ -13,6 +13,7 @@ import type {
 import { groupReportSeriesForSettings } from "../../worker/report-series";
 import { seriesGroupTitle, useT, type TFn } from "@/i18n/ui-lang";
 import type { MessageKey } from "@/i18n/messages";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { PanelHeader } from "./PanelHeader";
 import { AuthAccountCard } from "./AuthAccountCard";
@@ -96,6 +97,7 @@ export function SettingsPanel({
   onToggleReportSeries: (slugs: string[], enabled: boolean) => Promise<void>;
 }) {
   const t = useT();
+  const { isAdmin } = useAuth();
   const [panelsOpen, setPanelsOpen] = useState(false);
   const [marketOpen, setMarketOpen] = useState(false);
   const [groups, setGroups] = useState<ReportSeriesContentGroup[] | null>(null);
@@ -320,6 +322,7 @@ export function SettingsPanel({
             )}
           </div>
 
+          {isAdmin ? (
           <div className="paper-inset px-3 py-2.5">
             <button
               type="button"
@@ -374,6 +377,7 @@ export function SettingsPanel({
               </>
             )}
           </div>
+          ) : null}
 
           <p className="pt-1 text-[10px] text-muted-foreground">
             {t("settings.updated", {

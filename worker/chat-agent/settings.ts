@@ -31,7 +31,7 @@ export function nextContentLang(lang: ContentLang): ContentLang {
 
 /**
  * Side-panel tab ids that can be hidden from the strip.
- * `settings` is always visible so the user can turn tabs back on.
+ * `settings` is always visible so the user can turn tabs back on (admin UI).
  */
 export const TOGGLEABLE_PANELS = [
   "market",
@@ -47,6 +47,14 @@ export const TOGGLEABLE_PANELS = [
 ] as const;
 
 export type ToggleablePanel = (typeof TOGGLEABLE_PANELS)[number];
+
+/**
+ * Product default: Market (content) on; all other toggleable panels hidden.
+ * Settings tab is never in this list — always shown.
+ */
+export const DEFAULT_HIDDEN_PANELS: ToggleablePanel[] = TOGGLEABLE_PANELS.filter(
+  (id) => id !== "market",
+);
 
 export const TOGGLEABLE_PANEL_LABELS: Record<ToggleablePanel, string> = {
   market: "Market",
@@ -151,7 +159,7 @@ export const DEFAULT_CHAT_SETTINGS: ChatSettings = {
   message_retention_seconds: 300,
   alarm_interval_seconds: 60,
   content_lang: DEFAULT_CONTENT_LANG,
-  hidden_panels: [],
+  hidden_panels: [...DEFAULT_HIDDEN_PANELS],
   disabled_report_series: [],
   market_focus_series_id: "",
   updated_at: "",
@@ -253,7 +261,7 @@ export function ensureSettings(agent: SqlAgentHost): void {
       300,
       60,
       ${DEFAULT_CONTENT_LANG},
-      '[]',
+      ${JSON.stringify(DEFAULT_HIDDEN_PANELS)},
       '[]',
       '',
       ${new Date().toISOString()}
@@ -282,7 +290,7 @@ export function getSettings(agent: SqlAgentHost): ChatSettings {
   if (!row) {
     return {
       ...DEFAULT_CHAT_SETTINGS,
-      hidden_panels: [],
+      hidden_panels: [...DEFAULT_HIDDEN_PANELS],
       disabled_report_series: [],
       market_focus_series_id: "",
     };

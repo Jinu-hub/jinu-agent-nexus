@@ -13,6 +13,7 @@ function json(data: unknown, status = 200): Response {
  *
  * Instance: verified Supabase user id, or guest_* cookie (Phase 2).
  * Cron callers with no cookie stay on `default`.
+ * Phase 3: `hidden_panels` PATCH requires admin allowlist.
  */
 export async function handleSettingsRequest(
   request: Request,
@@ -46,6 +47,12 @@ export async function handleSettingsRequest(
 
     if (request.method === "PATCH") {
       const patch = (await request.json()) as ChatSettingsPatch;
+      if (patch.hidden_panels !== undefined && !trusted.isAdmin) {
+        return json(
+          { error: "admin required to change hidden_panels" },
+          403,
+        );
+      }
       return json(await agent.updateSettings(patch));
     }
 

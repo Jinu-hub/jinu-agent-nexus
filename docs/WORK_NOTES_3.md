@@ -624,5 +624,12 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
   * `src/panels/AuthAccountCard.tsx` — Admin 배지; i18n `auth.adminBadge`
   * docs: ROUTING · INSTANCE_DATA · CLAUDE · MERGE_STRATEGY · 본 절
 * **확인:** `.dev.vars`에 UUID/이메일 → 재시작 → 로그인 시 Admin 배지; `GET /api/auth/me` `isAdmin:true`; Bearer로 `GET /api/admin/status` 200; 비admin/게스트 403·false; 인스턴스는 계속 userId
-* **의도적으로 안 함:** `hidden_panels` 전역; `default` 관리 UI; Supabase `app_metadata`; guest→user 머지; WS JWT (Phase 5)
+* **의도적으로 안 함:** `hidden_panels` 전역 정책 스토어; `default` 관리 UI; Supabase `app_metadata`; guest→user 머지; WS JWT (Phase 5)
+
+### 49.1 패널 탭 — 기본 숨김 + admin만 조작 *(완료)*
+
+* **목적:** 게스트/일반 유저에게 Settings「패널 탭」을 숨기고, 기본 탭 스트립은 Market(콘텐츠)만 표시.
+* **수정:** `DEFAULT_HIDDEN_PANELS` (market 제외 전부); seed/DEFAULT_CHAT_SETTINGS; `SettingsPanel` admin 게이트; `PATCH hidden_panels` 403 unless admin; App effective empty→default for non-admin
+* **확인:** 비로그인 Settings에 패널 탭 없음 · 탭에 Market+Settings만 · admin 로그인 후 패널 탭 조작 가능
+* **의도적으로 안 함:** 기존 DO에 `[]`로 저장된 값을 DB에서 일괄 마이그레이션 (비admin은 FE effective default 적용)
 
