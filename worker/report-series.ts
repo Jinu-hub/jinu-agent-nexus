@@ -57,9 +57,18 @@ const MARKET_ISSUES_GROUP_SLUGS = [
 const MARKET_ISSUES_GROUP_ID = "market-issues";
 const MARKET_ISSUES_GROUP_TITLE = "Market Issues Report";
 
+const MARKET_ISSUES_KR_GROUP_SLUGS = [
+  "weekly-market-issues-kr",
+  "daily-market-issues-kr",
+] as const;
+
+const MARKET_ISSUES_KR_GROUP_ID = "market-issues-kr";
+const MARKET_ISSUES_KR_GROUP_TITLE = "Market Issues Report (KR)";
+
 /** Display-title overrides for Settings Content (catalog title may differ). */
 const SERIES_TITLE_OVERRIDES: Record<string, string> = {
   "daily-market-issues-kr": "Market Issues Report (KR)",
+  "weekly-market-issues-kr": "Market Issues Report (KR)",
 };
 
 /** Short labels for Market panel same-day tabs (avoid truncation). */
@@ -67,6 +76,7 @@ const SERIES_TAB_LABELS: Record<string, string> = {
   "weekly-ai-issues": "Weekly AI",
   "weekly-market-issues": "Weekly Market",
   "daily-market-issues": "Daily",
+  "weekly-market-issues-kr": "Weekly Market (KR)",
   "daily-market-issues-kr": "Market (KR)",
 };
 
@@ -150,25 +160,41 @@ export function groupReportSeriesForSettings(
   const consumed = new Set<string>();
   const groups: ReportSeriesContentGroup[] = [];
 
-  const marketMembers = MARKET_ISSUES_GROUP_SLUGS.map((slug) =>
-    bySlug.get(slug),
-  ).filter((row): row is ReportSeriesRow => Boolean(row));
-
-  if (marketMembers.length > 0) {
-    for (const row of marketMembers) consumed.add(row.slug);
-    const controllableSlugs = marketMembers
+  const pushSlugGroup = (
+    slugs: readonly string[],
+    id: string,
+    title: string,
+  ) => {
+    const members = slugs
+      .map((slug) => bySlug.get(slug))
+      .filter((row): row is ReportSeriesRow => Boolean(row));
+    if (members.length === 0) return;
+    for (const row of members) consumed.add(row.slug);
+    const controllableSlugs = members
       .filter((row) => row.is_active)
       .map((row) => row.slug);
     groups.push({
-      id: MARKET_ISSUES_GROUP_ID,
-      title: MARKET_ISSUES_GROUP_TITLE,
-      detail: marketMembers.map((row) => row.slug).join(" · "),
-      slugs: marketMembers.map((row) => row.slug),
+      id,
+      title,
+      // Declared order — show planned companions even if a row is not in DB yet.
+      detail: slugs.join(" · "),
+      slugs: members.map((row) => row.slug),
       soon: controllableSlugs.length === 0,
       controllableSlugs,
-      displayOrder: Math.min(...marketMembers.map((row) => row.display_order)),
+      displayOrder: Math.min(...members.map((row) => row.display_order)),
     });
-  }
+  };
+
+  pushSlugGroup(
+    MARKET_ISSUES_GROUP_SLUGS,
+    MARKET_ISSUES_GROUP_ID,
+    MARKET_ISSUES_GROUP_TITLE,
+  );
+  pushSlugGroup(
+    MARKET_ISSUES_KR_GROUP_SLUGS,
+    MARKET_ISSUES_KR_GROUP_ID,
+    MARKET_ISSUES_KR_GROUP_TITLE,
+  );
 
   for (const row of items) {
     if (consumed.has(row.slug)) continue;

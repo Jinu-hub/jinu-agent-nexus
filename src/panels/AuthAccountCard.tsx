@@ -102,7 +102,7 @@ export function AuthAccountCard() {
     <div className="paper-inset px-3 py-2.5">
       <p className="text-xs font-medium">{t("auth.title")}</p>
       {!awaitingOtp ? (
-        <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="mt-0.5 whitespace-pre-line text-[11px] leading-relaxed text-muted-foreground">
           {t("auth.help")}
         </p>
       ) : (

@@ -76,12 +76,16 @@ export function reportPageNavLabel(page: ReportPage): string {
 
 export function reportPagesForCategory(
   category: ReportNavCategory,
+  disabledSlugs: Iterable<string> = [],
 ): ReportPage[] {
+  const disabled = new Set(disabledSlugs);
   const bySlug = new Map(REPORT_PAGES.map((p) => [p.slug, p]));
   const out: ReportPage[] = [];
   for (const slug of category.pageSlugs) {
     const page = bySlug.get(slug);
-    if (page) out.push(page);
+    if (!page) continue;
+    if (disabled.has(page.slug)) continue;
+    out.push(page);
   }
   return out;
 }

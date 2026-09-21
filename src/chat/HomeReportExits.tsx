@@ -27,7 +27,14 @@ import { authFetch } from "@/lib/auth-fetch";
 import { useT, type TFn } from "@/i18n/ui-lang";
 import type { MessageKey } from "@/i18n/messages";
 
-export function ReportNavLinks({ className }: { className?: string }) {
+export function ReportNavLinks({
+  className,
+  disabledReportSeries = [],
+}: {
+  className?: string;
+  /** Settings Content opt-out — hide matching report pages from the menu. */
+  disabledReportSeries?: string[];
+}) {
   const t = useT();
   return (
     <nav
@@ -35,14 +42,24 @@ export function ReportNavLinks({ className }: { className?: string }) {
       className={cn("flex items-center gap-3", className)}
     >
       {REPORT_NAV_CATEGORIES.map((category) => (
-        <ReportCategoryMenu key={category.id} category={category} />
+        <ReportCategoryMenu
+          key={category.id}
+          category={category}
+          disabledReportSeries={disabledReportSeries}
+        />
       ))}
     </nav>
   );
 }
 
-function ReportCategoryMenu({ category }: { category: ReportNavCategory }) {
-  const pages = reportPagesForCategory(category);
+function ReportCategoryMenu({
+  category,
+  disabledReportSeries,
+}: {
+  category: ReportNavCategory;
+  disabledReportSeries: string[];
+}) {
+  const pages = reportPagesForCategory(category, disabledReportSeries);
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
@@ -142,13 +159,20 @@ function ReportCategoryMenu({ category }: { category: ReportNavCategory }) {
   );
 }
 
-export function ReportLandingCards() {
+export function ReportLandingCards({
+  disabledReportSeries = [],
+}: {
+  disabledReportSeries?: string[];
+}) {
   const dates = useLatestReportDates();
   const t = useT();
+  const disabled = new Set(disabledReportSeries);
   const categorized = new Set(
     REPORT_NAV_CATEGORIES.flatMap((c) => c.pageSlugs),
   );
-  const orphanPages = REPORT_PAGES.filter((p) => !categorized.has(p.slug));
+  const orphanPages = REPORT_PAGES.filter(
+    (p) => !categorized.has(p.slug) && !disabled.has(p.slug),
+  );
 
   return (
     <section className="space-y-5 self-stretch">
@@ -156,7 +180,7 @@ export function ReportLandingCards() {
         {t("chat.themesHeading")}
       </h2>
       {REPORT_NAV_CATEGORIES.map((category) => {
-        const pages = reportPagesForCategory(category);
+        const pages = reportPagesForCategory(category, disabledReportSeries);
         if (pages.length === 0) return null;
         return (
           <div key={category.id} className="space-y-2">

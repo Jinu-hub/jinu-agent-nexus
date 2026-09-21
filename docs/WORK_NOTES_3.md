@@ -678,5 +678,35 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **확인:** 헤더 DAMI + 슬로건 · 빈 화면 소개문에 DAMI · 탭 파비콘·헤더 마크 동일 (하드 리로드)
 * **의도적으로 안 함:** `lyra_instance` cookie/header/localStorage 키 마이그레이션; 레포·Worker rename; 이메일 HTML 본문 브랜드(공용 MM 템플릿); 컬러/그라데이션 로고
 
+### 52.1 사용방법 — 로그인 동기화 안내 *(완료)*
+
+* **목적:** 홈 EmptyState 사용방법에 계정 로그인 시 챗·관심사 기기 간 이어서 쓰기 안내 추가
+* **수정 및 추가 파일:**
+  * `src/i18n/messages.ts` — `chat.howTo.note` ko/en (번호 목록 밖 부가 안내)
+  * `src/chat/Chat.tsx` — 사용방법 `ol` 아래 muted note
+* **확인:** `/` 빈 화면 사용방법 1–5 + 그 아래 로그인 부가 안내
+* **의도적으로 안 함:** Settings 온보딩 카피 중복; 게스트→로그인 마이그레이션 UX
+
+### 52.2 Settings 콘텐츠 기본 펼침 + KR 시리즈 그룹 *(완료)*
+
+* **목적:** 설정 → 콘텐츠를 기본 펼침. KR 마켓 이슈를 EN과 같이 주간·데일리 한 토글로 묶고 detail에 `weekly-market-issues-kr · daily-market-issues-kr` 표시
+* **수정 및 추가 파일:**
+  * `src/panels/SettingsPanel.tsx` — `marketOpen` 초기 `true`
+  * `worker/report-series.ts` — `MARKET_ISSUES_KR_GROUP_*` + `groupReportSeriesForSettings`
+  * `src/i18n/ui-lang.tsx` — `market-issues-kr` 타이틀
+* **확인:** Settings → 콘텐츠 펼쳐진 채 진입 · KR 행 detail에 주간·데일리 slug
+* **의도적으로 안 함:** KR 시리즈 Supabase 시드; 패널 탭 기본 펼침
+
+### 52.3 Settings 콘텐츠 off ↔ 헤더/랜딩 메뉴 연동 *(완료)*
+
+* **목적:** `disabled_report_series`가 헤더 Market ▾·홈 준비된 콘텐츠 카드에도 반영되도록
+* **수정 및 추가 파일:**
+  * `src/lib/report-pages.ts` — `reportPagesForCategory(..., disabledSlugs)`
+  * `src/chat/HomeReportExits.tsx` — `ReportNavLinks` / `ReportLandingCards` 필터
+  * `src/chat/Chat.tsx` · `App.tsx` — `disabledReportSeries` 전달
+  * `docs/CLAUDE.md` — 메뉴 always shown → 필터 반영
+* **확인:** Settings에서 주간 AI off → 헤더·랜딩에서 「주간 AI 이슈」 사라짐; on 시 복귀
+* **의도적으로 안 함:** 직접 URL `/weekly-ai-issues` 차단; companion slug만 off인 경우 페이지 숨김(페이지 slug 기준)
+
 
 

@@ -102,7 +102,7 @@ export function SettingsPanel({
   const t = useT();
   const { isAdmin } = useAuth();
   const [panelsOpen, setPanelsOpen] = useState(false);
-  const [marketOpen, setMarketOpen] = useState(false);
+  const [marketOpen, setMarketOpen] = useState(true);
   const [groups, setGroups] = useState<ReportSeriesContentGroup[] | null>(null);
   const [seriesLoading, setSeriesLoading] = useState(true);
   const [seriesError, setSeriesError] = useState<string | null>(null);
@@ -195,7 +195,7 @@ export function SettingsPanel({
             <>
           <div className="paper-inset px-3 py-2.5">
             <p className="text-xs font-medium">{t("settings.language")}</p>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+            <p className="mt-0.5 whitespace-pre-line text-[11px] leading-relaxed text-muted-foreground">
               {t("settings.languageHelp")}
             </p>
             <div className="mt-2.5 flex gap-1.5">

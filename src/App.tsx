@@ -423,6 +423,7 @@ function AppShell() {
             void updateSettings({ content_lang: lang })
           }
           contentLangUpdating={settingsUpdating}
+          disabledReportSeries={settings?.disabled_report_series ?? []}
           onReset={() => void agent.stub.resetSession()}
           pendingAsk={pendingAsk}
           onPendingAskConsumed={() => setPendingAsk(null)}

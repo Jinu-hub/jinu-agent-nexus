@@ -49,11 +49,11 @@ export const en = {
   "settings.updateFailed": "Failed to update settings.",
   "settings.language": "Language",
   "settings.languageHelp":
-    "App display and Market Memory content. Independent of chat reply language.",
+    "Set the language for the screen and content. Chat reply language is applied separately.",
   "settings.market": "Content",
   "settings.marketContent": "Market",
   "settings.marketContentHelp":
-    "Choose which Market Memory series to use. Weekly and daily market issues share one switch. Inactive catalog entries stay off until they ship.",
+    "Choose the content you want to receive in DAMI.",
   "settings.loadingSeries": "Loading series…",
   "settings.seriesLoadFailed": "Failed to load report series.",
   "settings.noSeries": "No report series found.",
@@ -71,7 +71,7 @@ export const en = {
   // Auth (Phase 2)
   "auth.title": "Account",
   "auth.help":
-    "Sign in to keep interests and chat across browsers. Guests still work on this device.",
+    "Sign in to continue your interests and chat history on other browsers or devices.",
   "auth.afterSendHelp":
     "Click 「Sign in」 in the email, or enter the one-time code below.",
   "auth.otpHelp":
@@ -141,6 +141,8 @@ export const en = {
     "Theme cards below — or [Market] in the header — let you read Brief, For you, and the full original report in more depth.",
   "chat.howTo.s5":
     "You can also type directly in chat. Ask for a short take on today’s market or AI issues.",
+  "chat.howTo.note":
+    "Sign in to save your chat and interests to your account, so you can pick up on another browser or device.\nYou can sign in from the Settings tab on the right.",
   "chat.themesHeading": "Ready themes",
   "chat.navCategories": "Report categories",
   "chat.nav.market": "Market",
@@ -430,11 +432,11 @@ export const ko: { [K in MessageKey]: string } = {
   "settings.updateFailed": "설정을 저장하지 못했습니다.",
   "settings.language": "언어",
   "settings.languageHelp":
-    "화면 표시와 Market Memory 콘텐츠 언어입니다. 챗 회신 언어와는 별개입니다.",
+    "화면과 콘텐츠에 사용할 언어를 설정합니다. 챗 응답 언어는 별도로 적용됩니다.",
   "settings.market": "콘텐츠",
   "settings.marketContent": "마켓",
   "settings.marketContentHelp":
-    "사용할 Market Memory 시리즈를 고르세요. 주간·일간 마켓 이슈는 스위치를 공유합니다. 아직 비활성인 카탈로그는 출시 전까지 꺼진 채로 둡니다.",
+    "DAMI에서 받아볼 콘텐츠를 선택하세요.",
   "settings.loadingSeries": "시리즈를 불러오는 중…",
   "settings.seriesLoadFailed": "리포트 시리즈를 불러오지 못했습니다.",
   "settings.noSeries": "리포트 시리즈가 없습니다.",
@@ -451,7 +453,7 @@ export const ko: { [K in MessageKey]: string } = {
 
   "auth.title": "계정",
   "auth.help":
-    "로그인하면 브라우저가 달라도 관심사와 챗이 이어집니다. 비로그인(게스트)도 이 기기에서는 그대로 쓸 수 있습니다.",
+    "로그인하면 관심사와 챗 기록을 다른 브라우저나 기기에서도 이어서 사용할 수 있습니다.",
   "auth.afterSendHelp":
     "「Sign in」 버튼을 누르거나, 아래에 일회용 코드를 입력하세요.",
   "auth.otpHelp":
@@ -519,6 +521,8 @@ export const ko: { [K in MessageKey]: string } = {
     "아래 테마 카드나 헤더의 [마켓] 메뉴에서는 Brief · 나를 위한 요약 · 원문(Full)을 더욱 자세히 읽을 수 있습니다.",
   "chat.howTo.s5":
     "챗에 직접 입력해도 됩니다. 오늘 시장·AI 이슈를 짧게 정리해 달라고 요청해 보세요.",
+  "chat.howTo.note":
+    "로그인하면 챗 내용과 관심사가 계정에 저장되어 다른 브라우저나 기기에서도 그대로 이어서 사용할 수 있어요.\n오른쪽 사이드의 설정 탭에서 로그인할 수 있어요.",
   "chat.themesHeading": "준비된 콘텐츠",
   "chat.navCategories": "리포트 카테고리",
   "chat.nav.market": "마켓",

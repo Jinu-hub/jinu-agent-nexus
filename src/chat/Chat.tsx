@@ -37,6 +37,7 @@ export function Chat({
   contentLang = "ko",
   onContentLangChange,
   contentLangUpdating = false,
+  disabledReportSeries = [],
   onReset,
   pendingAsk = null,
   onPendingAskConsumed,
@@ -50,6 +51,8 @@ export function Chat({
   contentLang?: ContentLang;
   onContentLangChange?: (lang: ContentLang) => void;
   contentLangUpdating?: boolean;
+  /** Settings Content opt-out — header nav + landing cards. */
+  disabledReportSeries?: string[];
   onReset: () => void;
   /** Set by helper rail / Market modal "Ask in chat" — Chat sends then clears. */
   pendingAsk?: { text: string; nonce: number } | null;
@@ -82,6 +85,7 @@ export function Chat({
         contentLang={contentLang}
         onContentLangChange={onContentLangChange}
         contentLangUpdating={contentLangUpdating}
+        disabledReportSeries={disabledReportSeries}
         onReset={onReset}
         panelOpen={panelOpen}
         onTogglePanels={onTogglePanels}
@@ -91,7 +95,7 @@ export function Chat({
       <ChatMessageList
         chat={chat}
         className="flex-1 overflow-y-auto px-4 py-6"
-        empty={<EmptyState />}
+        empty={<EmptyState disabledReportSeries={disabledReportSeries} />}
       />
       <ChatComposer chat={chat} />
     </div>
@@ -109,6 +113,7 @@ function Header({
   contentLang,
   onContentLangChange,
   contentLangUpdating,
+  disabledReportSeries,
   onReset,
   panelOpen,
   onTogglePanels,
@@ -119,6 +124,7 @@ function Header({
   contentLang: ContentLang;
   onContentLangChange?: (lang: ContentLang) => void;
   contentLangUpdating: boolean;
+  disabledReportSeries: string[];
   onReset: () => void;
   panelOpen: boolean;
   onTogglePanels?: () => void;
@@ -152,7 +158,10 @@ function Header({
           </p>
         </div>
         {/* Sidebar appears at lg — keep nav only when the chat column is wide enough. */}
-        <ReportNavLinks className="ml-3 flex shrink-0" />
+        <ReportNavLinks
+          className="ml-3 flex shrink-0"
+          disabledReportSeries={disabledReportSeries}
+        />
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {onTogglePanels ? (
@@ -217,7 +226,11 @@ const HOW_TO_KEYS = [
   "chat.howTo.s5",
 ] as const;
 
-function EmptyState() {
+function EmptyState({
+  disabledReportSeries,
+}: {
+  disabledReportSeries: string[];
+}) {
   const t = useT();
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col items-start gap-8 py-10 animate-fade-up [animation-delay:280ms]">
@@ -243,9 +256,12 @@ function EmptyState() {
             </li>
           ))}
         </ol>
+        <p className="whitespace-pre-line text-[12px] leading-relaxed text-muted-foreground">
+          {t("chat.howTo.note")}
+        </p>
       </section>
 
-      <ReportLandingCards />
+      <ReportLandingCards disabledReportSeries={disabledReportSeries} />
     </div>
   );
 }

@@ -102,10 +102,10 @@ export function seriesGroupTitle(
   fallback: string,
 ): string {
   if (groupId === "market-issues") return t("series.group.marketIssues");
-  if (groupId === "weekly-ai-issues") return t("series.group.weeklyAi");
-  if (groupId === "daily-market-issues-kr") {
+  if (groupId === "market-issues-kr" || groupId === "daily-market-issues-kr") {
     return t("series.group.marketIssuesKr");
   }
+  if (groupId === "weekly-ai-issues") return t("series.group.weeklyAi");
   return fallback;
 }
 
