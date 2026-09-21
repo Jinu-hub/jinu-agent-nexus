@@ -708,5 +708,23 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **확인:** Settings에서 주간 AI off → 헤더·랜딩에서 「주간 AI 이슈」 사라짐; on 시 복귀
 * **의도적으로 안 함:** 직접 URL `/weekly-ai-issues` 차단; companion slug만 off인 경우 페이지 숨김(페이지 slug 기준)
 
+## 53. For you 요약 — 문장 슬롯 (What / Detail / Why) *(완료)*
+
+* **목적:** 「나를 위한 요약」이 1–2문장 헤드라인에 머물던 것을, grounding은 유지한 채 **역할 고정 3–4문장**으로 충실·가독성을 올림. 시각적 bullet/JSON이 아니라 문장 슬롯만 사용 (§26.5 flash 오귀속 회피).
+* **수정 및 추가 파일:**
+  * `worker/market-for-you.ts` — `FOR_YOU_PROMPT_VERSION = "v2-slots"`를 `hashInterests`에 포함(캐시 자동 미스); `PASSAGES_PER_INTEREST` 3→5; `buildPrompt` What→Detail→Why(+optional); 출력은 평문·슬롯 라벨 금지
+  * `docs/ARCHITECTURE.md` — For you 행 (문단 ≤5, prompt-version hash)
+  * docs: 본 절
+* **확인:**
+  * `?tab=for-you` → 「다시 만들기」 또는 별 토글 후 `cached: false`로 재생성 (구 v1 캐시 미사용)
+  * 관심사 섹션이 3–4문장·평문; `NONE` / 숫자 귀속 규칙 유지
+  ```bash
+  curl -sS -X POST http://localhost:5173/api/market/for-you \
+    -H 'content-type: application/json' \
+    -d '{"date":"<ymd>","lang":"ko","series_id":"<uuid>","refresh":true}' \
+    | jq '{state, cached, sections: [.sections[] | {display: .interest.display, n: (.summary | length)}]}'
+  ```
+* **의도적으로 안 함:** bullet/JSON 스키마; 요약→본문 점프; UI 카드 레이아웃 변경; temperature 상향
+
 
 

@@ -9,6 +9,7 @@
 //   saved interests ∩ report tags/entities   (collectReportPreferenceKeys)
 //     → vector query per interest            (queryMarketVectors)
 //     → grounded per-interest summary        (createModel)
+//       sentence slots: What → Detail → Why (+ optional 4th fact)
 //
 // Grounding rule carried over from §10.12: an interest the report does not
 // cover is reported as absent, never filled in from model memory.
@@ -37,7 +38,12 @@ import { interestDisplayLabel } from "../src/lib/market-tag-lexicon";
 /** Interests summarized per request — keeps the prompt and latency bounded. */
 const MAX_INTERESTS = 6;
 /** Report paragraphs handed to the model per interest. */
-const PASSAGES_PER_INTEREST = 3;
+const PASSAGES_PER_INTEREST = 5;
+/**
+ * Bump when the summary shape/prompt changes so MyMemory cache misses
+ * without deleting rows (hash includes this string).
+ */
+const FOR_YOU_PROMPT_VERSION = "v2-slots";
 
 export type ForYouInterest = {
   kind: PreferenceRow["kind"];
@@ -81,12 +87,12 @@ function memoryStub(env: Env, instanceName: string = DEFAULT_INSTANCE_NAME) {
   return myMemoryStub(env, instanceName);
 }
 
-/** Stable across reorderings — the summary only depends on the set. */
+/** Stable across reorderings — the summary depends on the set + prompt shape. */
 async function hashInterests(interests: ForYouInterest[]): Promise<string> {
-  const canonical = interests
-    .map((i) => preferenceKey(i.kind, i.target))
-    .sort()
-    .join("|");
+  const canonical = [
+    FOR_YOU_PROMPT_VERSION,
+    ...interests.map((i) => preferenceKey(i.kind, i.target)).sort(),
+  ].join("|");
   const digest = await crypto.subtle.digest(
     "SHA-256",
     new TextEncoder().encode(canonical),
@@ -166,8 +172,18 @@ function buildPrompt(
     `You re-read one market report for a reader who follows "${interest.display}".`,
     `Report: ${report.title ?? "(untitled)"} (${report.market_date ?? "?"})`,
     "",
-    `Write 1-2 sentences on what this report says about "${interest.display}",`,
-    "staying close to the wording of the passages below. Rules:",
+    `Write 3-4 plain sentences on what this report says about "${interest.display}",`,
+    "staying close to the wording of the passages below.",
+    "Fill these roles in order (never write the role names in the answer):",
+    `- What: the concrete event or claim about "${interest.display}".`,
+    "- Detail: who / when / where / scale from the passages (omit if missing;",
+    "  never invent).",
+    `- Why: why it matters for someone following "${interest.display}",`,
+    "  only if the passages state or clearly imply it.",
+    "- Optional extra: one more grounded fact if still unused.",
+    "Join them as continuous prose — not a list.",
+    "",
+    "Rules:",
     "- Use only those passages. No outside knowledge.",
     "- Keep every figure attached to the subject it has in the passage. If you",
     "  cannot tell what a number refers to, leave the number out.",
@@ -176,7 +192,8 @@ function buildPrompt(
     `- If the passages are not actually about "${interest.display}", reply with`,
     `  exactly ${NO_COVERAGE} and nothing else.`,
     lang === "ko" ? "- Write in Korean." : "- Write in English.",
-    "- Plain sentences only. No heading, no bullet, no JSON, no quotes.",
+    "- Plain sentences only. No heading, no bullet, no JSON, no quotes,",
+    "  no numbered prefixes in the answer.",
     "",
     "Passages:",
     ...texts.map((t) => `- ${t}`),
