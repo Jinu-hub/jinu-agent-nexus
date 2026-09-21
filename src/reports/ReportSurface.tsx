@@ -19,6 +19,7 @@
 //   PATCH /settings              → persist content_lang (header KO/EN toggle)
 //   GET  /api/report-series      → slug(s) → series rows
 //   GET  /api/market/latest-date → newest market_date across page series
+//   GET  /api/market/adjacent-date → prev/next day that has a report (skip empty)
 //   GET  /api/market/day         → brief + voice + full report slots
 //   POST /api/market/for-you     → personalized summary (ReportForYou)
 // ─────────────────────────────────────────────────────────────────────────
@@ -57,8 +58,8 @@ import {
   calendarYesterdayYmd,
   isMarketDateYmd,
   seoulYmd,
-  shiftYmd,
 } from "@/lib/market-date";
+import { fetchAdjacentMarketDate } from "@/lib/market-fetch";
 import type { ReportPage } from "@/lib/report-pages";
 import { reportPageSeriesSlugs } from "@/lib/report-pages";
 import { fetchTopicLabels } from "@/lib/topic-preference";
@@ -155,6 +156,9 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
     dateParam && isMarketDateYmd(dateParam) ? dateParam : null,
   );
   const [latestDate, setLatestDate] = useState<string | null>(null);
+  /** Nearest published dates — chevrons skip empty calendar days (weekly). */
+  const [adjacentPrev, setAdjacentPrev] = useState<string | null>(null);
+  const [adjacentNext, setAdjacentNext] = useState<string | null>(null);
   const [daySlots, setDaySlots] = useState<DaySlot[]>([]);
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -373,6 +377,36 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
     );
   }, [seriesIdsKey, lang, date, loadDay, pageSeriesRows]);
 
+  // Prefetch neighbors so chevrons jump to published days only (weekly gaps).
+  useEffect(() => {
+    if (pageSeriesRows.length === 0 || !lang || !date) {
+      setAdjacentPrev(null);
+      setAdjacentNext(null);
+      return;
+    }
+    let active = true;
+    const ids = pageSeriesRows.map((r) => r.id);
+    setAdjacentPrev(null);
+    setAdjacentNext(null);
+    void Promise.all([
+      fetchAdjacentMarketDate(date, "prev", lang, ids),
+      fetchAdjacentMarketDate(date, "next", lang, ids),
+    ])
+      .then(([prev, next]) => {
+        if (!active) return;
+        setAdjacentPrev(prev);
+        setAdjacentNext(next);
+      })
+      .catch(() => {
+        if (!active) return;
+        setAdjacentPrev(null);
+        setAdjacentNext(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [seriesIdsKey, lang, date, pageSeriesRows]);
+
   // Chat's Market scope is a single setting shared with the panel's tab.
   // Pin it to the slot on screen so answers cite that report.
   useEffect(() => {
@@ -527,10 +561,16 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
           <div className="mx-auto flex w-full max-w-3xl items-center gap-1 px-6 pb-3">
             <button
               type="button"
-              disabled={loading || !date}
-              onClick={() => setDate((d) => (d ? shiftYmd(d, -1) : d))}
+              disabled={loading || !adjacentPrev}
+              onClick={() => {
+                if (adjacentPrev) setDate(adjacentPrev);
+              }}
               className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
-              title={t("market.prevDay")}
+              title={
+                adjacentPrev
+                  ? t("market.prevDayTitle", { date: adjacentPrev })
+                  : t("market.prevDay")
+              }
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -550,10 +590,16 @@ export default function ReportSurface({ page }: { page: ReportPage }) {
             />
             <button
               type="button"
-              disabled={loading || !date}
-              onClick={() => setDate((d) => (d ? shiftYmd(d, 1) : d))}
+              disabled={loading || !adjacentNext}
+              onClick={() => {
+                if (adjacentNext) setDate(adjacentNext);
+              }}
               className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
-              title={t("market.nextDay")}
+              title={
+                adjacentNext
+                  ? t("market.nextDayTitle", { date: adjacentNext })
+                  : t("market.nextDay")
+              }
             >
               <ChevronRight className="h-4 w-4" />
             </button>

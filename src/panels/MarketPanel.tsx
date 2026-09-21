@@ -32,7 +32,8 @@ import {
 import type { ContentLang } from "../../worker/chat-agent/settings";
 import { hidesBriefLeadSummary, hidesReportSummaryBlurb } from "../../worker/report-series";
 import { readingHrefForSeriesSlug } from "@/lib/report-pages";
-import { calendarYesterdayYmd, metaString, seoulYmd, shiftYmd } from "@/lib/market-date";
+import { calendarYesterdayYmd, metaString, seoulYmd } from "@/lib/market-date";
+import { fetchAdjacentMarketDate } from "@/lib/market-fetch";
 import {
   useMarketDayData,
   useReportSeriesCatalog,
@@ -255,6 +256,37 @@ export function MarketPanel({
   });
 
   const error = dayError ?? preferencesError;
+
+  const [adjacentPrev, setAdjacentPrev] = useState<string | null>(null);
+  const [adjacentNext, setAdjacentNext] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!date || !lang || enabledSeriesIds.length === 0) {
+      setAdjacentPrev(null);
+      setAdjacentNext(null);
+      return;
+    }
+    let active = true;
+    setAdjacentPrev(null);
+    setAdjacentNext(null);
+    void Promise.all([
+      fetchAdjacentMarketDate(date, "prev", lang, enabledSeriesIds),
+      fetchAdjacentMarketDate(date, "next", lang, enabledSeriesIds),
+    ])
+      .then(([prev, next]) => {
+        if (!active) return;
+        setAdjacentPrev(prev);
+        setAdjacentNext(next);
+      })
+      .catch(() => {
+        if (!active) return;
+        setAdjacentPrev(null);
+        setAdjacentNext(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [date, lang, enabledSeriesKey, enabledSeriesIds]);
 
   // Close reader when the day payload reloads.
   useEffect(() => {
@@ -520,10 +552,16 @@ export function MarketPanel({
       <div className="mb-2 flex items-center gap-1">
         <button
           type="button"
-          disabled={loading || !date}
-          onClick={() => setDate((d) => (d ? shiftYmd(d, -1) : d))}
+          disabled={loading || !adjacentPrev}
+          onClick={() => {
+            if (adjacentPrev) setDate(adjacentPrev);
+          }}
           className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
-          title={t("market.prevDay")}
+          title={
+            adjacentPrev
+              ? t("market.prevDayTitle", { date: adjacentPrev })
+              : t("market.prevDay")
+          }
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -543,10 +581,16 @@ export function MarketPanel({
         />
         <button
           type="button"
-          disabled={loading || !date}
-          onClick={() => setDate((d) => (d ? shiftYmd(d, 1) : d))}
+          disabled={loading || !adjacentNext}
+          onClick={() => {
+            if (adjacentNext) setDate(adjacentNext);
+          }}
           className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
-          title={t("market.nextDay")}
+          title={
+            adjacentNext
+              ? t("market.nextDayTitle", { date: adjacentNext })
+              : t("market.nextDay")
+          }
         >
           <ChevronRight className="h-4 w-4" />
         </button>

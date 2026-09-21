@@ -231,7 +231,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | UI language (ko/en) | `src/i18n/messages.ts` + `src/i18n/ui-lang.tsx` (`UiLangProvider` / `useT`); wraps App / ReportSurface / LiveMarketRoom; `document.documentElement.lang` follows `content_lang` |
 | Agent / MyMemory instance | `src/lib/agent-identity.ts` + `use-agent-instance.ts` + `src/lib/auth.tsx` + `chat-agent-query.ts` — Phase 1–5: guest / userId / admin / global panels / **ChatAgent WS JWT**. **`topic_labels` always `"default"`.** [`INSTANCE_DATA.md`](./INSTANCE_DATA.md) |
 | report_series catalog | `worker/report-series.ts` → `GET /api/report-series` (+ `groups`: weekly+daily market issues · KR 한 토글씩; service_role) |
-| Market day (panel) | `worker/market-day.ts` → `GET /api/market/day` + `/api/market/latest-date` (`series_id`); MarketPanel tabs when 2+ slots |
+| Market day (panel) | `worker/market-day.ts` → `GET /api/market/day` + `/api/market/latest-date` + `/api/market/adjacent-date` (`series_id`); MarketPanel / ReportSurface chevrons jump to published days |
 | Market Memory intent | `market-turn-hooks.ts` + `market-intent.ts` + `market-prefetch.ts` + `market-vector-search.ts` + `soul-market.ts` + `market-memory-load.ts` — prefetch (`toolChoice: none`); 「keyword」 → `vectorSearch` (expand via report tag lexicon; empty → keywords/highlights literal fallback); ★ `interestHits` string match; beforeStep fallback for weather / no prefetch |
 | Voice audio pipeline | `content-audio.ts` barrel + `content-audio-domain.ts` / `content-audio-routes.ts` + `voice-audio-cron.ts` (UTC `0 0` + catch-up `0 1`) → `/api/audio/*`; today play + tool `getTodayMarketVoice.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |

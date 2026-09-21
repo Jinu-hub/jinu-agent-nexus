@@ -3,8 +3,8 @@
 // ─────────────────────────────────────────────────────────────────────────
 //
 // In-flight (+ short TTL) promise cache so ChatHelperRail and MarketPanel
-// do not double-hit /api/report-series · latest-date · day · topic-labels
-// when both mount on `/`.
+// do not double-hit /api/report-series · latest-date · day · adjacent-date ·
+// topic-labels when both mount on `/`.
 // ─────────────────────────────────────────────────────────────────────────
 
 import type { ReportSeriesRow } from "../../worker/report-series";
@@ -169,6 +169,34 @@ export async function fetchLatestMarketDate(
       return json.marketDate;
     }
     return json.seoulYesterday ?? calendarYesterdayYmd();
+  });
+}
+
+export async function fetchAdjacentMarketDate(
+  date: string,
+  direction: "prev" | "next",
+  lang: string,
+  seriesIds: string[],
+): Promise<string | null> {
+  if (seriesIds.length === 0) return null;
+  const key = `adjacent-date|${date}|${direction}|${lang}|${seriesKey(seriesIds)}`;
+  return cached(key, async () => {
+    const qs = new URLSearchParams({ date, dir: direction, lang });
+    appendSeriesIds(qs, seriesIds);
+    const res = await fetch(`/api/market/adjacent-date?${qs}`);
+    const json = (await res.json()) as {
+      ok?: boolean;
+      found?: boolean;
+      marketDate?: string | null;
+      message?: string;
+    };
+    if (!res.ok && !json.ok) {
+      throw new Error(json.message || `adjacent-date HTTP ${res.status}`);
+    }
+    if (json.found && typeof json.marketDate === "string") {
+      return json.marketDate;
+    }
+    return null;
   });
 }
 

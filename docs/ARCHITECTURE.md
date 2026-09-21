@@ -153,7 +153,7 @@ in `Message.tsx` → then server `execute` runs.
 | Market vectors | `POST /api/market-vector/ingest` · `/query` · `/clear` · `/cron/run` | `worker/market-vector.ts` + `market-vector-cron.ts` + `market-item-resolve.ts`; ingest batch = Settings ON series → mmi → item_contents (§21); Cron UTC 00:05/01:05 ko,en (§29) | Chunk+embed / chat search / clear → `MARKET_VECTOR_DB` (§14) |
 | Topic labels | `POST /api/market-labels/resolve` · `/memory/topic-labels` | `worker/market-labels.ts` + MyMemory | Body-grounded Tags/Keywords display (B안); post-ingest |
 | Report series catalog | Settings → Market Content; `GET /api/report-series` | `worker/report-series.ts`; opt-out in ChatAgent `disabled_report_series` | Supabase `report_series` |
-| Market day (multi-series) | `GET /api/market/day`, `/api/market/latest-date` | `worker/market-day.ts` — `market_memory_items` + enabled `series_id` | Same-day tabs in Market panel when 2+ slots |
+| Market day (multi-series) | `GET /api/market/day`, `/api/market/latest-date`, `/api/market/adjacent-date` | `worker/market-day.ts` — `market_memory_items` + enabled `series_id` | Same-day tabs in Market panel when 2+ slots; chevrons jump to nearest published day |
 | Market panel | Market tab | `src/panels/MarketPanel.tsx`, `ReportReader.tsx`, `src/lib/market-fetch.ts`, `use-market-day-data.ts`, `use-market-preferences.ts`, `market-suggestions.ts` | Home slim card (`SHOW_MARKET_WORKBENCH=false`): pulse/takeaway + brief body + report blurb + voice + reading CTA; Topics/Ask on helper rail; day/prefs/browse-date shared with that rail; full Brief/Voice/Report behind flag |
 | Report page | `/daily-market-issues`, `/weekly-ai-issues` | `src/reports/ReportSurface.tsx`, `ReportForYou.tsx`, `ReportFullText.tsx`, `ReportChat.tsx`, `src/lib/report-pages.ts`, `src/lib/brief-format.ts` | Full-frame reader on `/api/market/day`; three depth tabs (`?tab=` brief / `for-you` / `full`) with the voice player above them; brief template reads `metadata` (`pulse` / `highlights` / `market_reaction` / `takeaway`); daily page may include weekly-market companion tabs; side chat scoped via `market_focus_series_id` |
 | Report "For you" | `POST /api/market/for-you` | `worker/market-for-you.ts` + `for_you_summaries` in `worker/my-memory.ts` | Saved interests ∩ report keys → `queryMarketVectors` passages (≤5) → one grounded LLM call per interest (What/Detail/Why sentence slots); cached on (item, lang, interest-set + prompt-version hash); replaces the Brief `includes()` taste in `src/lib/brief-for-you.ts` |
@@ -212,6 +212,7 @@ worker/index.ts          HTTP entry — routes only, thin
     ├── GET  /api/report-series → report_series catalog (Settings Content)
     ├── GET  /api/market/day → enabled series slots (brief/voice/report)
     ├── GET  /api/market/latest-date → newest market_date for enabled series
+    ├── GET  /api/market/adjacent-date → nearest published day (prev|next)
     ├── /api/audio/* → content_audio Voice pipeline (+ GET /api/audio/today)
     ├── /agents/live-market-room-agent/market-pulse → poll room WS + RPC
     └── /agents/ChatAgent/default  → WebSocket + RPC

@@ -726,5 +726,25 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
   ```
 * **의도적으로 안 함:** bullet/JSON 스키마; 요약→본문 점프; UI 카드 레이아웃 변경; temperature 상향
 
+## 54. 날짜 화살표 — 발행일 전후 점프 *(완료)*
+
+* **목적:** 위클리 등 희소 시리즈에서 ◀/▶가 달력 하루씩 이동하면 빈 날이 연속된다. `market_memory_items`(status=done + `current_content_id`)가 있는 **가장 가까운 발행일**로 건너뛴다.
+* **ROUTING 반영:** `GET /api/market/adjacent-date?date=&dir=prev|next&series_id=&lang=`
+* **수정 및 추가 파일:**
+  * `worker/market-day.ts` — `getAdjacentMarketDayDate` + 라우트
+  * `src/lib/market-fetch.ts` — `fetchAdjacentMarketDate` (캐시 키 포함)
+  * `src/reports/ReportSurface.tsx` — 이웃일 prefetch → 화살표
+  * `src/panels/MarketPanel.tsx` — 동일 UX
+  * `src/i18n/messages.ts` — `prevDay`/`nextDay` + `*Title` (발행일)
+  * docs: `ROUTING.md`, `ARCHITECTURE.md`, `CLAUDE.md`, 본 절
+* **확인:**
+  * `/weekly-ai-issues`에서 ◀ → 직전 주간 발행일 (중간 빈 날 스킵); 맨 앞이면 ◀ disabled
+  * ▶ 최신에 도달하면 disabled; Latest/Today·date input 동작 유지
+  ```bash
+  curl -sS "http://localhost:5173/api/market/adjacent-date?date=2026-08-22&dir=prev&lang=ko&series_id=<weekly-ai-uuid>" \
+    | jq '{found, marketDate, direction}'
+  ```
+* **의도적으로 안 함:** 날짜 목록 드롭다운; 캘린더에 발행일 하이라이트; brief-only(mmi 없는) 날 포함
+
 
 

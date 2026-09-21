@@ -244,6 +244,71 @@ export async function getLatestMarketDayDate(
   };
 }
 
+export type AdjacentMarketDayDateResult = {
+  lang: string;
+  fromDate: string;
+  direction: "prev" | "next";
+  /** Nearest published market_date in that direction, or null at the edge. */
+  marketDate: string | null;
+};
+
+/**
+ * Skip empty calendar days (weekly digests, weekends): jump to the nearest
+ * `market_memory_items` row that actually has a report for these series.
+ */
+export async function getAdjacentMarketDayDate(
+  env: Env,
+  options: {
+    fromDate: string;
+    direction: "prev" | "next";
+    lang?: string;
+    seriesIds: string[];
+  },
+): Promise<AdjacentMarketDayDateResult> {
+  const lang = options.lang?.trim() || DEFAULT_BRIEF_LANG;
+  const fromDate = options.fromDate.trim();
+  const direction = options.direction;
+  const seriesIds = [...new Set(options.seriesIds.map((id) => id.trim()))].filter(
+    Boolean,
+  );
+
+  if (!isMarketDateYmd(fromDate) || seriesIds.length === 0) {
+    return { lang, fromDate, direction, marketDate: null };
+  }
+
+  const client = createSupabaseClient(env, { privileged: true });
+  const goingPrev = direction === "prev";
+
+  let query = client
+    .from(MARKET_MEMORY_ITEMS_TABLE)
+    .select("market_date")
+    .eq("status", "done")
+    .in("series_id", seriesIds)
+    .not("current_content_id", "is", null)
+    .not("market_date", "is", null);
+
+  query = goingPrev
+    ? query.lt("market_date", fromDate)
+    : query.gt("market_date", fromDate);
+
+  const { data, error } = await query
+    .order("market_date", { ascending: !goingPrev })
+    .limit(1)
+    .maybeSingle()
+    .overrideTypes<{ market_date: string }, { merge: false }>();
+
+  if (error) {
+    throw new Error(`adjacent market_date query failed: ${error.message}`);
+  }
+
+  return {
+    lang,
+    fromDate,
+    direction,
+    marketDate: data?.market_date ?? null,
+  };
+}
+
 function stripAudioScript(row: ContentAudioRow): Omit<ContentAudioRow, "script"> {
   const { script: _script, ...rest } = row;
   return rest;
@@ -256,7 +321,8 @@ export async function handleMarketDayRequest(
   const url = new URL(request.url);
   if (
     url.pathname !== "/api/market/day" &&
-    url.pathname !== "/api/market/latest-date"
+    url.pathname !== "/api/market/latest-date" &&
+    url.pathname !== "/api/market/adjacent-date"
   ) {
     return null;
   }
@@ -283,6 +349,54 @@ export async function handleMarketDayRequest(
         lang: result.lang,
         calendarToday: result.calendarToday,
         seoulYesterday: result.seoulYesterday,
+      });
+    } catch (error) {
+      return queryFailed(error);
+    }
+  }
+
+  if (url.pathname === "/api/market/adjacent-date") {
+    const fromDate = url.searchParams.get("date")?.trim() || "";
+    const dirRaw = (url.searchParams.get("dir") ?? "").trim().toLowerCase();
+    const direction =
+      dirRaw === "prev" || dirRaw === "next" ? dirRaw : null;
+
+    if (!isMarketDateYmd(fromDate)) {
+      return Response.json(
+        { ok: false, message: "date must be YYYY-MM-DD" },
+        { status: 400 },
+      );
+    }
+    if (!direction) {
+      return Response.json(
+        { ok: false, message: "dir must be prev or next" },
+        { status: 400 },
+      );
+    }
+    if (seriesIds.length === 0) {
+      return Response.json(
+        {
+          ok: false,
+          message: "pass at least one series_id (enabled Market Content)",
+        },
+        { status: 400 },
+      );
+    }
+
+    try {
+      const result = await getAdjacentMarketDayDate(env, {
+        fromDate,
+        direction,
+        lang: url.searchParams.get("lang") ?? undefined,
+        seriesIds,
+      });
+      return Response.json({
+        ok: true,
+        found: result.marketDate !== null,
+        marketDate: result.marketDate,
+        fromDate: result.fromDate,
+        direction: result.direction,
+        lang: result.lang,
       });
     } catch (error) {
       return queryFailed(error);
