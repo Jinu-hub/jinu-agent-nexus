@@ -25,10 +25,9 @@ import {
   DEFAULT_PREFERENCE_CATEGORY,
   fetchPreferences,
   fetchTopicLabels,
-  isPreferenceSaved,
+  isTargetSaved,
   mapTopicToPreference,
-  removeInterest,
-  saveInterest,
+  toggleTopicPreference,
   type PreferenceRow,
   type TopicPreferenceSource,
 } from "@/lib/topic-preference";
@@ -145,38 +144,19 @@ export function ReportForYou({
 
   const toggleInterest = useCallback(
     async (source: TopicPreferenceSource) => {
-      const mapped = mapTopicToPreference(source);
-      if (!mapped) return;
-      const saved = isPreferenceSaved(
-        preferences,
-        mapped.kind,
-        mapped.target,
-        DEFAULT_PREFERENCE_CATEGORY,
-      );
       try {
-        if (saved) {
-          await removeInterest(
-            mapped.kind,
-            mapped.target,
-            DEFAULT_PREFERENCE_CATEGORY,
-          );
-        } else {
-          await saveInterest(
-            mapped.kind,
-            mapped.target,
-            source.display ?? null,
-            DEFAULT_PREFERENCE_CATEGORY,
-          );
-        }
-        setPreferences(await fetchPreferences(DEFAULT_PREFERENCE_CATEGORY));
-        // The interest set is the server's cache key — a new set is a new
-        // summary, so this refetch is a cache miss by construction.
+        const next = await toggleTopicPreference(
+          source,
+          preferences,
+          DEFAULT_PREFERENCE_CATEGORY,
+        );
+        setPreferences(next);
         await load();
       } catch (err) {
         setError(err instanceof Error ? err.message : t("forYou.saveFailed"));
       }
     },
-    [preferences, load],
+    [preferences, load, t],
   );
 
   const state = data?.state;
@@ -423,9 +403,8 @@ function Chip({
   const mapped = mapTopicToPreference(source);
   const saved =
     mapped != null &&
-    isPreferenceSaved(
+    isTargetSaved(
       preferences,
-      mapped.kind,
       mapped.target,
       DEFAULT_PREFERENCE_CATEGORY,
     );

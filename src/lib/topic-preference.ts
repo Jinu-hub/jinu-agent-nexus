@@ -51,7 +51,12 @@ const INDUSTRY_GROUPS = new Set(["industries"]);
 
 /** Match key within a category (report tags ↔ preference kind/target). */
 export function preferenceKey(kind: PreferenceKind, target: string): string {
-  return `${kind}:${target.trim().toLowerCase()}`;
+  return `${kind}:${preferenceTargetKey(target)}`;
+}
+
+/** Kind-agnostic target — Tag OpenAI and Company OpenAI share this. */
+export function preferenceTargetKey(target: string): string {
+  return target.trim().toLowerCase();
 }
 
 /** Unique id across categories for saved-state sets. */
@@ -94,6 +99,31 @@ export function isPreferenceSaved(
   return prefs.some(
     (p) => preferenceId(p.category, p.kind, p.target) === id,
   );
+}
+
+/** Saved rows for one target (any kind) within a category. */
+export function preferencesForTarget(
+  prefs: PreferenceRow[],
+  target: string,
+  category: PreferenceCategory | null | undefined = DEFAULT_PREFERENCE_CATEGORY,
+): PreferenceRow[] {
+  const t = preferenceTargetKey(target);
+  if (!t) return [];
+  const cat = normalizePreferenceCategory(category);
+  return prefs.filter(
+    (p) =>
+      normalizePreferenceCategory(p.category) === cat &&
+      preferenceTargetKey(p.target) === t,
+  );
+}
+
+/** Star state for Topics chips — Tag OpenAI covers Company OpenAI and vice versa. */
+export function isTargetSaved(
+  prefs: PreferenceRow[],
+  target: string,
+  category: PreferenceCategory | null | undefined = DEFAULT_PREFERENCE_CATEGORY,
+): boolean {
+  return preferencesForTarget(prefs, target, category).length > 0;
 }
 
 function asStringList(value: unknown): string[] {
@@ -148,12 +178,56 @@ export function collectReportPreferenceKeys(report: {
   return keys;
 }
 
+/**
+ * True when this interest appears in the report under any kind.
+ * Tag OpenAI (theme) matches Company OpenAI in entities and vice versa —
+ * users follow the name, not the chip taxonomy.
+ */
 export function interestInReport(
-  row: PreferenceRow,
+  row: Pick<PreferenceRow, "kind" | "target">,
   reportKeys: Set<string> | null | undefined,
 ): boolean {
   if (!reportKeys || reportKeys.size === 0) return false;
-  return reportKeys.has(preferenceKey(row.kind, row.target));
+  if (reportKeys.has(preferenceKey(row.kind, row.target))) return true;
+  const target = preferenceTargetKey(row.target);
+  if (!target) return false;
+  for (const key of reportKeys) {
+    const colon = key.indexOf(":");
+    if (colon >= 0 && key.slice(colon + 1) === target) return true;
+  }
+  return false;
+}
+
+/**
+ * When the same target is saved under multiple kinds, keep one row for
+ * For-you / personalization (prefer higher level, then more specific kind).
+ */
+const PREFERENCE_KIND_SPECIFICITY: Record<PreferenceKind, number> = {
+  company: 0,
+  industry: 1,
+  asset: 2,
+  theme: 3,
+};
+
+export function dedupePreferencesByTarget(
+  prefs: PreferenceRow[],
+): PreferenceRow[] {
+  const sorted = [...prefs].sort((a, b) => {
+    if (b.level !== a.level) return b.level - a.level;
+    const aSpec = PREFERENCE_KIND_SPECIFICITY[a.kind] ?? 99;
+    const bSpec = PREFERENCE_KIND_SPECIFICITY[b.kind] ?? 99;
+    if (aSpec !== bSpec) return aSpec - bSpec;
+    return a.target.localeCompare(b.target);
+  });
+  const seen = new Set<string>();
+  const out: PreferenceRow[] = [];
+  for (const row of sorted) {
+    const t = preferenceTargetKey(row.target);
+    if (!t || seen.has(t)) continue;
+    seen.add(t);
+    out.push(row);
+  }
+  return out;
 }
 
 const PREFERENCE_KIND_ORDER: Record<PreferenceKind, number> = {
@@ -209,10 +283,25 @@ export async function saveInterest(
   category: PreferenceCategory | null | undefined = DEFAULT_PREFERENCE_CATEGORY,
 ): Promise<PreferenceRow> {
   const cat = normalizePreferenceCategory(category);
+  const trimmed = target.trim();
+  const all = await fetchPreferences(cat);
+  const same = preferencesForTarget(all, trimmed, cat);
+  if (same.length > 0) {
+    const canonical = dedupePreferencesByTarget(same)[0]!;
+    const incomingSpec = PREFERENCE_KIND_SPECIFICITY[kind] ?? 99;
+    const bestSpec = PREFERENCE_KIND_SPECIFICITY[canonical.kind] ?? 99;
+    if (incomingSpec > bestSpec) {
+      return canonical;
+    }
+    for (const row of same) {
+      await removeInterest(row.kind, row.target, cat);
+    }
+  }
+
   const body = {
     category: cat,
     kind,
-    target: target.trim(),
+    target: trimmed,
     level: INTEREST_STAR_LEVEL,
     display:
       typeof display === "string" && display.trim() ? display.trim() : undefined,
@@ -283,11 +372,12 @@ export async function removeInterest(
   target: string,
   category: PreferenceCategory | null | undefined = DEFAULT_PREFERENCE_CATEGORY,
 ): Promise<void> {
+  const cat = normalizePreferenceCategory(category);
   const res = await authFetch("/memory/preferences", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      category: normalizePreferenceCategory(category),
+      category: cat,
       kind,
       target: target.trim(),
     }),
@@ -296,4 +386,69 @@ export async function removeInterest(
     const err = (await res.json().catch(() => null)) as { error?: string } | null;
     throw new Error(err?.error || `remove interest HTTP ${res.status}`);
   }
+}
+
+/** Unstar every kind row for this target (one OpenAI, not tag vs company). */
+export async function removeInterestsForTarget(
+  target: string,
+  category: PreferenceCategory | null | undefined = DEFAULT_PREFERENCE_CATEGORY,
+): Promise<void> {
+  const cat = normalizePreferenceCategory(category);
+  const rows = preferencesForTarget(await fetchPreferences(cat), target, cat);
+  await Promise.all(
+    rows.map((row) => removeInterest(row.kind, row.target, cat)),
+  );
+}
+
+/** Toggle star from a Topics chip — merge kinds on save, clear all on remove. */
+export async function toggleTopicPreference(
+  source: TopicPreferenceSource,
+  prefs: PreferenceRow[],
+  category: PreferenceCategory | null | undefined = DEFAULT_PREFERENCE_CATEGORY,
+): Promise<PreferenceRow[]> {
+  const mapped = mapTopicToPreference(source);
+  if (!mapped) return prefs;
+  const cat = normalizePreferenceCategory(category);
+  const t = preferenceTargetKey(mapped.target);
+  const withoutTarget = (list: PreferenceRow[]) =>
+    list.filter(
+      (p) =>
+        !(
+          normalizePreferenceCategory(p.category) === cat &&
+          preferenceTargetKey(p.target) === t
+        ),
+    );
+
+  const same = preferencesForTarget(prefs, mapped.target, cat);
+  if (same.length > 0) {
+    const canonical = dedupePreferencesByTarget(same)[0]!;
+    const incomingSpec = PREFERENCE_KIND_SPECIFICITY[mapped.kind] ?? 99;
+    const bestSpec = PREFERENCE_KIND_SPECIFICITY[canonical.kind] ?? 99;
+    if (incomingSpec < bestSpec) {
+      const row = await saveInterest(
+        mapped.kind,
+        mapped.target,
+        source.display ?? null,
+        cat,
+      );
+      return [row, ...withoutTarget(prefs)];
+    }
+    if (incomingSpec > bestSpec) {
+      return prefs;
+    }
+    if (canonical.kind === mapped.kind) {
+      await removeInterestsForTarget(mapped.target, cat);
+      return withoutTarget(prefs);
+    }
+    await removeInterestsForTarget(mapped.target, cat);
+    return withoutTarget(prefs);
+  }
+
+  const row = await saveInterest(
+    mapped.kind,
+    mapped.target,
+    source.display ?? null,
+    cat,
+  );
+  return [row, ...withoutTarget(prefs)];
 }

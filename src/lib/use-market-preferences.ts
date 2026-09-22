@@ -11,11 +11,10 @@ import { useCallback, useEffect, useSyncExternalStore } from "react";
 import {
   DEFAULT_PREFERENCE_CATEGORY,
   fetchPreferences,
-  isPreferenceSaved,
-  mapTopicToPreference,
-  preferenceId,
-  removeInterest,
-  saveInterest,
+  normalizePreferenceCategory,
+  preferenceTargetKey,
+  removeInterestsForTarget,
+  toggleTopicPreference,
   type PreferenceRow,
   type TopicPreferenceSource,
 } from "@/lib/topic-preference";
@@ -97,45 +96,13 @@ export function useMarketPreferences(enabled: boolean): {
 
   const toggleInterest = useCallback(
     async (source: TopicPreferenceSource) => {
-      const mapped = mapTopicToPreference(source);
-      if (!mapped) return;
-      const saved = isPreferenceSaved(
-        store.preferences,
-        mapped.kind,
-        mapped.target,
-        DEFAULT_PREFERENCE_CATEGORY,
-      );
       try {
-        if (saved) {
-          await removeInterest(
-            mapped.kind,
-            mapped.target,
-            DEFAULT_PREFERENCE_CATEGORY,
-          );
-          const dropId = preferenceId(
-            DEFAULT_PREFERENCE_CATEGORY,
-            mapped.kind,
-            mapped.target,
-          );
-          setStore({
-            preferences: store.preferences.filter(
-              (p) => preferenceId(p.category, p.kind, p.target) !== dropId,
-            ),
-            error: null,
-          });
-        } else {
-          const row = await saveInterest(
-            mapped.kind,
-            mapped.target,
-            source.display ?? null,
-            DEFAULT_PREFERENCE_CATEGORY,
-          );
-          const keepId = preferenceId(row.category, row.kind, row.target);
-          const without = store.preferences.filter(
-            (p) => preferenceId(p.category, p.kind, p.target) !== keepId,
-          );
-          setStore({ preferences: [row, ...without], error: null });
-        }
+        const next = await toggleTopicPreference(
+          source,
+          store.preferences,
+          DEFAULT_PREFERENCE_CATEGORY,
+        );
+        setStore({ preferences: next, error: null });
       } catch (err) {
         setStore({
           error:
@@ -148,11 +115,16 @@ export function useMarketPreferences(enabled: boolean): {
 
   const removeInterestRow = useCallback(async (row: PreferenceRow) => {
     try {
-      await removeInterest(row.kind, row.target, row.category);
-      const dropId = preferenceId(row.category, row.kind, row.target);
+      await removeInterestsForTarget(row.target, row.category);
+      const t = preferenceTargetKey(row.target);
+      const cat = normalizePreferenceCategory(row.category);
       setStore({
         preferences: store.preferences.filter(
-          (p) => preferenceId(p.category, p.kind, p.target) !== dropId,
+          (p) =>
+            !(
+              normalizePreferenceCategory(p.category) === cat &&
+              preferenceTargetKey(p.target) === t
+            ),
         ),
         error: null,
       });

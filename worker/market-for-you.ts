@@ -6,7 +6,7 @@
 // report page: the source is the confirmed full report, retrieved per
 // interest through MARKET_VECTOR_DB, then summarized.
 //
-//   saved interests ∩ report tags/entities   (collectReportPreferenceKeys)
+//   saved interests ∩ report (target match across kinds)
 //     → vector query per interest            (queryMarketVectors)
 //     → grounded per-interest summary        (createModel)
 //       sentence slots: What → Detail → Why (+ optional 4th fact)
@@ -30,6 +30,8 @@ import { DEFAULT_PREFERENCE_CATEGORY } from "../src/lib/preference-category";
 import { myMemoryStub } from "./lib/my-memory-stub";
 import {
   collectReportPreferenceKeys,
+  dedupePreferencesByTarget,
+  interestInReport,
   preferenceKey,
   type PreferenceRow,
 } from "../src/lib/topic-preference";
@@ -43,7 +45,7 @@ const PASSAGES_PER_INTEREST = 5;
  * Bump when the summary shape/prompt changes so MyMemory cache misses
  * without deleting rows (hash includes this string).
  */
-const FOR_YOU_PROMPT_VERSION = "v2-slots";
+const FOR_YOU_PROMPT_VERSION = "v3-cross-kind";
 
 export type ForYouInterest = {
   kind: PreferenceRow["kind"];
@@ -289,8 +291,10 @@ export async function buildForYou(
   });
 
   const reportKeys = collectReportPreferenceKeys(report);
-  const matchedRows = preferences.filter((row) =>
-    reportKeys.has(preferenceKey(row.kind, row.target)),
+  // Cross-kind: theme:openai matches company:openai in the report.
+  // Dedupe same target so Tag+Company OpenAI do not emit two sections.
+  const matchedRows = dedupePreferencesByTarget(
+    preferences.filter((row) => interestInReport(row, reportKeys)),
   );
   // Highest star level first — that is the order the sections appear in.
   const matchedSorted = [...matchedRows].sort(

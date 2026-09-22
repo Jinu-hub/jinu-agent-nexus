@@ -142,7 +142,7 @@ export const en = {
   "chat.howTo.s5":
     "You can also type directly in chat. Ask for a short take on today’s market or AI issues.",
   "chat.howTo.note":
-    "Sign in to save your chat and interests to your account, so you can pick up on another browser or device.\nYou can sign in from the Settings tab on the right.",
+    "Sign in to save your settings, chat, and interests to your account so you can pick up on another browser or device.\nYou can sign in from the Settings tab on the right.",
   "chat.themesHeading": "Ready themes",
   "chat.navCategories": "Report categories",
   "chat.nav.market": "Market",
@@ -524,7 +524,7 @@ export const ko: { [K in MessageKey]: string } = {
   "chat.howTo.s5":
     "챗에 직접 입력해도 됩니다. 오늘 시장·AI 이슈를 짧게 정리해 달라고 요청해 보세요.",
   "chat.howTo.note":
-    "로그인하면 챗 내용과 관심사가 계정에 저장되어 다른 브라우저나 기기에서도 그대로 이어서 사용할 수 있어요.\n오른쪽 사이드의 설정 탭에서 로그인할 수 있어요.",
+    "로그인하면 설정, 챗 내용과 관심사가 계정에 저장되어 다른 브라우저나 기기에서도 그대로 이어서 사용할 수 있어요.\n오른쪽 사이드의 설정 탭에서 로그인할 수 있어요.",
   "chat.themesHeading": "준비된 콘텐츠",
   "chat.navCategories": "리포트 카테고리",
   "chat.nav.market": "마켓",

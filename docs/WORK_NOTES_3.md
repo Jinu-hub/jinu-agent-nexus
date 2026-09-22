@@ -746,5 +746,34 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
   ```
 * **의도적으로 안 함:** 날짜 목록 드롭다운; 캘린더에 발행일 하이라이트; brief-only(mmi 없는) 날 포함
 
+## 55. 관심사 — kind 교차 target 매칭 *(완료)*
+
+* **목적:** `태그 OpenAI`(theme)와 `기업 OpenAI`(company)가 키가 달라 For you·in report에서 어긋나던 문제. 유저는 이름을 팔로우하므로 **target 같으면 kind 무시하고 매칭**.
+* **수정 및 추가 파일:**
+  * `src/lib/topic-preference.ts` — `preferenceTargetKey`; `interestInReport` cross-kind; `dedupePreferencesByTarget` (동일 target 다중 kind 시 하나)
+  * `worker/market-for-you.ts` — 매칭에 `interestInReport` + dedupe; `FOR_YOU_PROMPT_VERSION` → `v3-cross-kind` (캐시 미스)
+  * `docs/ARCHITECTURE.md` — For you 행
+  * docs: 본 절
+* **확인:**
+  * My interests에 `태그 OpenAI`만 있어도 리포트에 `기업 OpenAI`만 있으면 `in report` + For you 섹션
+  * theme+company 둘 다 저장 시 For you OpenAI 섹션 1개 (company 우선)
+  * §56에서 별·My interests UI·저장 병합까지 target 통합
+* **의도적으로 안 함:** 저장 시 kind 승격/병합; My interests·키워드 칩 표시명 합치기; chat prefetch soft match 변경
+
+## 56. 관심사 — 저장 병합 + UI target 통합 *(완료)*
+
+* **목적:** §55 매칭에 이어 **별 저장·표시**도 target 기준으로 통합. `태그 OpenAI`만 있어도 `기업 OpenAI` 칩에 채워진 별; My interests에 OpenAI 한 줄; 기업 별표 시 theme 행 제거·company로 승격.
+* **수정 및 추가 파일:**
+  * `src/lib/topic-preference.ts` — `isTargetSaved`, `preferencesForTarget`, `removeInterestsForTarget`, `toggleTopicPreference`; `saveInterest` weaker-kind noop / stronger-kind replace
+  * `src/lib/use-market-preferences.ts` · `src/reports/ReportForYou.tsx` — `toggleTopicPreference`
+  * `src/panels/report-topics.tsx` · `ReportForYou` Chip — `isTargetSaved`
+  * `src/panels/MyInterestsFold.tsx` — `dedupePreferencesByTarget` 표시·카운트; X는 target 전체 해제
+  * docs: 본 절
+* **확인:**
+  * theme OpenAI 저장 → keywords `기업 OpenAI` 별 채움; My interests 1행
+  * theme 저장 상태에서 company 별 → DB `company:openai`만; theme 행 삭제
+  * company만 있을 때 theme 별 재클릭 → noop (유지); company 별 재클릭 → 전체 해제
+* **의도적으로 안 함:** 기존 중복 DB 행 자동 마이그레이션; kind 라벨 숨김(대표 kind만 표시); chat prefetch hit 규칙 변경
+
 
 

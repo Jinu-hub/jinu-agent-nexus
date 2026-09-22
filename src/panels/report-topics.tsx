@@ -25,7 +25,8 @@ import {
   topicDisplayLabel,
 } from "@/lib/market-tag-lexicon";
 import {
-  isPreferenceSaved,
+  DEFAULT_PREFERENCE_CATEGORY,
+  isTargetSaved,
   mapTopicToPreference,
   type PreferenceRow,
   type TopicPreferenceSource,
@@ -150,7 +151,7 @@ function isKeywordSaved(
   const mapped = mapTopicToPreference(source);
   return (
     mapped != null &&
-    isPreferenceSaved(preferences, mapped.kind, mapped.target)
+    isTargetSaved(preferences, mapped.target, DEFAULT_PREFERENCE_CATEGORY)
   );
 }
 
@@ -359,7 +360,7 @@ export function ReportKeywordChips({
       const mapped = mapTopicToPreference({ source: "tag", label: tag });
       return (
         mapped != null &&
-        isPreferenceSaved(prefs, mapped.kind, mapped.target)
+        isTargetSaved(prefs, mapped.target, DEFAULT_PREFERENCE_CATEGORY)
       );
     });
     tagExtra = 0;
@@ -536,7 +537,7 @@ export function ReportTopicChips({
       const mapped = mapTopicToPreference({ source: "tag", label: tag });
       return (
         mapped != null &&
-        isPreferenceSaved(prefs, mapped.kind, mapped.target)
+        isTargetSaved(prefs, mapped.target, DEFAULT_PREFERENCE_CATEGORY)
       );
     });
     tagExtra = 0;
@@ -547,7 +548,7 @@ export function ReportTopicChips({
       });
       return (
         mapped != null &&
-        isPreferenceSaved(prefs, mapped.kind, mapped.target)
+        isTargetSaved(prefs, mapped.target, DEFAULT_PREFERENCE_CATEGORY)
       );
     });
     if (tagList.length === 0 && placeList.length === 0) {
@@ -650,7 +651,7 @@ function TopicChip({
   const mapped = mapTopicToPreference(source);
   const saved =
     mapped != null &&
-    isPreferenceSaved(preferences, mapped.kind, mapped.target);
+    isTargetSaved(preferences, mapped.target, DEFAULT_PREFERENCE_CATEGORY);
   const askLabel = source.label;
   const shown = (displayLabel ?? label).trim() || label;
   const { lang } = useUiLang();
@@ -841,7 +842,7 @@ export function ReportEntitiesFold({
           });
           return (
             mapped != null &&
-            isPreferenceSaved(prefs, mapped.kind, mapped.target)
+            isTargetSaved(prefs, mapped.target, DEFAULT_PREFERENCE_CATEGORY)
           );
         });
         return { ...group, items, extra: 0 };

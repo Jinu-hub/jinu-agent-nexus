@@ -6,6 +6,7 @@ import { useState } from "react";
 import { ChevronDown, Star, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  dedupePreferencesByTarget,
   interestInReport,
   sortPreferencesForReport,
   type PreferenceRow,
@@ -47,15 +48,16 @@ export function MyInterestsFold({
   if (!SHOW_MY_INTERESTS) return null;
 
   const sorted = sortPreferencesForReport(preferences, reportKeys);
+  const collapsed = dedupePreferencesByTarget(sorted);
   const visible =
     interestsOnly && reportKeys
-      ? sorted.filter((row) => interestInReport(row, reportKeys))
-      : sorted;
-  const count = preferences.length;
+      ? collapsed.filter((row) => interestInReport(row, reportKeys))
+      : collapsed;
+  const count = dedupePreferencesByTarget(preferences).length;
   const visibleCount = visible.length;
-  const inReportCount = reportKeys
-    ? sorted.filter((row) => interestInReport(row, reportKeys)).length
-    : 0;
+  const inReportCount = collapsed.filter((row) =>
+    interestInReport(row, reportKeys),
+  ).length;
   const showFilter =
     SHOW_INTERESTS_ONLY_FILTER &&
     Boolean(onInterestsOnlyChange) &&
