@@ -775,5 +775,14 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
   * company만 있을 때 theme 별 재클릭 → noop (유지); company 별 재클릭 → 전체 해제
 * **의도적으로 안 함:** 기존 중복 DB 행 자동 마이그레이션; kind 라벨 숨김(대표 kind만 표시); chat prefetch hit 규칙 변경
 
+## 57. 장소 칩 Ask — 「」 누락 수정 *(완료)*
+
+* **목적:** Keywords `장소` 칩 클릭 프롬프트가 「」 없이 나가 `market-vector-search`가 쿼리를 못 뽑아 임베딩 검색이 스킵되던 문제.
+* **수정 및 추가 파일:**
+  * `src/lib/market-suggestions.ts` — `topicChipAskPrompt` place 분기를 tag/entity와 동일하게 「name」 사용
+  * docs: 본 절
+* **확인:** `장소 중국` 클릭 → `…풀리포트에서 「중국」 관련…`; prefetch에 `vectorSearch` 첨부
+* **의도적으로 안 함:** place 전용 프롬프트 문구; Ask 칩 카피 i18n 분리
+
 
 

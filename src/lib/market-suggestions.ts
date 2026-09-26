@@ -329,9 +329,11 @@ export type TopicChipAskKind = "tag" | "place" | "entity";
 /**
  * Chip → chat prompt. `label` is the **user-visible** phrase in 「」
  * (prefer topic_labels / KO display). Vector expand reverse-maps to slug.
+ * `kind` is kept for call-site clarity; all kinds share the 「」 form so
+ * `market-vector-search` can extract the query.
  */
 export function topicChipAskPrompt(
-  kind: TopicChipAskKind,
+  _kind: TopicChipAskKind,
   label: string,
   marketDate?: string | null,
   lang: ContentLang = "ko",
@@ -342,15 +344,7 @@ export function topicChipAskPrompt(
       ? marketDate
       : "Latest";
   if (lang === "en") {
-    const ask = "explain the related coverage";
-    if (kind === "place") {
-      return `In the ${when} full report, ${name}: ${ask}`;
-    }
     return `In the ${when} full report, explain 「${name}」`;
   }
-  const ask = "관련 내용에 대해 설명해줘";
-  if (kind === "place") {
-    return `${when} 풀리포트에서 ${name} ${ask}`;
-  }
-  return `${when} 풀리포트에서 「${name}」 ${ask}`;
+  return `${when} 풀리포트에서 「${name}」 관련 내용에 대해 설명해줘`;
 }
