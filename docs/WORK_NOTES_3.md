@@ -784,5 +784,24 @@ A/B/C·포팅 Wave가 바뀌면 [`MERGE_STRATEGY.md`](./MERGE_STRATEGY.md)도 �
 * **확인:** `장소 중국` 클릭 → `…풀리포트에서 「중국」 관련…`; prefetch에 `vectorSearch` 첨부
 * **의도적으로 안 함:** place 전용 프롬프트 문구; Ask 칩 카피 i18n 분리
 
+## 58. Voice / Market-vector — 일요일 late cron *(완료)*
+
+* **목적:** 주말 late `script_ready` / report가 평일 00:00·01:00 창을 놓치는 경우 회수. **일요일만** voice UTC 03:00 + vector UTC 03:05 추가 (기존 daily tick 유지).
+* **스케줄** (`wrangler.jsonc` `triggers.crons`; CF weekday는 `SUN` — `0` 아님):
+  * Voice: `0 0 * * *` · `0 1 * * *` · **`0 3 * * SUN`** (= KST 12:00)
+  * Market vector: `5 0 * * *` · `5 1 * * *` · **`5 3 * * SUN`** (= KST 12:05)
+* **수정 및 추가 파일:**
+  * `wrangler.jsonc` — Sunday cron 2개 추가
+  * `worker/voice-audio-cron.ts` — `VOICE_AUDIO_CRON_SUNDAY` → `VOICE_AUDIO_CRONS`
+  * `worker/market-vector-cron.ts` — `MARKET_VECTOR_CRON_SUNDAY` → `MARKET_VECTOR_CRONS`
+  * docs: `CLAUDE.md`, `ARCHITECTURE.md`, `MERGE_STRATEGY.md` C, 본 절
+* **확인:**
+  ```bash
+  # scheduled 시뮬레이션 (dev에 --test-scheduled / cdn-cgi handler)
+  curl -s "http://localhost:5173/cdn-cgi/handler/scheduled?cron=0+3+*+*+SUN"
+  curl -s "http://localhost:5173/cdn-cgi/handler/scheduled?cron=5+3+*+*+SUN"
+  ```
+  * 배포 후 Cloudflare Dashboard → Worker → Triggers에 Sunday 표현식 2개 노출
+* **의도적으로 안 함:** 평일 00/01 tick 제거·이동; Saturday-only; `targetMarketDate` 로직 변경 (여전히 previous UTC day)
 
 

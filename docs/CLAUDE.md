@@ -50,8 +50,8 @@
 | Default chat model | `@cf/zai-org/glm-4.7-flash` (Workers AI, free tier) |
 | Default embed model | `@cf/baai/bge-base-en-v1.5` (768-dim, must match Vectorize) |
 | AI Gateway name | `agent-boilerplate` (unused until non-`@cf/` models) |
-| Voice Cron | UTC `0 0 * * *` + catch-up `0 1 * * *` (`voice-audio-cron.ts`) |
-| Market vector Cron | UTC `5 0 * * *` (00:05) + catch-up `5 1 * * *` (01:05) — ko,en day ingest (`market-vector-cron.ts`) |
+| Voice Cron | UTC `0 0 * * *` + catch-up `0 1 * * *` + Sunday `0 3 * * SUN` (`voice-audio-cron.ts`) |
+| Market vector Cron | UTC `5 0 * * *` + catch-up `5 1 * * *` + Sunday `5 3 * * SUN` — ko,en day ingest (`market-vector-cron.ts`) |
 | Live poll room DO | `LiveMarketRoomAgent` (binding + class), room `market-pulse` |
 | Secrets | `API_TOKEN`, `LIVE_ROOM_TOKEN` (optional), `SUPABASE_*` (optional), `ADMIN_USER_IDS` / `ADMIN_EMAILS` (optional Phase 3) in `.dev.vars` / `wrangler secret put` |
 
@@ -159,7 +159,7 @@ worker/
   item-contents.ts     item_contents full report (`/api/reports/today` via brief.target_id; `item_content_i18n` by lang)
   market-vector.ts     Market report → MARKET_VECTOR_DB ingest (§14)
   market-vector-routes.ts  HTTP `POST /api/market-vector/{ingest,query,clear,cron/run}`
-  market-vector-cron.ts    Daily ingest Cron (UTC 00:05 / 01:05)
+  market-vector-cron.ts    Daily ingest Cron (UTC 00:05 / 01:05 + Sunday 03:05)
   market-labels.ts     Topic label resolve orchestration
   market-labels-routes.ts  HTTP `POST /api/market-labels/resolve`
   market-memory-load.ts resolve→fetch→retry for brief/voice/report tools+prefetch
@@ -233,7 +233,7 @@ worker-env.d.ts        Env augmentations (secrets + typed DO stub)
 | report_series catalog | `worker/report-series.ts` → `GET /api/report-series` (+ `groups`: weekly+daily market issues · KR 한 토글씩; service_role) |
 | Market day (panel) | `worker/market-day.ts` → `GET /api/market/day` + `/api/market/latest-date` + `/api/market/adjacent-date` (`series_id`); MarketPanel / ReportSurface chevrons jump to published days |
 | Market Memory intent | `market-turn-hooks.ts` + `market-intent.ts` + `market-prefetch.ts` + `market-vector-search.ts` + `soul-market.ts` + `market-memory-load.ts` — prefetch (`toolChoice: none`); 「keyword」 → `vectorSearch` (expand via report tag lexicon; empty → keywords/highlights literal fallback); ★ `interestHits` string match; beforeStep fallback for weather / no prefetch |
-| Voice audio pipeline | `content-audio.ts` barrel + `content-audio-domain.ts` / `content-audio-routes.ts` + `voice-audio-cron.ts` (UTC `0 0` + catch-up `0 1`) → `/api/audio/*`; today play + tool `getTodayMarketVoice.ts` |
+| Voice audio pipeline | `content-audio.ts` barrel + `content-audio-domain.ts` / `content-audio-routes.ts` + `voice-audio-cron.ts` (UTC `0 0` + catch-up `0 1` + Sunday `0 3 * * SUN`) → `/api/audio/*`; today play + tool `getTodayMarketVoice.ts` |
 | New secret | `.dev.vars.example` + `worker-env.d.ts` + user's `.dev.vars` |
 | Generated types | `npm run cf-typegen` → `worker-configuration.d.ts` (**never hand-edit**) |
 | UI chat shell | `src/chat/Chat.tsx`, `Message.tsx`, `Markdown.tsx` + `HomeReportExits.tsx` + `ChatHelperRail.tsx` — empty state = DAMI intro + how-to + report landing cards (`REPORT_NAV_CATEGORIES`); helper rail = **Topics | Ask** tabs (default Topics; Ask = paper-surface + 1행 프롬프트 스크롤); header category menus (`Market` ▾ → pages; filtered by `disabled_report_series`); header `ChromePrefs` (theme + `content_lang`); Reset/Clear labels `xl+`; helper rail docks at `xl+`, right panels at `lg+`, drawers below (`App.tsx` `helperOpen` / `panelOpen`) |

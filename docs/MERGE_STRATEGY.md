@@ -109,8 +109,8 @@
 - [ ] R2 `AUDIO_BUCKET` (`market-memory-audio`) + 기존 `BUCKET`
 - [ ] Vectorize `PDF_VECTOR_DB` → `pdf-vectorstore` (768) + `MARKET_VECTOR_DB` → `market-memory-vectorstore` (768); same `EMBEDDING_MODEL`; market **metadata indexes** (`market_date`,`lang`,`item_id`) then re-ingest
 - [ ] DO migrations (MyMemory / Live / ChatAgent tags)
-- [ ] Voice cron schedule (`wrangler.jsonc` `triggers.crons` — `0 0` + `0 1` UTC)
-- [ ] Market vector cron (`5 0` + `5 1` UTC = 00:05 / 01:05; vars `MARKET_VECTOR_CRON_LANGS`)
+- [ ] Voice cron schedule (`wrangler.jsonc` `triggers.crons` — `0 0` + `0 1` + Sunday `0 3 * * SUN` UTC)
+- [ ] Market vector cron (`5 0` + `5 1` + Sunday `5 3 * * SUN` UTC; vars `MARKET_VECTOR_CRON_LANGS`)
 - [ ] `npm run seed:skills:*` if skills changed
 
 ---
@@ -194,3 +194,4 @@
 | 2026-09-20 | Phase 3 Admin role — A auth allowlist + `/api/admin/*` ([`WORK_NOTES_3` §49](./WORK_NOTES_3.md)) |
 | 2026-09-20 | Phase 4 global panel defaults — A `panel-defaults` + admin PATCH ([`WORK_NOTES_3` §50](./WORK_NOTES_3.md)) |
 | 2026-09-20 | Phase 5 ChatAgent WS JWT — B `routeAgentRequest` + A query token ([`WORK_NOTES_3` §51](./WORK_NOTES_3.md)) |
+| 2026-09-26 | Voice/vector Sunday cron `0 3`/`5 3 * * SUN` — C ([`WORK_NOTES_3` §58](./WORK_NOTES_3.md)) |

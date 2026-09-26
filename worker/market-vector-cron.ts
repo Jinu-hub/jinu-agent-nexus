@@ -5,6 +5,7 @@
 // Schedule: wrangler `triggers.crons` — must stay in sync with MARKET_VECTOR_CRONS.
 //   00:05 UTC (= KST 09:05) — primary (5 min after voice 00:00)
 //   01:05 UTC (= KST 10:05) — catch-up (5 min after voice 01:00)
+//   03:05 UTC Sundays (= KST 12:05) — late weekend ingest (5 min after voice SUN)
 // Each tick: previous UTC day × langs (default ko,en) → ingestMarketReportsForDay
 // (Settings Content ON series). Empty day / lang → soft skip (no throw).
 // ─────────────────────────────────────────────────────────────────────────
@@ -19,10 +20,13 @@ import {
 export const MARKET_VECTOR_CRON = "5 0 * * *";
 /** Catch-up tick — late reports that miss 00:05. */
 export const MARKET_VECTOR_CRON_CATCHUP = "5 1 * * *";
+/** Sunday late ingest — weekend reports that miss weekday ticks. */
+export const MARKET_VECTOR_CRON_SUNDAY = "5 3 * * SUN";
 
 export const MARKET_VECTOR_CRONS = [
   MARKET_VECTOR_CRON,
   MARKET_VECTOR_CRON_CATCHUP,
+  MARKET_VECTOR_CRON_SUNDAY,
 ] as const;
 
 export function isMarketVectorCron(cron: string): boolean {

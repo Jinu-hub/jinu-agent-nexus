@@ -149,7 +149,8 @@
   // filter (comma-separated). INCLUDE set → allowlist only; else EXCLUDE.
   // AUDIO_CRON_BATCH_LIMIT — max rows per Cron tick (default 10, cap 50).
   // MARKET_VECTOR_CRON_LANGS — daily vector ingest langs (comma-separated;
-  // default ko,en). Cron ticks UTC 00:05 / 01:05 (5 min after voice).
+  // default ko,en). Cron ticks UTC 00:05 / 01:05 + Sunday 03:05
+  // (5 min after voice).
   // Requires API_TOKEN with AI Gateway → Run and Unified Billing (or
   // a stored OpenAI key on the gateway). Native Workers AI TTS models
   // (MeloTTS / Aura) are not used here — they don't cover Korean well.
@@ -179,15 +180,19 @@
 
   // Cron triggers — change here and redeploy; keep in sync with
   // VOICE_AUDIO_CRONS / MARKET_VECTOR_CRONS constants.
-  // Voice: UTC 00:00 + 01:00 catch-up (= KST 09:00 / 10:00). Empty → no TTS.
-  // Market vector: UTC 00:05 + 01:05 catch-up (= KST 09:05 / 10:05).
-  // Empty day/lang → soft skip (no throw).
+  // Voice: UTC 00:00 + 01:00 catch-up (= KST 09:00 / 10:00);
+  //        Sunday UTC 03:00 (= KST 12:00) late weekend drain.
+  // Market vector: UTC 00:05 + 01:05 catch-up (= KST 09:05 / 10:05);
+  //                Sunday UTC 03:05 (= KST 12:05).
+  // Empty day/lang → soft skip (no throw). Use SUN (not 0) — CF weekday 1=Sun.
   "triggers": {
     "crons": [
       "0 0 * * *",
       "0 1 * * *",
+      "0 3 * * SUN",
       "5 0 * * *",
       "5 1 * * *",
+      "5 3 * * SUN",
     ],
   },
 

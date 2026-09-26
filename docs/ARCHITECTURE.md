@@ -150,7 +150,7 @@ in `Message.tsx` → then server `execute` runs.
 | Supabase (prep) | `GET /api/supabase/health` | `worker/supabase.ts` | External Postgres (Market Memory) |
 | Content briefs | `GET /api/briefs/today`, `GET /api/briefs/latest-date` | `worker/content-briefs.ts`, `market-date.ts` | Supabase `content_briefs` |
 | Full reports | `GET /api/reports/today` | `worker/item-contents.ts` | Supabase `item_contents` via `content_briefs.target_id`; localize via `item_content_i18n` when `lang` ≠ primary |
-| Market vectors | `POST /api/market-vector/ingest` · `/query` · `/clear` · `/cron/run` | `worker/market-vector.ts` + `market-vector-cron.ts` + `market-item-resolve.ts`; ingest batch = Settings ON series → mmi → item_contents (§21); Cron UTC 00:05/01:05 ko,en (§29) | Chunk+embed / chat search / clear → `MARKET_VECTOR_DB` (§14) |
+| Market vectors | `POST /api/market-vector/ingest` · `/query` · `/clear` · `/cron/run` | `worker/market-vector.ts` + `market-vector-cron.ts` + `market-item-resolve.ts`; ingest batch = Settings ON series → mmi → item_contents (§21); Cron UTC 00:05/01:05 + Sunday 03:05 ko,en (§29 / §58) | Chunk+embed / chat search / clear → `MARKET_VECTOR_DB` (§14) |
 | Topic labels | `POST /api/market-labels/resolve` · `/memory/topic-labels` | `worker/market-labels.ts` + MyMemory | Body-grounded Tags/Keywords display (B안); post-ingest |
 | Report series catalog | Settings → Market Content; `GET /api/report-series` | `worker/report-series.ts`; opt-out in ChatAgent `disabled_report_series` | Supabase `report_series` |
 | Market day (multi-series) | `GET /api/market/day`, `/api/market/latest-date`, `/api/market/adjacent-date` | `worker/market-day.ts` — `market_memory_items` + enabled `series_id` | Same-day tabs in Market panel when 2+ slots; chevrons jump to nearest published day |
@@ -271,8 +271,9 @@ Called after: cold start, every chat turn, and most `@callable` mutations.
 **Vars** (`wrangler.jsonc`): `ACCOUNT_ID`, `AI_GATEWAY_NAME`, `CHAT_MODEL`,
 `EMBEDDING_MODEL`, TTS / `AUDIO_CRON_*`.
 
-**Triggers:** Voice audio Cron `0 0 * * *` + catch-up `0 1 * * *` (UTC;
-previous-day `market_date` drain — empty pending is a no-op).
+**Triggers:** Voice audio Cron `0 0 * * *` + catch-up `0 1 * * *` + Sunday
+`0 3 * * SUN` (UTC; previous-day `market_date` drain — empty pending is a
+no-op). Market vector Cron `5 0` / `5 1` + Sunday `5 3 * * SUN`.
 
 **Secret** (`.dev.vars` / production):
 - `API_TOKEN` — Browser Live View + AI Gateway auth
